@@ -194,9 +194,11 @@ Cybermes/
 │   ├── sqlmap/                       # SQL injection testing engine
 │   ├── strix/                        # Autonomous penetration testing framework
 │   └── wordlists/                    # Curated fuzzing and discovery wordlists
+├── ATTRIBUTION.md                    # Third-party notices and upstream attributions
 ├── CONTRIBUTORS.md                   # Project contributors and AI co-authors
 ├── LICENSE                           # Strict Source-Available License terms
 └── README.md                         # Project documentation
+
 ```
 
 ---
@@ -339,7 +341,27 @@ For the full legal text, refer to the [LICENSE](LICENSE) file.
 
 ---
 
+## 🙏 Acknowledgments & Upstream Credits
+
+Cybermes stands on the shoulders of giants in the open-source and offensive security research communities. We express our deepest gratitude and recognition to the following researchers, creators, and projects:
+
+| Project / Tool | Author / Maintainer | Role & Contribution to Cybermes |
+| :--- | :--- | :--- |
+| **[HackTricks](https://github.com/carlospolop/hacktricks)** | [@carlospolop](https://github.com/carlospolop) (Carlos Polop) | Comprehensive privilege escalation, service exploitation & pentesting wiki |
+| **[PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings)** | [@swisskyrepo](https://github.com/swisskyrepo) (Swissky) | Curated collection of web application payloads and bypass vectors |
+| **[SQLMap](https://github.com/sqlmapproject/sqlmap)** | Bernardo Damele & Miroslav Stampar | Industry-standard automated SQL injection detection and database takeover engine |
+| **[Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter)** | [@sachinsharma-96](https://github.com/sachinsharma-96) (Sachin Sharma) | Bug bounty engagement patterns, reasoning skills, and automated evaluation |
+| **[Strix Framework](https://github.com/strix-security/strix)** | Strix Security Team | Autonomous multi-agent coordination architecture and security tooling |
+| **[Hack-Skills](https://github.com/yaklang/hack-skills)** | [@VillanCh](https://github.com/VillanCh) (Yaklang Team) | Domain-specific offensive security playbooks and skill modules |
+| **[ProjectDiscovery Suite](https://projectdiscovery.io/)** | ProjectDiscovery Team | Foundation recon & probing tools (`nuclei`, `httpx`, `subfinder`, `katana`) |
+| **[FFuF](https://github.com/ffuf/ffuf)** | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer for directory and parameter discovery |
+
+*For complete copyright notices and third-party license details, see [ATTRIBUTION.md](ATTRIBUTION.md).*
+
+---
+
 ## 👥 Contributors
 
 - **[Zyrexnn](https://github.com/Zyrexnn)** — Lead Author & Architect
 - **[@claude](https://github.com/claude)** — AI Co-Author & Security Architecture Research
+
