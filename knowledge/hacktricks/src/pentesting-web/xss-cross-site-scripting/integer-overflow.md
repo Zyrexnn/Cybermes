@@ -1,0 +1,244 @@
+# Integer Overflow (Web Applications)
+
+{{#include ../../banners/hacktricks-training.md}}
+
+> This page focuses on how **integer overflows/truncations can be abused in web applications and browsers**.  For exploitation primitives inside native binaries you can continue reading the dedicated page:
+>
+> 
+{{#ref}}
+> ../../binary-exploitation/integer-overflow-and-underflow.md
+> {{#endref}}
+
+---
+
+## 1. Why integer math still matters on the web
+
+Even though much business logic in modern stacks is written in *memory-safe* languages, runtimes, native extensions, parsers, databases, and FFI boundaries still impose fixed-width integer representations. Whenever user-controlled numbers allocate buffers, compute offsets, or participate in length checks, **wraparound, truncation, or precision loss can transform an apparently harmless parameter into an out-of-bounds access, logic bypass, or denial of service**.
+
+Typical attack surface:
+
+1. **Numeric request parameters** – classic `id`, `offset`, or `count` fields.
+2. **Length / size headers** – `Content-Length`, WebSocket frame length, HTTP/2 `continuation_len`, etc.
+3. **File-format metadata parsed server-side or client-side** – image dimensions, chunk sizes, font tables.
+4. **Language-level conversions** – signed↔unsigned casts in PHP/Go/Rust FFI, JS `Number` → `int32` truncations inside V8.
+5. **Authentication & business logic** – coupon value, price, or balance calculations that silently overflow.
+
+---
+
+## 2. Recent real-world vulnerabilities (2023-2025)
+
+| Year | Component | Root cause | Impact |
+|------|-----------|-----------|--------|
+| 2023 | **libwebp – CVE-2023-4863** | Malformed WebP lossless Huffman tables caused a heap overflow while building decoder lookup tables | A single malicious image was enough to get **heap corruption / renderer RCE** in Chromium-based browsers.<sup>[[1]](#references)</sup> |
+| 2024 | **Chrome Layout – CVE-2024-7025** | Integer overflow in the rendering/layout pipeline reachable from a crafted HTML page | Demonstrates that integer bugs are not limited to JS engines: **HTML/CSS alone** can be enough to reach heap corruption.<sup>[[2]](#references)</sup> |
+| 2024 | **Chrome Skia – CVE-2024-9123** | Integer overflow in the graphics stack while processing crafted HTML content | A page visit could trigger an **out-of-bounds memory write** in the renderer.<sup>[[3]](#references)</sup> |
+
+Project Zero's 2025 **BLASTPASS** write-up is also useful operationally even though it revisits `CVE-2023-4863`: the vulnerable WebP decoder was reached through a **`.pkpass` ZIP wrapper / preview pipeline**, not just through a raw standalone image. When you review a web application, don't stop at `image/webp` uploads — enumerate **thumbnailers, preview handlers, archive-based import flows, OCR/media workers, mobile share targets, and message/notification renderers** that eventually invoke the same parser.<sup>[[4]](#references)</sup>
+
+---
+
+## 3. Testing strategy
+
+### 3.1 Boundary-value cheat-sheet
+
+Send **extreme signed/unsigned values** wherever an integer is expected:
+
+```
+-1, 0, 1,
+127, 128, 255, 256,
+32767, 32768, 65535, 65536,
+2147483647, 2147483648, 4294967295,
+9223372036854775807, 9223372036854775808,
+0x7fffffff, 0x80000000, 0xffffffff
+```
+
+Other useful formats:
+* Hex (`0x100`), octal (`0377`), scientific (`1e10`), JSON big-int (`9999999999999999999`).
+* Very long digit strings (>1kB) to hit custom parsers.
+
+### 3.2 Burp Intruder template
+
+```
+§INTEGER§
+Payload type: Numbers
+From: -10 To: 4294967300 Step: 1
+Pad to length: 10, Enable hex prefix 0x
+```
+
+### 3.3 Fuzzing libraries & runtimes
+
+* **AFL++/Honggfuzz** with `libFuzzer` harness around the parser (e.g., WebP, PNG, protobuf).
+* **Fuzzilli** – grammar-aware fuzzing of JavaScript engines to hit V8/JSC integer truncations.
+* **boofuzz** – network-protocol fuzzing (WebSocket, HTTP/2) focusing on length fields.
+
+### 3.4 JavaScript and browser coercion cases worth forcing
+
+Not every web integer bug is a native-style `size_t` wraparound. A lot of exploitable web logic starts with a **representation mismatch**:
+
+* JavaScript numbers are IEEE-754 doubles, so integers above `Number.MAX_SAFE_INTEGER` (`2^53 - 1`) lose precision.<sup>[[5]](#references)</sup>
+* Legacy code frequently uses bitwise operators such as `|0`, `~~x`, `x<<0`, or `x>>>0`, which **coerce values to 32-bit signed/unsigned integers**.
+* Browser-facing code often parses a value once in JS and a second time in the backend, producing different range checks and different final values.
+
+Useful probes:
+
+```javascript
+// Precision loss above 2^53-1
+JSON.parse('{"n":9007199254740993}').n
+
+// Signed wrap to negative
+(2147483648 | 0)        // -2147483648
+
+// Unsigned wrap to a huge positive
+(-1 >>> 0)              // 4294967295
+
+// Common "fast truncation" gadget in legacy code
+(4294967297 | 0)        // 1
+```
+
+When a target mixes client-side validation with API-side validation, replay the same field as:
+
+* JSON number vs JSON string
+* decimal vs hex-like string (`4294967295` vs `0xffffffff`)
+* plain integer vs scientific notation (`10000000000` vs `1e10`)
+* positive vs negative boundary (`2147483647`, `2147483648`, `-1`, `4294967295`)
+
+Interesting symptoms:
+
+* Pagination or `limit` checks pass, but the query executes with `0`, `-1`, or a huge unsigned value.
+* Frontend blocks a value while the backend accepts it after a second parse.
+* A value displayed in the UI is not the value finally used by the API / renderer / WASM module.
+
+### 3.5 Source-review patterns for JS/TS and hybrid apps
+
+When the target ships a large client bundle, do a quick **source-grep pass** before fuzzing random parameters:
+
+```bash
+rg -n '(\|\s*0|>>>\s*0|~~[A-Za-z_(]|parseInt\(|Number\(|BigInt\(|Math\.imul\(|Buffer\.alloc\(|ArrayBuffer\(|DataView\(|Uint(8|16|32)Array\(|WebAssembly)' src/ public/ dist/
+```
+
+Pay special attention to places where the code:
+
+* casts with `|0`, `~~x`, `x<<0`, or `x>>>0` **before** a bounds check,
+* multiplies attacker-controlled values before allocation/copy (`count * elemSize`, `width * height * bpp`, `offset + len`),
+* validates a number in JS and later forwards it to **WASM / native bindings** expecting `int32_t`, `uint32_t`, or `size_t`,
+* or parses the same field twice (`JSON.parse`, `Number`, `parseInt`, backend deserializer), creating a parser differential.
+
+---
+
+## 4. Exploitation patterns
+
+### 4.1 Logic bypass in fixed-width server-side code
+
+An unchecked 32-bit signed multiplication in Java, C#, a native extension, or a database function can wrap and bypass a later comparison:
+
+```java
+int price = Integer.parseInt(request.getParameter("price")); // cents
+int total = price * 100;                                     // unchecked wrap
+if (total > 1_000_000) throw new IllegalArgumentException("Too expensive");
+// price=21474850 produces -2147482296 after 32-bit wrap and passes the check
+```
+
+Do not copy this model directly to modern PHP: PHP integers use the platform word size, and arithmetic that exceeds `PHP_INT_MAX` is converted to a float rather than silently wrapping as a signed integer. PHP applications can still become vulnerable when values lose precision as floats or are later truncated by a database, binary packing operation, native extension, or FFI boundary.<sup>[[6]](#references)</sup>
+
+The safe form checks the multiplication itself (for example, Java `Math.multiplyExact`) or validates `price <= intdiv(MAX_TOTAL, 100)` before multiplying.
+
+<!-- Historical unsafe PHP-style pseudocode retained for recognizing this anti-pattern in old write-ups:
+```php
+$price = (int)$_POST['price'];          // expecting cents (0-10000)
+$total = $price * 100;                  // ← 32-bit overflow possible
+if($total > 1000000){
+    die('Too expensive');
+}
+/* This does not silently wrap in current PHP; verify the actual runtime/FFI boundary. */
+```
+-->
+
+### 4.2 Heap overflow via image decoder (libwebp 0-day)
+The WebP lossless decoder bug behind `CVE-2023-4863` was a good reminder that browser bugs still start with simple arithmetic mistakes around attacker-controlled metadata. In practice, a crafted image can make the decoder build invalid Huffman lookup tables and write past the heap before consistency checks finish. For web testing this means that **image dimensions, chunk sizes, color-table counts and compression metadata** are still first-class attack surface when the browser or the backend parses user-supplied files.
+
+### 4.3 Browser renderer exploitation chain
+
+1. An **integer overflow** in a browser renderer or JavaScript engine produces memory corruption.
+2. A successful exploit turns that corruption into renderer-process code execution or another powerful primitive.
+3. A separate sandbox escape is normally required for operating-system compromise.
+
+This native RCE path is distinct from XSS. Integer truncation can also lead directly to DOM XSS when it bypasses application validation, as in the next section, but native renderer compromise does not need to “become stored XSS.”
+
+### 4.4 Web logic bug → DOM XSS via integer truncation
+
+This pattern is much more common in pentests than full renderer RCE:
+
+```javascript
+const raw = JSON.parse(location.hash.slice(1)).len;
+const len = raw | 0;                 // "fast" int cast to signed 32-bit
+
+if (len <= 64) {
+  preview.innerHTML = userInput.slice(0, len);
+}
+```
+
+If `raw=4294967295`, then `len` becomes `-1`. Depending on the surrounding code, this may:
+
+* bypass a max-length check,
+* make `slice(0, -1)` drop the last character and preserve the rest of the payload,
+* or desynchronize validation and the eventual sink (`innerHTML`, template renderer, markdown preview, etc.).
+
+The offensive lesson is simple: whenever you see **bitwise truncation in client-side code**, test whether the sanitized/validated length is the same value that later reaches the DOM sink.
+
+### 4.5 JS ↔ WASM / native boundary truncation
+
+Hybrid frontends often "normalize" an attacker-controlled number in JS and then pass it to native code:
+
+```javascript
+const raw = Number(new URL(location).searchParams.get("n"));
+const len = raw >>> 0;                   // forced to uint32 in JS
+
+if (len <= 0x1000) {
+  Module._copy(dstPtr, srcPtr, len);     // native side may later cast again
+}
+```
+
+If the callee later treats the same value as signed, truncates it again, or multiplies it (`len * elem_size`) before allocation, inputs such as `-1`, `4294967295`, `4294967297`, or `9007199254740993` can desynchronize the **checked value**, **allocated size**, and **copied length**. In real targets this shows up in PDF viewers, image editors, collaborative whiteboards, and chat widgets compiled with Emscripten or backed by native browser components.
+
+### 4.6 WASM note
+
+If the target uses Emscripten/WASM, a single integer bug in linear-memory management can often be upgraded into DOM XSS by corrupting writable HTML templates instead of the sanitized source string:
+
+{{#ref}}
+wasm-linear-memory-template-overwrite-xss.md
+{{#endref}}
+
+### 4.7 Wrapper-aware parser reachability
+
+The 2025 BLASTPASS analysis showed the vulnerable WebP path was reachable through a **PassKit `.pkpass` archive** containing a mislabeled WebP, not only through a direct image open.<sup>[[4]](#references)</sup> The offensive lesson generalizes well: once you find an integer bug in a decoder, test every wrapper that can silently reach the same parser:
+
+* archive/bundle imports (`.zip`, office docs, pass files, theme packs),
+* server-side thumbnail / resize / OCR pipelines,
+* browser features that decode images indirectly (`<picture>`, CSS images, favicons, notification icons, clipboard / drag-and-drop previews),
+* and mobile or desktop preview handlers that unpack attachments before rendering.
+
+---
+
+## 5. Defensive guidelines
+
+1. **Use checked arithmetic**, not merely wider types – for example Rust `checked_add`/`checked_mul`, Java `Math.multiplyExact`, compiler overflow builtins, or explicit precondition checks. In Go, `sum, carry := bits.Add64(x, y, 0)` exposes unsigned overflow through a nonzero `carry`, which the caller must reject rather than ignoring.<sup>[[7]](#references)</sup>
+2. **Validate ranges early**: reject any value outside business domain before arithmetic.
+3. **Enable relevant compiler sanitizers**: Clang's `-fsanitize=integer` or targeted signed/unsigned-overflow checks and UBSan during testing. Go's race detector finds data races, not integer overflow.
+4. **Adopt fuzzing in CI/CD** – combine coverage feedback with boundary corpora.
+5. **Stay patched** – browser integer overflow bugs are frequently weaponised within weeks.
+
+---
+
+
+
+## References
+
+- [1] [Cloudflare: Uncovering the Hidden WebP vulnerability (CVE-2023-4863)](https://blog.cloudflare.com/uncovering-the-hidden-webp-vulnerability-cve-2023-4863/)
+- [2] [NVD: CVE-2024-7025](https://nvd.nist.gov/vuln/detail/CVE-2024-7025)
+- [3] [NVD: CVE-2024-9123](https://nvd.nist.gov/vuln/detail/CVE-2024-9123)
+- [4] [Project Zero: Blasting Past WebP](https://projectzero.google/2025/03/blasting-past-webp.html)
+- [5] [HackerOne: Safely Handling Large Integers in JSON: Best Practices and Pitfalls](https://www.hackerone.com/blog/safely-handling-large-integers-json-best-practices-and-pitfalls)
+- [6] [PHP manual - Integer overflow and conversion to float](https://www.php.net/manual/en/language.types.integer.php#language.types.integer.overflow)
+- [7] [Go standard library - `math/bits.Add64`](https://pkg.go.dev/math/bits#Add64)
+
+{{#include ../../banners/hacktricks-training.md}}

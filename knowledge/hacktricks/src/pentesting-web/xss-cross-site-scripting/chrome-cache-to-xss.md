@@ -1,0 +1,77 @@
+# Chrome Cache to XSS
+
+{{#include ../../banners/hacktricks-training.md}}
+
+This is a **browser-local cache abuse** technique in Chrome: you first make the victim cache attacker-influenced content in their own browser, and later force a **history navigation** that restores the bytes from **disk cache** in a more dangerous context. This is **not** the same as CDN/server-side cache poisoning; for shared-cache bugs check [Cache Poisoning and Cache Deception](../cache-deception/README.md).
+
+The original SECCON challenge writeup explains the chain in depth.<sup>[[1]](#references)</sup>
+
+The technique revolves around the interaction of two cache types:
+
+- The **back/forward cache (bfcache)** stores a full page snapshot, including DOM and JavaScript heap.
+- The **disk cache** stores fetched responses/resources, but **not** the JavaScript heap.
+
+For history navigations, **bfcache wins if available**. Therefore, a successful cache-to-XSS chain usually needs to **prevent or evict bfcache** so Chrome falls back to **disk cache**.<sup>[[1]](#references)</sup>
+
+### Key Points
+
+- **bfcache** has precedence over disk cache during back/forward navigation.
+- **Disk cache** can store responses retrieved via normal navigations and also resources fetched via `fetch`/XHR.
+- Disk cache alone does **not** magically create XSS; it usually needs to be chained with a second primitive such as **HTML injection**, **CSP bypass**, **path traversal / alternate render modes**, **JSONP**, or any response-mode discrepancy that makes the cached bytes later execute/render as a document.
+- Because this is **per-browser-state**, the attacker usually needs the victim to **prime their own cache first**.
+
+### Disabling / Evicting bfcache
+
+The classic trick is to keep a live `window.opener` relationship using `window.open()`. In Chrome/Chromium this shows up as the **`related-active-contents`** / `RelatedActiveContentsExist` reason, which prevents the page from being restored from bfcache and makes Chrome fall back to disk cache instead.
+
+Recent research also showed a second practical option: **evict the old entry from bfcache** by navigating through enough additional documents, while leaving the older HTTP response available in disk cache. This is useful when you need the **old cached body** but still want a **fresh execution context** after going back.<sup>[[2]](#references)</sup>
+
+### Reproducing the behavior
+
+1. Visit a webpage, e.g. `https://example.com`.
+2. Execute `open("http://spanote.seccon.games:3000/api/token")`, which returns a `500` response.
+3. In the newly opened tab, navigate to `http://spanote.seccon.games:3000/`. This causes the response of `http://spanote.seccon.games:3000/api/token` to be kept in **disk cache**.
+4. Trigger `history.back()` in the popup/tab.
+5. Because bfcache is disabled by the opener relationship, Chrome restores the previous response from **disk cache**, rendering the cached JSON response in the page.
+
+You can confirm the behavior using:
+
+- **Network** panel entries marked as served **from disk cache**.
+- **Application --> Back/forward cache** in DevTools.
+- Chrome's **notRestoredReasons** tooling, which exposes reasons such as `related-active-contents`.
+
+### Hunting checklist
+
+When testing this technique in the wild, look for the following combination:
+
+1. A way to make the victim cache **attacker-influenced bytes** under a stable URL.
+2. A second code path where the **same URL** is later treated as a **document/navigation target**.
+3. A reliable way to **disable or evict bfcache**.
+4. A final rendering/execution gadget (HTML injection, CSP bypass, JSONP, content-type confusion, alternate response modes, etc.).
+
+Good targets are APIs or debug endpoints that can be reached through one flow but later revisited as a top-level navigation or iframe navigation.
+
+### Recent exploitation notes (2025+)
+
+- Do **not** assume `Cache-Control: no-store` disables bfcache anymore. Chrome is gradually allowing bfcache for some `no-store` pages when it decides this is safe, so you need to **verify the actual not-restored reason** instead of relying on headers alone.
+- Newer Chrome versions also hardened HTTP cache partitioning for some **cross-site top-level navigations**. Older PoCs that depended on cross-site cache reuse may stop working unless you keep the whole chain in the same browsing context family (popup / iframe / same-site navigation) or adapt the priming step.
+- A recent offensive variant abused the same disk-cache fallback idea to **reuse a stale CSP nonce**: leak the nonce, change the injected payload, then force **bfcache eviction** so the browser loads the old HTML from disk cache but re-executes attacker-controlled content in the new flow.<sup>[[2]](#references)</sup>
+
+### Practical testing tips
+
+- If `history.back()` is restoring too much state, you are probably hitting **bfcache**, not disk cache.
+- If the page comes back with a fresh JS context but old bytes, you are likely in the **disk cache fallback** path you want.
+- Verify each step with DevTools instead of assuming browser behavior: Chrome has changed bfcache eligibility and HTTP cache keying over time, so old CTF/browser-bug tricks can be version-sensitive.
+
+For more details on bfcache and disk cache, see the browser documentation in the references.<sup>[[3]](#references)</sup><sup>[[4]](#references)</sup><sup>[[5]](#references)</sup><sup>[[6]](#references)</sup>
+
+## References
+
+- [1] [SECCON CTF 2022 Quals: Author writeup for spanote](https://blog.arkark.dev/2022/11/18/seccon-en/#web-spanote)
+- [2] [Nonce CSP bypass using Disk Cache](https://jorianwoltjer.com/blog/p/research/nonce-csp-bypass-using-disk-cache)
+- [3] [web.dev on bfcache](https://web.dev/articles/bfcache)
+- [4] [Chrome's bfcache `no-store` changes](https://developer.chrome.com/docs/web-platform/bfcache-ccns)
+- [5] [Chrome's `notRestoredReasons` API](https://developer.chrome.com/docs/web-platform/bfcache-notrestoredreasons)
+- [6] [Chromium disk cache design](https://www.chromium.org/developers/design-documents/network-stack/disk-cache/)
+
+{{#include ../../banners/hacktricks-training.md}}

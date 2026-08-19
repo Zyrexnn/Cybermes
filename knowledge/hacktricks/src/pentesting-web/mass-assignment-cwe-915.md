@@ -1,0 +1,260 @@
+# Mass Assignment (CWE-915) – Privilege Escalation via Unsafe Model Binding
+
+{{#include ../banners/hacktricks-training.md}}
+
+Mass assignment (a.k.a. insecure object binding / autobinding / over-posting) happens when an API/controller takes user-supplied JSON and directly binds it to a server-side model/entity without an explicit allow-list of fields. If privileged properties like roles, `isAdmin`, `status`, ownership fields, or backend-only processing options are bindable, any authenticated user can escalate privileges, tamper with protected state, or steer downstream code paths.<sup>[[5]](#references)</sup>
+
+This is a Broken Access Control issue (OWASP A01:2021). In API-centric applications it now fits neatly into **OWASP API3:2023 Broken Object Property Level Authorization (BOPLA)**, which merged the old API6:2019 Mass Assignment and API3:2019 Excessive Data Exposure categories. It commonly affects frameworks that support automatic binding of request bodies to data models (Rails, Laravel/Eloquent, Django forms/serializers, Spring/Jackson, ASP.NET model binding, Express/Mongoose, Sequelize, Go structs, FastAPI/Pydantic, etc.).<sup>[[4]](#references)</sup>
+
+## 1) Finding Mass Assignment
+
+Look for self-service endpoints that create or update objects:<sup>[[2]](#references)</sup>
+- `PUT/PATCH /api/users/{id}`
+- `PATCH /me`, `PUT /profile`
+- `PUT /api/orders/{id}`
+- `POST /api/checkout`
+- GraphQL mutations such as `updateProfile`, `editUser`, `saveCart`, `completeCheckout`
+
+Heuristics indicating mass assignment:
+- The response echoes server-managed fields (e.g., `roles`, `status`, `isAdmin`, `permissions`, `ownerId`, `tenantId`) even when you didn’t send them.
+- Client bundles contain role names/IDs or other privileged attribute names used throughout the app (`admin`, `staff`, `moderator`, `internal flags`), hinting bindable schema.
+- Backend serializers accept unknown fields without rejecting them.
+- Validation errors reveal hidden property names or expected types after you submit additional JSON keys.
+- The same object is returned by both a read route and an update route, but the update UI only edits a small subset of fields.
+
+Quick test flow:
+1) Perform a normal update with only safe fields and observe the full JSON response structure (this leaks the schema).
+2) Repeat the update including a crafted privileged field in the body. If the response persists the change, you likely have mass assignment.
+3) If the app rejects the key, try the same idea with nested objects, arrays, alternate casing, or partial-update verbs (`PATCH`, JSON Merge Patch, GraphQL mutations).
+
+Example baseline update revealing schema:<sup>[[1]](#references)</sup>
+```http
+PUT /api/users/12934 HTTP/1.1
+Host: target.example
+Content-Type: application/json
+
+{
+  "id": 12934,
+  "email": "user@example.com",
+  "firstName": "Sam",
+  "lastName": "Curry"
+}
+```
+Response hints at privileged fields:
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": 12934,
+  "email": "user@example.com",
+  "firstName": "Sam",
+  "lastName": "Curry",
+  "roles": null,
+  "status": "ACTIVATED",
+  "filters": []
+}
+```
+
+Useful high-impact property classes to test:
+- **Privilege / trust flags**: `role`, `roles`, `isAdmin`, `permissions`, `verified`, `emailVerified`, `kycStatus`
+- **Ownership / tenant pivots**: `ownerId`, `organizationId`, `tenantId`, `accountId`, `userId`
+- **Business logic knobs**: `price`, `discount`, `credit`, `balance`, `limit`, `refundAmount`, `status`
+- **Backend processing fields**: `templateId`, `conversionParams`, `exportFormat`, `webhookUrl`, `filePath`
+
+Quick response-schema diffing from the CLI:
+```bash
+curl -s https://target.example/api/users/12934 -H "Authorization: Bearer $TOKEN" | jq -r 'paths(scalars) | map(tostring) | join(".")' | sort -u
+```
+
+## 2) Exploitation – Role Escalation via Mass Assignment
+
+Once you know the bindable shape, include the privileged property in the same request.<sup>[[1]](#references)</sup><sup>[[3]](#references)</sup>
+
+Example: set `roles` to `ADMIN` on your own user resource:<sup>[[1]](#references)</sup>
+```http
+PUT /api/users/12934 HTTP/1.1
+Host: target.example
+Content-Type: application/json
+
+{
+  "id": 12934,
+  "email": "user@example.com",
+  "firstName": "Sam",
+  "lastName": "Curry",
+  "roles": [
+    { "id": 1, "description": "ADMIN role", "name": "ADMIN" }
+  ]
+}
+```
+If the response persists the role change, re-authenticate or refresh tokens/claims so the app issues an admin-context session and shows privileged UI/endpoints.
+
+Notes
+- Role identifiers and shapes are frequently enumerated from the client JS bundle or API docs. Search for strings like `roles`, `ADMIN`, `STAFF`, or numeric role IDs.
+- If tokens contain claims (e.g., JWT roles), a logout/login or token refresh is usually required to realize the new privileges.
+- Test create flows too (`POST /register`, `POST /users`, invite flows, support-ticket creation). Some apps reject `role` changes on edit but still accept them on object creation.
+
+## 3) Hidden-Field Recon Beyond the Obvious
+
+- Inspect minified JS bundles for role strings and model names; source maps may reveal DTO shapes.
+- Look for arrays/maps of roles, permissions, feature flags, workflow states, and checkout objects. Build payloads matching the exact property names and nesting.
+- Compare **GET** responses with **POST/PUT/PATCH** request bodies. If the response object contains `discount`, `credit`, `role`, `status`, or nested `internal` objects not present in the request, try replaying them in the write request.
+- Fetch machine-readable API docs if present (`/swagger.json`, `/v2/api-docs`, `/openapi.json`, GraphQL introspection). Hidden fields often appear in schemas even when the frontend never sends them.
+- Use error oracles: sending an unexpected key with the wrong type can reveal whether the server actually tried to bind it.
+
+Handy greps against a downloaded bundle:
+```bash
+strings app.*.js | grep -iE "role|admin|isAdmin|permission|status|tenant|owner|discount|credit" | sort -u
+```
+
+GraphQL introspection is especially useful when a mutation input type exists but the frontend only populates a subset of it:
+```graphql
+query IntrospectUserInput {
+  __type(name: "UpdateUserInput") {
+    inputFields {
+      name
+    }
+  }
+}
+```
+
+If changing `ownerId`, `organizationId`, or similar moves the object into another tenant/account, pivot into [IDOR / BOLA testing](idor.md) immediately because mass assignment often becomes the write-side primitive for a broader authorization break.
+
+## 4) High-Value Abuse Patterns
+
+**Nested relation / tenant hijack**
+- Don’t stop at `role=admin`. In real APIs, reassigning `organizationId`, `accountId`, or `ownerId` is often more valuable because it can move your session, cart, invoice, API key, or ticket into another tenant.
+- Nested payloads are common: `{"profile":{"organizationId":7}}`, `{"order":{"owner":{"id":7}}}`, `{"user":{"team":{"id":1}}}`.
+
+**Business-flow tampering**
+- Checkout and billing APIs often return fields like `credit`, `chosen_discount`, `price`, `coupon`, `refundAmount`, or `approved`. If those properties can be echoed back inside the write request, you may get free purchases, over-refunds, or approval bypasses.
+- Partial-update routes are worth hammering because developers sometimes protect the main UI form but forget alternate JSON/API handlers.
+
+**Downstream exploit chaining**
+- Some mass-assignment bugs don’t end at privilege escalation. If you can set a backend-only processing option such as transcoding flags, template selectors, or webhook destinations, the impact can become command injection, SSRF, or arbitrary workflow execution.
+- A classic example is a video object exposing an internal conversion parameter field: modifying that property may later influence a shell command when the media is processed.
+
+## 5) Framework Pitfalls and Secure Patterns
+
+The vulnerability arises when frameworks bind `req.body` directly onto persistent entities. Below are common mistakes and minimal, secure patterns.
+
+**Node.js (Express + Mongoose)**
+
+Vulnerable:
+```js
+// Any field in req.body (including roles/isAdmin) is persisted
+app.put('/api/users/:id', async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(user);
+});
+```
+Fix:
+```js
+// Strict allow-list and explicit authZ for role-changing
+app.put('/api/users/:id', async (req, res) => {
+  const allowed = (({ firstName, lastName, nickName }) => ({ firstName, lastName, nickName }))(req.body);
+  const user = await User.findOneAndUpdate({ _id: req.params.id, owner: req.user.id }, allowed, { new: true });
+  res.json(user);
+});
+// Implement a separate admin-only endpoint for role updates with server-side RBAC checks.
+```
+
+**Ruby on Rails**
+
+Vulnerable (no strong parameters):
+```rb
+def update
+  @user.update(params[:user]) # roles/is_admin can be set by client
+end
+```
+Fix (strong params + no privileged fields):
+```rb
+def user_params
+  params.require(:user).permit(:first_name, :last_name, :nick_name)
+end
+```
+
+**Laravel (Eloquent)**
+
+Vulnerable:
+```php
+protected $guarded = []; // Everything mass-assignable (bad)
+```
+Fix:
+```php
+protected $fillable = ['first_name','last_name','nick_name']; // No roles/is_admin
+```
+
+**Django / ModelForms**
+
+Vulnerable pattern:
+```py
+class UserForm(ModelForm):
+    class Meta:
+        model = User
+        fields = "__all__"  # exposes server-managed fields if reused in self-service flows
+```
+Fix:
+```py
+class UserProfileForm(ModelForm):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "nick_name"]
+```
+
+**Spring Boot (Jackson)**
+
+Vulnerable pattern:
+```java
+// Directly binding to entity and persisting it
+public User update(@PathVariable Long id, @RequestBody User u) { return repo.save(u); }
+```
+Fix: Map to a DTO with only allowed fields and enforce authorization:
+```java
+record UserUpdateDTO(String firstName, String lastName, String nickName) {}
+```
+Then copy allowed fields from DTO to the entity server-side, and handle role changes only in admin-only handlers after RBAC checks. Use `@JsonIgnore` on privileged fields if necessary and reject unknown properties.
+
+**ASP.NET Core**
+
+Vulnerable pattern:
+```csharp
+[HttpPost]
+public async Task<IActionResult> Edit(int id, User user) {
+    _db.Update(user);
+    await _db.SaveChangesAsync();
+    return Ok(user);
+}
+```
+Fix: bind to a dedicated view model / DTO and map explicitly:
+```csharp
+public record UserUpdateDto(string FirstName, string LastName, string NickName);
+```
+Microsoft explicitly treats this as **overposting** and recommends view models over binding entity classes directly, especially on edit paths.
+
+**FastAPI / Pydantic**
+
+Use separate input models for self-service routes and reject extras instead of reusing a broad DB model:
+```py
+from pydantic import BaseModel
+
+class UserUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+    first_name: str | None = None
+    last_name: str | None = None
+    nick_name: str | None = None
+```
+
+**Go (encoding/json)**
+- Ensure privileged fields use `json:"-"` and validate with a DTO struct that includes only allowed fields.
+- Consider `decoder.DisallowUnknownFields()` and post-bind validation of invariants (`roles` cannot change in self-service routes).
+
+## References
+
+- [1] [FIA Driver Categorisation: Admin Takeover via Mass Assignment of roles (Full PoC)](https://ian.sh/fia)
+- [2] [OWASP Web Security Testing Guide - Testing for Mass Assignment](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/20-Testing_for_Mass_Assignment)
+- [3] [PortSwigger Web Security Academy - Exploiting a mass assignment vulnerability](https://portswigger.net/web-security/api-testing/lab-exploiting-mass-assignment-vulnerability)
+- [4] [OWASP API3:2023 - Broken Object Property Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/)
+- [5] [CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes](https://cwe.mitre.org/data/definitions/915.html)
+
+{{#include ../banners/hacktricks-training.md}}

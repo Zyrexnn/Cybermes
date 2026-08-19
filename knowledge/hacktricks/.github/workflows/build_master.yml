@@ -1,0 +1,222 @@
+name: Build Master
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '.gitignore'
+      - 'book/**'
+  workflow_dispatch:
+
+concurrency: build_master
+
+permissions:
+  packages: write
+  id-token: write
+  contents: write
+
+jobs:
+  run-translation:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/hacktricks-wiki/hacktricks-cloud/translator-image:latest
+    environment: prod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1 # Only fetch the latest commit for faster cloning
+      
+      # Build the mdBook
+      - name: Build mdBook
+        run: MDBOOK_BOOK__LANGUAGE=en mdbook build || (echo "Error logs" && cat hacktricks-preprocessor-error.log && echo "" && echo "" && echo "Debug logs" && (cat hacktricks-preprocessor.log | tail -n 20) && exit 1)
+
+      - name: Post-process SEO artifacts
+        run: |
+          python3 scripts/seo_postprocess.py pages \
+            --book-dir ./book \
+            --site-url https://hacktricks.wiki \
+            --lang en \
+            --default-lang en \
+            --site-name "HackTricks"
+      
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && sudo apt update \
+          && sudo apt install gh -y
+      
+      - name: Push search index to hacktricks-searchindex repo
+        shell: bash
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          ASSET="book/searchindex.js"
+          TARGET_REPO="HackTricks-wiki/hacktricks-searchindex"
+          FILENAME="searchindex-en.js"
+
+          if [ ! -f "$ASSET" ]; then
+            echo "Expected $ASSET to exist after build" >&2
+            exit 1
+          fi
+
+          TOKEN="${PAT_TOKEN}"
+          if [ -z "$TOKEN" ]; then
+            echo "No PAT_TOKEN available" >&2
+            exit 1
+          fi
+
+          # Clone the searchindex repo
+          git clone https://x-access-token:${TOKEN}@github.com/${TARGET_REPO}.git /tmp/searchindex-repo
+          
+          cd /tmp/searchindex-repo
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@github.com"
+          
+          # Compress the searchindex file
+          cd "${GITHUB_WORKSPACE}"
+          gzip -9 -k -f "$ASSET"
+          
+          # Show compression stats
+          ORIGINAL_SIZE=$(wc -c < "$ASSET")
+          COMPRESSED_SIZE=$(wc -c < "${ASSET}.gz")
+          RATIO=$(awk "BEGIN {printf \"%.1f\", ($COMPRESSED_SIZE / $ORIGINAL_SIZE) * 100}")
+          echo "Compression: ${ORIGINAL_SIZE} bytes -> ${COMPRESSED_SIZE} bytes (${RATIO}%)"
+          
+          # XOR encrypt the compressed file
+          KEY='Prevent_Online_AVs_From_Flagging_HackTricks_Search_Gzip_As_Malicious_394h7gt8rf9u3rf9g'
+          cat > /tmp/xor_encrypt.py << 'EOF'
+          import sys
+          key = sys.argv[1]
+          input_file = sys.argv[2]
+          output_file = sys.argv[3]
+          with open(input_file, 'rb') as f:
+              data = f.read()
+          key_bytes = key.encode('utf-8')
+          encrypted = bytearray(len(data))
+          for i in range(len(data)):
+              encrypted[i] = data[i] ^ key_bytes[i % len(key_bytes)]
+          with open(output_file, 'wb') as f:
+              f.write(encrypted)
+          print(f"Encrypted: {len(data)} bytes")
+          EOF
+          python3 /tmp/xor_encrypt.py "$KEY" "${ASSET}.gz" "${ASSET}.gz.enc"
+          
+          # Copy the encrypted .gz version to the searchindex repo
+          cd /tmp/searchindex-repo
+          cp "${GITHUB_WORKSPACE}/${ASSET}.gz.enc" "${FILENAME}.gz"
+          
+          # Stage the updated file
+          git add "${FILENAME}.gz"
+          
+          # Commit and push with retry logic
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            git commit -m "Update searchindex files - ${TIMESTAMP}"
+            
+            # Retry push up to 20 times with pull --rebase between attempts
+            MAX_RETRIES=20
+            RETRY_COUNT=0
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if git push origin master; then
+                echo "Successfully pushed on attempt $((RETRY_COUNT + 1))"
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Push failed, attempt $RETRY_COUNT/$MAX_RETRIES. Pulling and retrying..."
+                  
+                  # Try normal rebase first
+                  if git pull --rebase origin master 2>&1 | tee /tmp/pull_output.txt; then
+                    echo "Rebase successful, retrying push..."
+                  else
+                    # If rebase fails due to divergent histories (orphan branch reset), re-clone
+                    if grep -q "unrelated histories\|refusing to merge\|fatal: invalid upstream\|couldn't find remote ref" /tmp/pull_output.txt; then
+                      echo "Detected history rewrite, re-cloning repository..."
+                      cd /tmp
+                      rm -rf searchindex-repo
+                      git clone https://x-access-token:${TOKEN}@github.com/${TARGET_REPO}.git searchindex-repo
+                      cd searchindex-repo
+                      git config user.name "GitHub Actions"
+                      git config user.email "github-actions@github.com"
+                      
+                      # Re-copy the .gz version
+                      cp "${GITHUB_WORKSPACE}/${ASSET}.gz" "${FILENAME}.gz"
+                      
+                      git add "${FILENAME}.gz"
+                      TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+                      git commit -m "Update searchindex files - ${TIMESTAMP}"
+                      echo "Re-cloned and re-committed, will retry push..."
+                    else
+                      echo "Rebase failed for unknown reason, retrying anyway..."
+                    fi
+                  fi
+                  
+                  sleep 1
+                else
+                  echo "Failed to push after $MAX_RETRIES attempts"
+                  exit 1
+                fi
+              fi
+            done
+          fi
+          
+          echo "Successfully pushed searchindex files"
+
+
+      # Login in AWs
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      # Sync the build to S3. mdBook refreshes mtimes on every build, so first
+      # age byte-identical files based on S3 ETags; `s3 sync` then uploads only
+      # genuinely changed/new output while retaining normal --delete behavior.
+      - name: Sync to S3
+        run: |
+          aws s3api list-objects-v2 \
+            --bucket hacktricks-wiki \
+            --prefix en/ \
+            --output json > /tmp/s3-en-manifest.json
+          python3 scripts/mark_unchanged_s3_files.py \
+            --source ./book \
+            --manifest /tmp/s3-en-manifest.json \
+            --remote-prefix en/
+          aws s3 sync ./book s3://hacktricks-wiki/en --delete
+          bash scripts/upload_immutable_images.sh hacktricks-wiki en
+
+      - name: Upload root sitemap index
+        run: |
+          LANGS=$(aws s3api list-objects-v2 --bucket hacktricks-wiki --delimiter / --query 'CommonPrefixes[].Prefix' --output text | tr '\t' '\n' | sed 's:/$::' | grep -E '^[a-z]{2}$' | sort | paste -sd, -)
+          if [ -z "$LANGS" ]; then
+            LANGS="en"
+          fi
+          python3 scripts/seo_postprocess.py index --site-url https://hacktricks.wiki --languages "$LANGS" --output ./sitemap.xml
+          aws s3 cp ./sitemap.xml s3://hacktricks-wiki/sitemap.xml --content-type application/xml --cache-control max-age=300
+
+      - name: Upload root ads.txt
+        run: aws s3 cp ./src/ads.txt s3://hacktricks-wiki/ads.txt --content-type text/plain --cache-control max-age=300
+
+      - name: Upload root robots.txt
+        run: |
+          aws s3 cp ./src/robots.txt s3://hacktricks-wiki/robots.txt --content-type text/plain --cache-control max-age=300
+          aws s3 cp ./src/robots.txt s3://hacktricks-wiki/en/robots.txt --content-type text/plain --cache-control max-age=300
+
+      - name: Invalidate CloudFront HTML and SEO assets
+        run: |
+          # /en/* covers /en/robots.txt and /en/sitemap.xml; only invalidate
+          # root SEO files separately.
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/en/*" "/robots.txt" "/sitemap.xml"
+      

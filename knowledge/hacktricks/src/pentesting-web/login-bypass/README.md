@@ -1,0 +1,124 @@
+# Login Bypass
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## **Bypass regular login**
+
+If you find a login page, test the following authentication and authorization failure modes.<sup>[[3]](#references)</sup>
+
+- Check for **comments** inside the page (scroll down and to the right?)
+- Check if you can **directly access the restricted pages**
+- Check to **not send the parameters** (do not send any or only 1)
+- Check the **PHP comparisons error:** `user[]=a&pwd=b` , `user=a&pwd[]=b` , `user[]=a&pwd[]=b`
+- **Change the content type to JSON** and send JSON values, including Boolean values.
+  - If you get a response saying that POST is not supported you can try to send the **JSON in the body but with a GET request** with `Content-Type: application/json`
+- Check for a Node.js object-parsing issue with payloads such as `password[password]=1`.<sup>[[1]](#references)</sup>
+  - In a vulnerable `mysqljs/mysql` construction, the object can produce a condition similar to: `SELECT id, username, LEFT(password, 8) AS snipped_password, email FROM accounts WHERE username = 'admin' AND password = password = 1;`. The chained comparison may evaluate as true.
+  - If you can send a JSON object you can send `"password":{"password": 1}` to bypass the login.
+  - Remember that to bypass this login you still need to **know and send a valid username**.
+  - Adding the `"stringifyObjects": true` option when calling `mysql.createConnection` prevents this specific object-to-SQL behavior, but parameterized queries and strict schema validation should still be used.
+- Check credentials:
+  - [**Default credentials**](../../generic-hacking/brute-force.md#default-credentials) of the technology/platform used
+  - **Common combinations** (root, admin, password, name of the tech, default user with one of these passwords).
+  - Create a dictionary using **Cewl**, **add** the **default** username and password (if there is) and try to brute-force it using all the words as **usernames and password**
+  - **Brute-force** using a bigger **dictionary (**[**Brute force**](../../generic-hacking/brute-force.md#http-post-form)**)**
+
+### SQL Injection authentication bypass
+
+[Here you can find several tricks to bypass the login via **SQL injections**](../sql-injection/index.html#authentication-bypass).
+
+In the following page you can find a **custom list to try to bypass login** via SQL Injections:
+
+
+{{#ref}}
+sql-login-bypass.md
+{{#endref}}
+
+### No SQL Injection authentication bypass
+
+[Here you can find several tricks to bypass the login via **No SQL Injections**](../nosql-injection.md#basic-authentication-bypass)**.**
+
+As the NoSQL Injections requires to change the parameters value, you will need to test them manually.
+
+### XPath Injection authentication bypass
+
+[Here you can find several tricks to bypass the login via **XPath Injection.**](../xpath-injection.md#authentication-bypass)
+
+```
+' or '1'='1
+' or ''='
+' or 1]%00
+' or /* or '
+' or "a" or '
+' or 1 or '
+' or true() or '
+'or string-length(name(.))<10 or'
+'or contains(name,'adm') or'
+'or contains(.,'adm') or'
+'or position()=2 or'
+admin' or '
+admin' or '1'='2
+```
+
+### LDAP Injection authentication bypass
+
+[Here you can find several tricks to bypass the login via **LDAP Injection.**](../ldap-injection.md#login-bypass)
+
+```
+*
+*)(&
+*)(|(&
+pwd)
+*)(|(*
+*))%00
+admin)(&)
+pwd
+admin)(!(&(|
+pwd))
+admin))(|(|
+```
+
+### Remember Me
+
+If the page has "**Remember Me**" functionality check how is it implemented and see if you can abuse it to **takeover other accounts**.
+
+### Redirects
+
+Pages usually redirect users after login. Check whether the destination can be altered to cause an [**Open Redirect**](../open-redirect.md), especially when authorization codes or other secrets could be sent through the redirect flow.
+
+### Client-side authentication & authorization bypass in SPAs
+
+Some applications only protect routes/actions in the **frontend** (route guards, hidden buttons, `localStorage` / `sessionStorage`, feature flags, or JSON fields such as `role`, `groups`, `is_active`, `PluginId`, `TimeoutStatus`). If the **backend APIs don't re-check authentication and authorization**, you can often unlock the whole UI or perform the action directly.<sup>[[2]](#references)</sup>
+
+Quick workflow:
+
+1. **Read the JS bundle** (`main.js`, chunks, source maps) and search for `authRequired`, `beforeEach`, `isUserLoggedIn`, `localStorage`, `sessionStorage`, `userInfo`, `token`, `exp`, `role`, `groups`, `is_active`, `PluginId`, `TimeoutStatus`.
+2. **Locate the trust boundary**: identify whether the SPA only checks that a storage key exists, a date is in the future, or a JSON field is truthy.
+3. **Forge the expected state** in DevTools or intercept proxy traffic to modify the relevant response fields.
+4. **Validate impact server-side** by performing the hidden action or calling the API directly. If the server accepts it, this is a real auth/authz bypass, not just a cosmetic UI issue.
+
+Common patterns:
+
+- **Storage-only login check**: if `isUserLoggedIn()` only checks `localStorage.getItem("token")` and whether `tokenExpiry` is in the future, set both values manually and reload.
+- **JWT-like parsing without verification**: if frontend code only splits `token` on `.`, base64url-decodes the payload, and reads claims like `_id` or `exp`, any syntactically valid JWT-like value with the expected claims may satisfy the SPA unless the backend verifies it.
+- **Truthy-object resolver**: if a route resolver only checks `if (userInfo)`, `sessionStorage.setItem("userInfo", JSON.stringify({}))` is often enough because `{}` is valid JSON and truthy.
+- **Response-driven authorization**: intercept endpoints such as `GetSessionInfo` / `GetNotifications` and replace `null` / `false` values in fields like `Groups`, `PluginId`, or `UserCanUpdate*`; also try removing logout indicators such as `"TimeoutStatus":"Timeout"`.
+- **UI-only privilege flags**: flip booleans such as `is_active`, `canEdit`, `isAdmin`, or feature flags in profile/account responses to reveal hidden functionality, then try the newly exposed write action.
+
+## Other Checks
+
+- Check if you can **enumerate usernames** abusing the login functionality.
+- Check the intended autocomplete policy for password and sensitive inputs. The valid value for disabling ordinary form autocomplete is `autocomplete="off"`, not `false`, although browsers and password managers may still offer credential storage. Use purpose-specific tokens such as `current-password`, `new-password`, and `one-time-code` where appropriate.<sup>[[4]](#references)</sup>
+
+## Automatic Tools
+
+- [HTLogin](https://github.com/akinerkisa/HTLogin)
+
+## References
+
+- [1] [Finding an unseen SQL injection by bypassing escape functions in mysqljs/mysql](https://flattsecurity.medium.com/finding-an-unseen-sql-injection-by-bypassing-escape-functions-in-mysqljs-mysql-90b27f6542b4)
+- [2] [Client-side Authentication Bypass](https://kuldeep.io/posts/client-side-authentication-bypass/)
+- [3] [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [4] [MDN - HTML `autocomplete` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete)
+
+{{#include ../../banners/hacktricks-training.md}}

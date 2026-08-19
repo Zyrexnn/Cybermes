@@ -1,0 +1,39 @@
+[book]
+authors = ["HackTricks Team"]
+language = "en"
+src = "src"
+title = "HackTricks"
+
+[build]
+create-missing = false
+extra-watch-dirs = ["translations"]
+
+[preprocessor.tabs]
+
+[preprocessor.hacktricks]
+command = "python3 ./hacktricks-preprocessor.py"
+env = "prod"
+
+[output.html]
+additional-css = ["theme/tabs.css", "theme/pagetoc.css", "theme/discount.css"]
+additional-js = [
+    "theme/tabs.js",
+    "theme/pagetoc.js",
+    "theme/ht_searcher.js",
+    "theme/sponsor.js",
+    "theme/discount.js",
+    "theme/motion.js",
+    "theme/ai.js"
+]
+no-section-label = true
+preferred-dark-theme = "hacktricks-dark"
+default-theme = "hacktricks-light"
+hash-files = false
+
+[output.html.fold]
+enable = true # whether or not to enable section folding
+level = 0     # the depth to start folding
+
+
+[output.html.print]
+enable = false # whether or not to enable print

