@@ -1,0 +1,39 @@
+program: "Authorized Security Assessment"
+authorization: "AUTHORIZED"
+
+targets:
+  - "http://127.0.0.1:8888"
+  - "http://localhost:8888"
+
+out_of_scope:
+  - "third-party systems"
+  - "unrelated cloud infrastructure"
+  - "production user accounts and data"
+  - "out-of-scope third party payment gateways"
+
+testing_accounts:
+  - role: "standard_user"
+    username: "researcher_user_a"
+    token_env: "USER_A_TOKEN"
+  - role: "secondary_user"
+    username: "researcher_user_b"
+    token_env: "USER_B_TOKEN"
+
+allowed:
+  reconnaissance: true
+  endpoint_discovery: true
+  parameter_fuzzing: true
+  vulnerability_testing: true
+  authenticated_testing: true
+  exploit_validation: true
+  poc_generation: true
+  browser_automation: true
+
+restricted:
+  destructive_actions: true
+  denial_of_service: true
+  persistence_creation: true
+  credential_theft: true
+  unrelated_target_access: true
+  mass_targeting: true
+  data_destruction: true
