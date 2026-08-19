@@ -1,0 +1,14 @@
+{
+    "default": true,
+    "MD013": false,
+    "MD033": false,
+    "MD060": {
+      "style": "aligned"
+    },
+    "no-duplicate-heading": {
+      "siblings_only": true
+    },
+    "ul-indent": {
+      "indent": 4
+    }
+}
