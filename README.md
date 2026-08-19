@@ -138,6 +138,14 @@ Then run Cybermes to execute automated discovery and validation against `http://
 
 ---
 
+## 👥 Contributors
+
+- **[Zyrexnn](https://github.com/Zyrexnn)** — Lead Author & Architect
+- **[Claude Opus 5 (1M context)](https://anthropic.com)** — AI Co-Author & Security Architecture Research
+
+---
+
 ## 📄 License
 
 This repository is distributed under the terms defined within individual subcomponents and tools. See respective component licenses for details.
+
