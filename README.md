@@ -33,6 +33,8 @@
 - [Installation & Quick Start](#-installation--quick-start)
   - [Method 1: Docker & Docker Compose (Recommended)](#method-1-docker--docker-compose-recommended)
   - [Method 2: Native Host Setup](#method-2-native-host-setup)
+- [🤖 Telegram Bot Integration](#-telegram-bot-integration)
+- [📚 Extended Documentation](#-extended-documentation)
 - [Configuration & Scope Rules](#-configuration--scope-rules)
 - [Local Validation with Mock Target](#-local-validation-with-mock-target)
 - [⚖️ License & Strict Usage Terms](#️-license--strict-usage-terms)
@@ -227,14 +229,14 @@ Docker provides an isolated, fully pre-configured environment including Chromium
    # Edit .env and supply your LLM Provider endpoint and keys
    ```
 
-3. **Build the Docker container:**
+3. **Build and start the Docker container (Telegram Gateway Mode):**
    ```bash
-   docker compose build
+   docker compose up -d --build
    ```
 
-4. **Launch an interactive agent session:**
+4. **Monitor logs:**
    ```bash
-   docker compose run --rm hermes-cybermes
+   docker compose logs -f
    ```
 
 ---
@@ -252,6 +254,40 @@ For Linux hosts with Python 3.11+:
    ```bash
    ./hermes --help
    ```
+
+---
+
+## 🤖 Telegram Bot Integration
+
+Cybermes runs autonomously with messaging support for Telegram via Hermes Gateway.
+
+1. Create a bot using **[@BotFather](https://t.me/BotFather)** on Telegram.
+2. Retrieve your numeric User ID from **[@userinfobot](https://t.me/userinfobot)**.
+3. Configure `.env` or `.hermes/.env`:
+   ```ini
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_ALLOWED_USERS=your_numeric_user_id
+   GATEWAY_ALLOW_ALL_USERS=false
+   HERMES_YOLO_MODE=1
+   ```
+4. Start the container:
+   ```bash
+   docker compose up -d
+   ```
+5. Key Telegram commands:
+   * `/new` or `/reset` — Start a fresh session & clear context.
+   * `/status` — View current agent status, model, and resource usage.
+   * `/skills` — List 200+ available offensive security skills.
+
+---
+
+## 📚 Extended Documentation
+
+Detailed documentation guides are available in the [`docs/`](docs/) directory:
+
+* **[Telegram Setup Guide](docs/telegram_setup.md)**: Step-by-step bot creation, whitelist configuration, and usage.
+* **[Tools & Skills Reference](docs/tools_and_skills.md)**: Overview of integrated toolchain, MCP servers, and offensive skills.
+* **[Troubleshooting Guide](docs/troubleshooting.md)**: Common fixes for connectivity, model refusal, and permissions.
 
 ---
 

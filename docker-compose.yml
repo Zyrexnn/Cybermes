@@ -17,6 +17,8 @@ services:
       - ./.hermes/auth.json:/root/.hermes/auth.json:ro
       - ./.hermes/config.yaml:/root/.hermes/config.yaml:ro
       - ./.hermes/.env:/root/.hermes/.env:ro
+    command: hermes gateway run
+    restart: unless-stopped
     environment:
       - PUPPETEER_HEADLESS=true
       - NODE_OPTIONS=--no-warnings
