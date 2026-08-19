@@ -1,0 +1,74 @@
+Cybermes Source-Available Non-Commercial & No-Derivatives License (CS-NC-ND)
+Copyright (c) 2026 Zyrexnn and Project Contributors. All Rights Reserved.
+
+===============================================================================
+TERMS AND CONDITIONS FOR ACCESS, VIEWING, CLONING, AND USAGE
+===============================================================================
+
+By accessing, viewing, downloading, cloning, or executing any portion of the 
+"Cybermes" software, source code, knowledge databases, skill modules, or 
+associated documentation (hereinafter referred to as the "Software"), you agree 
+to be bound by the terms and conditions set forth herein.
+
+If you do not agree to these terms, do not access, clone, download, or use 
+the Software.
+
+-------------------------------------------------------------------------------
+1. PERMITTED RIGHTS AND USES (GRANT OF PERMISSION)
+-------------------------------------------------------------------------------
+Subject to the terms and restrictions of this License, the copyright holders 
+grant you a non-exclusive, non-transferable, revocable license to:
+
+  a. Clone and download the source code of the Software directly from the 
+     official repository.
+  b. Read, inspect, and study the source code, prompts, and architecture for 
+     personal, educational, and authorized non-commercial security research.
+  c. Execute and run the Software locally or within private non-commercial 
+     testing environments solely for authorized vulnerability research and bug 
+     bounty assessments within explicitly authorized program scopes.
+
+-------------------------------------------------------------------------------
+2. STRICT PROHIBITIONS AND RESTRICTIONS
+-------------------------------------------------------------------------------
+You are strictly prohibited from performing any of the following actions 
+without prior written consent from the copyright holder:
+
+  a. NO MODIFICATIONS OR DERIVATIVE WORKS (NO DERIVATIVES):
+     You shall NOT modify, alter, adapt, translate, refactor, deconstruct, or 
+     create derivative works based upon the Software, its skills, its knowledge 
+     base, or its architecture. Any distributed or shared copy must be an exact, 
+     unaltered copy of the original source code.
+
+  b. NO COMMERCIAL USE (NON-COMMERCIAL):
+     You shall NOT use, exploit, distribute, or license the Software for any 
+     commercial purpose, monetary gain, or financial consideration. This includes, 
+     but is not limited to:
+       - Selling, leasing, renting, or sublicensing the Software or any part thereof.
+       - Offering the Software as a paid service, SaaS, managed service, or API.
+       - Incorporating the Software into commercial cybersecurity products, 
+         proprietary commercial toolchains, or paid security services.
+
+  c. NO REDISTRIBUTION UNDER ALTERED LICENSES OR BRANDING:
+     You shall NOT relicense, rebrand, republish, or claim authorship or 
+     ownership over any part of the Software. All copyright notices, license 
+     headers, and contributor attributions must remain intact and unmodified.
+
+-------------------------------------------------------------------------------
+3. ETHICAL USE AND COMPLIANCE WITH LAW
+-------------------------------------------------------------------------------
+The Software is designed strictly for authorized penetration testing, bug 
+bounty programs, and educational research. You agree to use the Software only 
+against targets for which you have received explicit, written authorization. 
+Under no circumstances may the Software be used for illegal activities, 
+unauthorized computer access, data theft, or denial-of-service attacks.
+
+-------------------------------------------------------------------------------
+4. DISCLAIMER OF WARRANTIES & LIMITATION OF LIABILITY
+-------------------------------------------------------------------------------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT. IN NO EVENT SHALL 
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, 
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
+THE SOFTWARE.
