@@ -1,0 +1,144 @@
+---
+title: "Skills"
+description: "Specialized knowledge packages that enhance agent capabilities"
+---
+
+Skills are structured knowledge packages that give Strix agents deep expertise in specific vulnerability types, technologies, and testing methodologies.
+
+## The Idea
+
+LLMs have broad but shallow security knowledge. They know _about_ SQL injection, but lack the nuanced techniques that experienced pentesters use—parser quirks, bypass methods, validation tricks, and chain attacks.
+
+Skills inject this deep, specialized knowledge directly into the agent's context, transforming it from a generalist into a specialist for the task at hand.
+
+## How They Work
+
+When Strix spawns an agent for a specific task, it selects up to 5 relevant skills based on the context:
+
+```python
+# Agent created for JWT testing automatically loads relevant skills
+create_agent(
+    task="Test authentication mechanisms",
+    skills=["authentication_jwt", "business_logic"]
+)
+```
+
+The skills are injected into the agent's system prompt, giving it access to:
+
+- **Advanced techniques** — Non-obvious methods beyond standard testing
+- **Working payloads** — Practical examples with variations
+- **Validation methods** — How to confirm findings and avoid false positives
+
+## Skill Categories
+
+### Vulnerabilities
+
+Core vulnerability classes with deep exploitation techniques.
+
+| Skill                                 | Coverage                                               |
+| ------------------------------------- | ------------------------------------------------------ |
+| `authentication_jwt`                  | JWT attacks, algorithm confusion, claim tampering      |
+| `idor`                                | Object reference attacks, horizontal/vertical access   |
+| `sql_injection`                       | SQL injection variants, WAF bypasses, blind techniques |
+| `xss`                                 | XSS types, filter bypasses, DOM exploitation           |
+| `ssrf`                                | Server-side request forgery, protocol handlers         |
+| `csrf`                                | Cross-site request forgery, token bypasses             |
+| `xxe`                                 | XML external entities, OOB exfiltration                |
+| `rce`                                 | Remote code execution vectors                          |
+| `business_logic`                      | Logic flaws, state manipulation, race conditions       |
+| `race_conditions`                     | TOCTOU, parallel request attacks                       |
+| `path_traversal_lfi_rfi`              | File inclusion, path traversal                         |
+| `open_redirect`                       | Redirect bypasses, URL parsing tricks                  |
+| `mass_assignment`                     | Attribute injection, hidden parameter pollution        |
+| `insecure_file_uploads`               | Upload bypasses, extension tricks                      |
+| `information_disclosure`              | Data leakage, error-based enumeration                  |
+| `subdomain_takeover`                  | Dangling DNS, cloud resource claims                    |
+| `broken_function_level_authorization` | Privilege escalation, role bypasses                    |
+
+### Frameworks
+
+Framework-specific testing patterns.
+
+| Skill     | Coverage                                     |
+| --------- | -------------------------------------------- |
+| `fastapi` | FastAPI security patterns, Pydantic bypasses |
+| `nextjs`  | Next.js SSR/SSG issues, API route security   |
+
+### Technologies
+
+Third-party service and platform security.
+
+| Skill      | Coverage                                               |
+| ---------- | ------------------------------------------------------ |
+| `supabase` | Supabase RLS bypasses, auth issues                     |
+| `firebase` | Firebase Firestore, Storage rules, Auth, and Functions |
+
+### Protocols
+
+Protocol-specific testing techniques.
+
+| Skill     | Coverage                                         |
+| --------- | ------------------------------------------------ |
+| `graphql` | GraphQL introspection, batching, resolver issues |
+
+### Reconnaissance
+
+Passive discovery and attack-surface mapping techniques.
+
+| Skill             | Coverage                                                        |
+| ----------------- | --------------------------------------------------------------- |
+| `asset_discovery` | CT, TLS SAN pivoting, passive DNS, and ASN/IP asset enumeration |
+
+### Tooling
+
+Sandbox CLI playbooks for core recon and scanning tools.
+
+| Skill       | Coverage                                                |
+| ----------- | ------------------------------------------------------- |
+| `nmap`      | Port/service scan syntax and high-signal scan patterns  |
+| `nuclei`    | Template selection, severity filtering, and rate tuning |
+| `httpx`     | HTTP probing and fingerprint output patterns            |
+| `ffuf`      | Wordlist fuzzing, matcher/filter strategy, recursion    |
+| `subfinder` | Passive subdomain enumeration and source control        |
+| `naabu`     | Fast port scanning with explicit rate/verify controls   |
+| `katana`    | Crawl depth/JS/known-files behavior and pitfalls        |
+| `sqlmap`    | SQLi workflow for enumeration and controlled extraction  |
+
+## Skill Structure
+
+Each skill is a Markdown file with YAML frontmatter for metadata:
+
+```markdown
+---
+name: skill_name
+description: Brief description of the skill's coverage
+---
+
+# Skill Title
+
+Key insight about this vulnerability or technique.
+
+## Attack Surface
+What this skill covers and where to look.
+
+## Methodology
+Step-by-step testing approach.
+
+## Techniques
+How to discover and exploit the vulnerability.
+
+## Bypass Methods
+How to bypass common protections.
+
+## Validation
+How to confirm findings and avoid false positives.
+```
+
+## Contributing Skills
+
+Community contributions are welcome. Create a `.md` file in the appropriate category with YAML frontmatter (`name` and `description` fields). Good skills include:
+
+1. **Real-world techniques** — Methods that work in practice
+2. **Practical payloads** — Working examples with variations
+3. **Validation steps** — How to confirm without false positives
+4. **Context awareness** — Version/environment-specific behavior
