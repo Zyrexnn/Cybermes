@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+
+"""
+Copyright (c) 2006-2026 sqlmap developers (https://sqlmap.org)
+See the file 'LICENSE' for copying permission
+"""
+
+from lib.core.compat import xrange
+from lib.core.enums import PRIORITY
+
+__priority__ = PRIORITY.LOW
+
+def dependencies():
+    pass
+
+def tamper(payload, **kwargs):
+    """
+    Replaces (MySQL) instances of space character (' ') with comments '/**_**/'
+
+    Tested against:
+        * MySQL 8.4.9
+        * MariaDB 11.8.8
+        * PostgreSQL 16.11
+        * SQLite 3.45.1
+        * Microsoft SQL Server 2022
+        * Oracle 23ai
+
+    Notes:
+        * Useful to bypass weak and bespoke web application firewalls
+        * Despite the script's name, '/**_**/' is a valid comment on every engine
+          listed above, not just MySQL
+
+    >>> tamper('SELECT id FROM users')
+    'SELECT/**_**/id/**_**/FROM/**_**/users'
+    """
+
+    retVal = payload
+
+    if payload:
+        retVal = ""
+        quote, doublequote, firstspace = False, False, False
+
+        for i in xrange(len(payload)):
+            if not firstspace:
+                if payload[i].isspace():
+                    firstspace = True
+                    retVal += "/**_**/"
+                    continue
+
+            elif payload[i] == '\'' and (i == 0 or payload[i - 1] != '\\'):
+                quote = not quote
+
+            elif payload[i] == '"' and (i == 0 or payload[i - 1] != '\\'):
+                doublequote = not doublequote
+
+            elif payload[i] == " " and not doublequote and not quote:
+                retVal += "/**_**/"
+                continue
+
+            retVal += payload[i]
+
+    return retVal

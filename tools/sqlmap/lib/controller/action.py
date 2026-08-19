@@ -1,0 +1,303 @@
+#!/usr/bin/env python
+
+"""
+Copyright (c) 2006-2026 sqlmap developers (https://sqlmap.org)
+See the file 'LICENSE' for copying permission
+"""
+
+from lib.controller.handler import setHandler
+from lib.core.common import Backend
+from lib.core.common import Format
+from lib.core.common import hashDBWrite
+from lib.core.data import conf
+from lib.core.data import kb
+from lib.core.data import logger
+from lib.core.data import paths
+from lib.core.enums import CONTENT_TYPE
+from lib.core.enums import DBMS
+from lib.core.enums import HASHDB_KEYS
+from lib.core.exception import SqlmapNoneDataException
+from lib.core.exception import SqlmapUnsupportedDBMSException
+from lib.core.settings import SUPPORTED_DBMS
+from lib.utils.brute import columnExists
+from lib.utils.brute import fileExists
+from lib.utils.brute import tableExists
+
+def action():
+    """
+    This function exploit the SQL injection on the affected
+    URL parameter and extract requested data from the
+    back-end database management system or operating system
+    if possible
+    """
+
+    # HTTP/2 timeless timing ('--timeless'): detection is done and the back-end DBMS is known, so engage
+    # the oracle for this target's extraction (swaps the time-based vector for a tuned heavy one, so all
+    # subsequent extraction reads bits by response order instead of delay). Guarded + calibrated - a no-op
+    # unless '--timeless' is set and the target is usable; disengage() first clears any prior target's.
+    from lib.request import timeless
+    timeless.disengage()
+    if not timeless.autoEngage():          # engages if '--timeless' was given and the target is usable
+        timeless.hintTimeless()            # otherwise nudge the user toward '--timeless' if the target fits
+
+    # First of all we have to identify the back-end database management
+    # system to be able to go ahead with the injection
+    setHandler()
+
+    # automatic WAF-bypass: fingerprinting probes are kept off the WAF/IPS blacklists, so it is tried
+    # first even behind a protection. Only if it comes back empty the back-end DBMS is assumed from
+    # the error page or the heuristic checks, so that the user still gets a usable result
+    if kb.wafBypass and not conf.forceDbms and not Backend.getIdentifiedDbms():
+        fallback = Backend.getErrorParsedDBMSes() or ([kb.heuristicDbms] if kb.heuristicDbms else [])
+        fallback = next((_ for _ in fallback if _ and _.lower() in SUPPORTED_DBMS), None)
+        if fallback:
+            logger.warning("active back-end DBMS fingerprinting did not get through the WAF/IPS. Assuming '%s' from error/heuristic detection" % fallback)
+            conf.forceDbms = fallback
+
+            setHandler()
+
+    # multi-bit blind ('--multi-bit'): the back-end is known now, so its bit arithmetic can be checked
+    # before nudging the user towards a channel that reads several characters per request (no requests)
+    from lib.techniques.blind import multibit
+    multibit.hint()
+
+    if kb.wafBypass and Backend.getDbms():      # persist the assumed DBMS so a resumed run restores it instead of re-fingerprinting (and dead-ending) behind the WAF
+        hashDBWrite(HASHDB_KEYS.DBMS, Backend.getDbms())
+
+    # automatic WAF-bypass: with MySQL behind the WAF, make data retrieval AND table enumeration survive a
+    # libinjection-class WAF (e.g. OWASP CRS), verified end-to-end through ModSecurity/CRS:
+    #   * flag has_information_schema (modern MySQL >=5.0 always has it) in case the DBMS was assumed
+    #     rather than fingerprinted, otherwise enumeration wrongly assumes 'MySQL < 5.0' and bails
+    #     with "no tables",
+    #   * 'blindbinary' reshapes the single-character read ORD(MID())->RIGHT(LEFT())>BINARY 0x.. (sheds the
+    #     ORD/MID function names scored by 942151/942190);
+    #   * 'infoschema2innodb' moves table enumeration off 'information_schema' (scored by 942140) onto
+    #     'mysql.innodb_table_stats', which is not on those blocklists.
+    # (blindbinary also reshapes PostgreSQL, but full extraction through the CRS proxy garbles there - an
+    #  open issue - so PG is not auto-applied; it stays available as manual '--tamper=blindbinary'.)
+    if kb.wafBypass and Backend.getIdentifiedDbms() == DBMS.MYSQL:
+        kb.data.has_information_schema = True
+        if not conf.tamper:
+            from lib.utils.wafbypass import loadTamper
+            for _name in ("blindbinary", "infoschema2innodb"):
+                function = loadTamper(_name)
+                if function is not None and function not in (kb.tamperFunctions or []):
+                    kb.tamperFunctions = (kb.tamperFunctions or []) + [function]
+            logger.info("using tamper scripts 'blindbinary' and 'infoschema2innodb' so data retrieval and table enumeration can pass the WAF/IPS")
+
+    if (not Backend.getDbms() and not conf.esperanto) or not conf.dbmsHandler:
+        htmlParsed = Format.getErrorParsedDBMSes()
+
+        errMsg = "sqlmap was not able to fingerprint the "
+        errMsg += "back-end database management system"
+
+        if htmlParsed:
+            errMsg += ", but from the HTML error page it was "
+            errMsg += "possible to determinate that the "
+            errMsg += "back-end DBMS is %s" % htmlParsed
+
+        if htmlParsed and htmlParsed.lower() in SUPPORTED_DBMS:
+            errMsg += ". Do not specify the back-end DBMS manually, "
+            errMsg += "sqlmap will fingerprint the DBMS for you"
+        elif kb.nullConnection:
+            errMsg += ". You can try to rerun without using optimization "
+            errMsg += "switch '%s'" % ("-o" if conf.optimize else "--null-connection")
+
+        raise SqlmapUnsupportedDBMSException(errMsg)
+
+    conf.dumper.singleString(conf.dbmsHandler.getFingerprint())
+
+    kb.fingerprinted = True
+
+    # Enumeration options
+    if conf.getBanner:
+        conf.dumper.banner(conf.dbmsHandler.getBanner())
+
+    if conf.getCurrentUser:
+        conf.dumper.currentUser(conf.dbmsHandler.getCurrentUser())
+
+    if conf.getCurrentDb:
+        conf.dumper.currentDb(conf.dbmsHandler.getCurrentDb())
+
+    if conf.getHostname:
+        conf.dumper.hostname(conf.dbmsHandler.getHostname())
+
+    if conf.isDba:
+        conf.dumper.dba(conf.dbmsHandler.isDba())
+
+    if conf.getUsers:
+        conf.dumper.users(conf.dbmsHandler.getUsers())
+
+    if conf.getStatements:
+        conf.dumper.statements(conf.dbmsHandler.getStatements())
+
+    if conf.getProcs:
+        conf.dumper.procedures(conf.dbmsHandler.getProcedures())
+
+    if conf.getPasswordHashes:
+        try:
+            conf.dumper.userSettings("database management system users password hashes", conf.dbmsHandler.getPasswordHashes(), "password hash", CONTENT_TYPE.PASSWORDS)
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getPrivileges:
+        try:
+            conf.dumper.userSettings("database management system users privileges", conf.dbmsHandler.getPrivileges(), "privilege", CONTENT_TYPE.PRIVILEGES)
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getRoles:
+        try:
+            conf.dumper.userSettings("database management system users roles", conf.dbmsHandler.getRoles(), "role", CONTENT_TYPE.ROLES)
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getDbs:
+        try:
+            conf.dumper.dbs(conf.dbmsHandler.getDbs())
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getTables:
+        try:
+            conf.dumper.dbTables(conf.dbmsHandler.getTables())
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.commonTables:
+        try:
+            conf.dumper.dbTables(tableExists(paths.COMMON_TABLES))
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getSchema:
+        try:
+            conf.dumper.dbTableColumns(conf.dbmsHandler.getSchema(), CONTENT_TYPE.SCHEMA)
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getColumns:
+        try:
+            conf.dumper.dbTableColumns(conf.dbmsHandler.getColumns(), CONTENT_TYPE.COLUMNS)
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.getCount:
+        try:
+            conf.dumper.dbTablesCount(conf.dbmsHandler.getCount())
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.commonColumns:
+        try:
+            conf.dumper.dbTableColumns(columnExists(paths.COMMON_COLUMNS))
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.dumpTable:
+        try:
+            conf.dbmsHandler.dumpTable()
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.dumpAll:
+        try:
+            conf.dbmsHandler.dumpAll()
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.search:
+        try:
+            conf.dbmsHandler.search()
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    if conf.sqlQuery:
+        for query in conf.sqlQuery.strip(';').split(';'):
+            query = query.strip()
+            if query:
+                conf.dumper.sqlQuery(query, conf.dbmsHandler.sqlQuery(query))
+
+    if conf.sqlShell:
+        conf.dbmsHandler.sqlShell()
+
+    if conf.sqlFile:
+        conf.dbmsHandler.sqlFile()
+
+    # User-defined function options
+    if conf.udfInject:
+        conf.dbmsHandler.udfInjectCustom()
+
+    # File system options
+    if conf.fileRead:
+        conf.dumper.rFile(conf.dbmsHandler.readFile(conf.fileRead))
+
+    if conf.fileWrite:
+        conf.dbmsHandler.writeFile(conf.fileWrite, conf.fileDest, conf.fileWriteType)
+
+    if conf.commonFiles:
+        try:
+            conf.dumper.rFile(fileExists(paths.COMMON_FILES))
+        except SqlmapNoneDataException as ex:
+            logger.critical(ex)
+        except:
+            raise
+
+    # Operating system options
+    if conf.osCmd:
+        conf.dbmsHandler.osCmd()
+
+    if conf.osShell:
+        conf.dbmsHandler.osShell()
+
+    if conf.osPwn:
+        conf.dbmsHandler.osPwn()
+
+    if conf.osSmb:
+        conf.dbmsHandler.osSmb()
+
+    if conf.osBof:
+        conf.dbmsHandler.osBof()
+
+    # Windows registry options
+    if conf.regRead:
+        conf.dumper.registerValue(conf.dbmsHandler.regRead())
+
+    if conf.regAdd:
+        conf.dbmsHandler.regAdd()
+
+    if conf.regDel:
+        conf.dbmsHandler.regDel()
+
+    # Miscellaneous options
+    if conf.cleanup:
+        conf.dbmsHandler.cleanup()
+
+    if conf.direct:
+        conf.dbmsConnector.close()

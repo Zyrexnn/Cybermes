@@ -1,0 +1,1796 @@
+#!/usr/bin/env python
+
+"""
+vulnserver.py - Trivial SQLi vulnerable HTTP server (Note: for testing purposes)
+
+Copyright (c) 2006-2026 sqlmap developers (https://sqlmap.org)
+See the file 'LICENSE' for copying permission
+"""
+
+from __future__ import print_function
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import random
+import re
+import sqlite3
+import string
+import sys
+import tempfile
+import threading
+import time
+import traceback
+
+PY3 = sys.version_info >= (3, 0)
+UNICODE_ENCODING = "utf-8"
+DEBUG = False
+
+# A benign file with random content/name that the XXE endpoint can disclose via a file://
+# external entity, so '--xxe --file-read' has a target in the vuln-test. Randomized (never a
+# static literal) to match sqlmap's below-the-radar convention, so nothing here becomes a
+# blacklistable signature. In-process server, so callers read these same values.
+XXE_READ_MARKER = "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(20))
+XXE_READ_FILE = os.path.join(tempfile.gettempdir(), "%s.txt" % "".join(random.choice(string.ascii_lowercase) for _ in range(12)))
+try:
+    with open(XXE_READ_FILE, "w") as _f:
+        _f.write(XXE_READ_MARKER + "\n")
+except (IOError, OSError):
+    pass
+
+# Self-contained JSON Web Token forge/parse for the '/jwt' endpoint, so '--jwt' has a live target in the
+# vuln-test. The signing secret is a common one (crackable from the shipped wordlist), the endpoint accepts
+# unsigned 'alg':'none' tokens (VULN) and reflects 'kid' into a SQL error (injectable key lookup).
+JWT_SECRET = "secret"
+
+def _jwt_b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
+
+def _jwt_forge(header, payload, secret):
+    seg = lambda obj: _jwt_b64url(json.dumps(obj, separators=(',', ':')).encode(UNICODE_ENCODING))
+    signingInput = "%s.%s" % (seg(header), seg(payload))
+    signature = _jwt_b64url(hmac.new(secret.encode(UNICODE_ENCODING), signingInput.encode(UNICODE_ENCODING), hashlib.sha256).digest())
+    return "%s.%s" % (signingInput, signature)
+
+def _jwt_parse(token):
+    try:
+        header, payload, signature = token.split('.')
+        pad = lambda value: value + '=' * (-len(value) % 4)
+        return json.loads(base64.urlsafe_b64decode(pad(header))), json.loads(base64.urlsafe_b64decode(pad(payload))), signature
+    except Exception:
+        return None
+
+JWT_TOKEN = _jwt_forge({"alg": "HS256", "typ": "JWT", "kid": "key1"}, {"user": "guest", "role": "user", "exp": 9999999999}, JWT_SECRET)
+
+if PY3:
+    from http.client import BAD_REQUEST
+    from http.client import FORBIDDEN
+    from http.client import INTERNAL_SERVER_ERROR
+    from http.client import NOT_FOUND
+    from http.client import OK
+    from http.server import BaseHTTPRequestHandler
+    from http.server import HTTPServer
+    from socketserver import ThreadingMixIn
+    from urllib.parse import parse_qs
+    from urllib.parse import unquote_plus
+else:
+    from BaseHTTPServer import BaseHTTPRequestHandler
+    from BaseHTTPServer import HTTPServer
+    from httplib import BAD_REQUEST
+    from httplib import FORBIDDEN
+    from httplib import INTERNAL_SERVER_ERROR
+    from httplib import NOT_FOUND
+    from httplib import OK
+    from SocketServer import ThreadingMixIn
+    from urlparse import parse_qs
+    from urllib import unquote_plus
+
+SCHEMA = """
+    CREATE TABLE users (
+        id INTEGER,
+        name TEXT,
+        surname TEXT,
+        PRIMARY KEY (id)
+    );
+    INSERT INTO users (id, name, surname) VALUES (1, 'luther', 'blisset');
+    INSERT INTO users (id, name, surname) VALUES (2, 'fluffy', 'bunny');
+    INSERT INTO users (id, name, surname) VALUES (3, 'wu', 'ming');
+    INSERT INTO users (id, name, surname) VALUES (4, NULL, 'nameisnull');
+    INSERT INTO users (id, name, surname) VALUES (5, 'mark', 'lewis');
+    INSERT INTO users (id, name, surname) VALUES (6, 'ada', 'lovelace');
+    INSERT INTO users (id, name, surname) VALUES (7, 'grace', 'hopper');
+    INSERT INTO users (id, name, surname) VALUES (8, 'alan', 'turing');
+    INSERT INTO users (id, name, surname) VALUES (9, 'margaret','hamilton');
+    INSERT INTO users (id, name, surname) VALUES (10, 'donald', 'knuth');
+    INSERT INTO users (id, name, surname) VALUES (11, 'tim', 'bernerslee');
+    INSERT INTO users (id, name, surname) VALUES (12, 'linus', 'torvalds');
+    INSERT INTO users (id, name, surname) VALUES (13, 'ken', 'thompson');
+    INSERT INTO users (id, name, surname) VALUES (14, 'dennis', 'ritchie');
+    INSERT INTO users (id, name, surname) VALUES (15, 'barbara', 'liskov');
+    INSERT INTO users (id, name, surname) VALUES (16, 'edsger', 'dijkstra');
+    INSERT INTO users (id, name, surname) VALUES (17, 'john', 'mccarthy');
+    INSERT INTO users (id, name, surname) VALUES (18, 'leslie', 'lamport');
+    INSERT INTO users (id, name, surname) VALUES (19, 'niklaus', 'wirth');
+    INSERT INTO users (id, name, surname) VALUES (20, 'bjarne', 'stroustrup');
+    INSERT INTO users (id, name, surname) VALUES (21, 'guido', 'vanrossum');
+    INSERT INTO users (id, name, surname) VALUES (22, 'brendan', 'eich');
+    INSERT INTO users (id, name, surname) VALUES (23, 'james', 'gosling');
+    INSERT INTO users (id, name, surname) VALUES (24, 'andrew', 'tanenbaum');
+    INSERT INTO users (id, name, surname) VALUES (25, 'yukihiro','matsumoto');
+    INSERT INTO users (id, name, surname) VALUES (26, 'radia', 'perlman');
+    INSERT INTO users (id, name, surname) VALUES (27, 'katherine','johnson');
+    INSERT INTO users (id, name, surname) VALUES (28, 'hady', 'lamarr');
+    INSERT INTO users (id, name, surname) VALUES (29, 'frank', 'miller');
+    INSERT INTO users (id, name, surname) VALUES (30, 'john', 'steward');
+
+    CREATE TABLE creds (
+        user_id INTEGER,
+        password_hash TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    INSERT INTO creds (user_id, password_hash) VALUES (1, 'db3a16990a0008a3b04707fdef6584a0');
+    INSERT INTO creds (user_id, password_hash) VALUES (2, '4db967ce67b15e7fb84c266a76684729');
+    INSERT INTO creds (user_id, password_hash) VALUES (3, 'f5a2950eaa10f9e99896800eacbe8275');
+    INSERT INTO creds (user_id, password_hash) VALUES (4, NULL);
+    INSERT INTO creds (user_id, password_hash) VALUES (5, '179ad45c6ce2cb97cf1029e212046e81');
+    INSERT INTO creds (user_id, password_hash) VALUES (6, '0f1e2d3c4b5a69788796a5b4c3d2e1f0');
+    INSERT INTO creds (user_id, password_hash) VALUES (7, 'a1b2c3d4e5f60718293a4b5c6d7e8f90');
+    INSERT INTO creds (user_id, password_hash) VALUES (8, '1a2b3c4d5e6f708192a3b4c5d6e7f809');
+    INSERT INTO creds (user_id, password_hash) VALUES (9, '9f8e7d6c5b4a3928170605f4e3d2c1b0');
+    INSERT INTO creds (user_id, password_hash) VALUES (10, '3c2d1e0f9a8b7c6d5e4f30291807f6e5');
+    INSERT INTO creds (user_id, password_hash) VALUES (11, 'b0c1d2e3f405162738495a6b7c8d9eaf');
+    INSERT INTO creds (user_id, password_hash) VALUES (12, '6e5d4c3b2a190807f6e5d4c3b2a1908f');
+    INSERT INTO creds (user_id, password_hash) VALUES (13, '11223344556677889900aabbccddeeff');
+    INSERT INTO creds (user_id, password_hash) VALUES (14, 'ffeeddccbbaa00998877665544332211');
+    INSERT INTO creds (user_id, password_hash) VALUES (15, '1234567890abcdef1234567890abcdef');
+    INSERT INTO creds (user_id, password_hash) VALUES (16, 'abcdef1234567890abcdef1234567890');
+    INSERT INTO creds (user_id, password_hash) VALUES (17, '0a1b2c3d4e5f60718a9b0c1d2e3f4051');
+    INSERT INTO creds (user_id, password_hash) VALUES (18, '51f04e3d2c1b0a9871605f4e3d2c1b0a');
+    INSERT INTO creds (user_id, password_hash) VALUES (19, '89abcdef0123456789abcdef01234567');
+    INSERT INTO creds (user_id, password_hash) VALUES (20, '76543210fedcba9876543210fedcba98');
+    INSERT INTO creds (user_id, password_hash) VALUES (21, '13579bdf2468ace013579bdf2468ace0');
+    INSERT INTO creds (user_id, password_hash) VALUES (22, '02468ace13579bdf02468ace13579bdf');
+    INSERT INTO creds (user_id, password_hash) VALUES (23, 'deadbeefdeadbeefdeadbeefdeadbeef');
+    INSERT INTO creds (user_id, password_hash) VALUES (24, 'cafebabecafebabecafebabecafebabe');
+    INSERT INTO creds (user_id, password_hash) VALUES (25, '00112233445566778899aabbccddeeff');
+    INSERT INTO creds (user_id, password_hash) VALUES (26, 'f0e1d2c3b4a5968778695a4b3c2d1e0f');
+    INSERT INTO creds (user_id, password_hash) VALUES (27, '7f6e5d4c3b2a190807f6e5d4c3b2a190');
+    INSERT INTO creds (user_id, password_hash) VALUES (28, '908f7e6d5c4b3a291807f6e5d4c3b2a1');
+    INSERT INTO creds (user_id, password_hash) VALUES (29, '3049b791fa83e2f42f37bae18634b92d');
+    INSERT INTO creds (user_id, password_hash) VALUES (30, 'd59a348f90d757c7da30418773424b5e');
+
+    CREATE TABLE directory (
+        dn TEXT,
+        uid TEXT,
+        cn TEXT,
+        sn TEXT,
+        givenName TEXT,
+        displayName TEXT,
+        userPassword TEXT,
+        mail TEXT,
+        objectClass TEXT,
+        objectCategory TEXT,
+        ou TEXT,
+        title TEXT,
+        department TEXT,
+        company TEXT,
+        o TEXT,
+        telephoneNumber TEXT,
+        mobile TEXT,
+        manager TEXT,
+        description TEXT,
+        l TEXT,
+        st TEXT,
+        street TEXT,
+        postalCode TEXT,
+        c TEXT,
+        employeeNumber TEXT,
+        employeeType TEXT,
+        member TEXT
+    );
+    -- Column order: dn, uid, cn, sn, givenName, displayName, userPassword, mail,
+    --               objectClass, objectCategory, ou, title, department, company, o,
+    --               telephoneNumber, mobile, manager, description, l, st, street,
+    --               postalCode, c, employeeNumber, employeeType, member
+    INSERT INTO directory VALUES ('uid=luther,ou=users,dc=example,dc=com', 'luther', 'Luther Blisset', 'Blisset', 'Luther', 'Luther Blisset', 'db3a16990a0008a3b04707fdef6584a0', 'luther@example.com', 'inetOrgPerson', 'Person', 'users', 'System Administrator', 'IT Operations', 'Example Corp', 'Example', '+1 555 0100', '+1 555 0101', 'uid=ada,ou=users,dc=example,dc=com', 'System administrator', 'London', 'Greater London', '10 Downing Street', 'SW1A 2AA', 'GB', '1001', 'Employee', NULL);
+    INSERT INTO directory VALUES ('uid=fluffy,ou=users,dc=example,dc=com', 'fluffy', 'Fluffy Bunny', 'Bunny', 'Fluffy', 'Fluffy Bunny', '4db967ce67b15e7fb84c266a76684729', 'fluffy@example.com', 'inetOrgPerson', 'Person', 'users', 'Security Engineer', 'Security', 'Example Corp', 'Example', '+1 555 0102', '+1 555 0103', NULL, 'Security engineer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=wu,ou=users,dc=example,dc=com', 'wu', 'Wu Ming', 'Ming', 'Wu', 'Wu Ming', 'f5a2950eaa10f9e99896800eacbe8275', 'wu@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Developer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=mark,ou=users,dc=example,dc=com', 'mark', 'Mark Lewis', 'Lewis', 'Mark', 'Mark Lewis', '179ad45c6ce2cb97cf1029e212046e81', 'mark@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Project manager', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=ada,ou=users,dc=example,dc=com', 'ada', 'Ada Lovelace', 'Lovelace', 'Ada', 'Ada Lovelace', '0f1e2d3c4b5a69788796a5b4c3d2e1f0', 'ada@example.com', 'inetOrgPerson', 'Person', 'users', 'Mathematician', 'Research', 'Example Corp', 'Example', '+1 555 0104', NULL, NULL, 'Mathematician', 'Cambridge', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=grace,ou=users,dc=example,dc=com', 'grace', 'Grace Hopper', 'Hopper', 'Grace', 'Grace Hopper', 'a1b2c3d4e5f60718293a4b5c6d7e8f90', 'grace@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Computer scientist', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=alan,ou=users,dc=example,dc=com', 'alan', 'Alan Turing', 'Turing', 'Alan', 'Alan Turing', '1a2b3c4d5e6f708192a3b4c5d6e7f809', 'alan@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Cryptanalyst', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=margaret,ou=users,dc=example,dc=com', 'margaret', 'Margaret Hamilton', 'Hamilton', 'Margaret', 'Margaret Hamilton', '9f8e7d6c5b4a3928170605f4e3d2c1b0', 'margaret@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Software engineer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=donald,ou=users,dc=example,dc=com', 'donald', 'Donald Knuth', 'Knuth', 'Donald', 'Donald Knuth', '3c2d1e0f9a8b7c6d5e4f30291807f6e5', 'donald@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Computer scientist', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=tim,ou=users,dc=example,dc=com', 'tim', 'Tim Berners-Lee', 'Berners-Lee', 'Tim', 'Tim Berners-Lee', 'b0c1d2e3f405162738495a6b7c8d9eaf', 'tim@example.com', 'inetOrgPerson', 'Person', 'users', 'Inventor', 'Research', 'Example Corp', 'Example', '+1 555 0105', NULL, NULL, 'Inventor of the Web', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=linus,ou=users,dc=example,dc=com', 'linus', 'Linus Torvalds', 'Torvalds', 'Linus', 'Linus Torvalds', '6e5d4c3b2a190807f6e5d4c3b2a1908f', 'linus@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Kernel developer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=ken,ou=users,dc=example,dc=com', 'ken', 'Ken Thompson', 'Thompson', 'Ken', 'Ken Thompson', '11223344556677889900aabbccddeeff', 'ken@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Unix co-creator', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=dennis,ou=users,dc=example,dc=com', 'dennis', 'Dennis Ritchie', 'Ritchie', 'Dennis', 'Dennis Ritchie', 'ffeeddccbbaa00998877665544332211', 'dennis@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'C language creator', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=barbara,ou=users,dc=example,dc=com', 'barbara', 'Barbara Liskov', 'Liskov', 'Barbara', 'Barbara Liskov', '1234567890abcdef1234567890abcdef', 'barbara@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Turing Award winner', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('uid=edsger,ou=users,dc=example,dc=com', 'edsger', 'Edsger Dijkstra', 'Dijkstra', 'Edsger', 'Edsger Dijkstra', 'abcdef1234567890abcdef1234567890', 'edsger@example.com', 'inetOrgPerson', 'Person', 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Computer scientist', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('ou=users,dc=example,dc=com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'organizationalUnit', NULL, 'users', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'User accounts', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('ou=groups,dc=example,dc=com', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'organizationalUnit', NULL, 'groups', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Group entries', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    INSERT INTO directory VALUES ('cn=admins,ou=groups,dc=example,dc=com', NULL, 'admins', NULL, NULL, NULL, NULL, NULL, 'groupOfNames', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Administrators group', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'uid=luther,ou=users,dc=example,dc=com');
+    INSERT INTO directory VALUES ('cn=admins,ou=groups,dc=example,dc=com', NULL, 'admins', NULL, NULL, NULL, NULL, NULL, 'groupOfNames', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Administrators group', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'uid=ada,ou=users,dc=example,dc=com');
+    INSERT INTO directory VALUES ('cn=developers,ou=groups,dc=example,dc=com', NULL, 'developers', NULL, NULL, NULL, NULL, NULL, 'groupOfNames', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Developers group', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'uid=wu,ou=users,dc=example,dc=com');
+    INSERT INTO directory VALUES ('cn=developers,ou=groups,dc=example,dc=com', NULL, 'developers', NULL, NULL, NULL, NULL, NULL, 'groupOfNames', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Developers group', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'uid=linus,ou=users,dc=example,dc=com');
+"""
+
+LISTEN_ADDRESS = "localhost"
+LISTEN_PORT = 8440
+
+# Minimal MongoDB-style collection backing the NoSQL operator-injection endpoint ('/nosql'). The
+# 'password' field is the blind-extraction target, constrained by a sibling 'name' equality match.
+NOSQL_USERS = {
+    "luther": "s3cr3t",
+    "fluffy": "carrot",
+    "wu": "shanghai",
+}
+
+def nosql_match(params):
+    """Emulates a MongoDB find() on NOSQL_USERS: reconstructs the operator object for the 'password'
+    field (from bracket-notation 'password[$ne]=...' or a JSON sub-document) and evaluates it against
+    the record selected by 'name'. An invalid $regex raises re.error (surfaced as a driver error)."""
+
+    record = NOSQL_USERS.get(params.get("name"))
+
+    spec = params.get("password")
+    if isinstance(spec, dict):
+        op, value = next(iter(spec.items()), ("$eq", None))
+    else:
+        op, value = "$eq", spec
+        for key in params:
+            match = re.match(r"^password\[(\$\w+)\](?:\[\])?$", key)
+            if match:
+                op, value = match.group(1), params[key]
+                break
+
+    if isinstance(value, (tuple, list)):
+        value = value[-1] if value else None
+
+    if record is None:
+        return False
+    elif op == "$ne":
+        return record != value
+    elif op == "$gt":
+        return record > (value or "")
+    elif op == "$regex":
+        return re.search(value, record) is not None
+    else:           # $eq, $in (single-valued here) and any literal equality
+        return record == value
+
+# --- HQL endpoint (vulnerable Hibernate ORM search over a single mapped entity) -------------------
+# The query "FROM Users u WHERE u.name = '<input>'" is built by string concatenation; the evaluator
+# below reproduces just enough HQL semantics (boolean logic, EXISTS, scalar sub-queries, path
+# resolution) to make sqlmap's --hql engine detect, fingerprint, leak the entity, enumerate mapped
+# attributes and blindly extract their values. Unlike the local Hibernate lab, this endpoint reflects
+# the parser diagnostic, so it also exercises the error-based entity-leak path.
+
+HQL_ENTITY = "org.vulnserver.model.Users"
+HQL_RECORD = {"id": "1", "name": "admin", "password": "s3cr3t", "role": "administrator", "email": "admin@vulnserver.local"}
+
+
+class _HqlError(Exception):
+    pass
+
+
+def _hql_short(name):
+    return re.split(r"[.$]", name)[-1]
+
+
+def _hql_no_row(atom):
+    """True when a row-walk bound "_h2.<pin> > <n>" excludes the only record, so the
+    scalar sub-query resolves to NULL and its comparison is false."""
+
+    match = re.search(r"_h2\.\w+>(\d+)", atom)
+    return bool(match) and int(HQL_RECORD["id"]) <= int(match.group(1))
+
+
+def _hql_atom(atom):
+    atom = atom.strip()
+
+    match = re.match(r"^'([^']*)'\s*=\s*'([^']*)'$", atom)                       # literal '1'='1'
+    if match:
+        return match.group(1) == match.group(2)
+
+    match = re.match(r"^(\d+)\s*=\s*(\d+)$", atom)                               # numeric literal 1=1 / 1=2
+    if match:
+        return match.group(1) == match.group(2)
+
+    match = re.match(r"^\w+\s*=\s*'([^']*)'$", atom)                             # outer: name = 'X'
+    if match:
+        return HQL_RECORD["name"] == match.group(1)
+
+    match = re.match(r"^EXISTS\(SELECT 1 FROM (\w+) _h\)$", atom, re.I)          # entity brute
+    if match:
+        if _hql_short(match.group(1)) != _hql_short(HQL_ENTITY):
+            raise _HqlError("org.hibernate.query.sqm.UnknownEntityException: Could not resolve root entity '%s'" % match.group(1))
+        return True
+
+    match = re.match(r"^EXISTS\(SELECT _h\.(\w+) FROM (\w+) _h\)$", atom, re.I)  # attribute existence
+    if match:
+        attr = match.group(1)
+        if _hql_short(match.group(2)) != _hql_short(HQL_ENTITY) or attr not in HQL_RECORD:
+            raise _HqlError("org.hibernate.query.sqm.PathElementException: Could not resolve attribute '%s' of '%s'" % (attr, HQL_ENTITY))
+        return True
+
+    match = re.match(r"^\(SELECT LENGTH\(CAST\(_h\.(\w+) AS string\)\).*?\)\s*>=\s*(\d+)$", atom, re.I)  # scalar length
+    if match:
+        attr, n = match.group(1), int(match.group(2))
+        if attr not in HQL_RECORD:
+            raise _HqlError("org.hibernate.query.sqm.PathElementException: Could not resolve attribute '%s' of '%s'" % (attr, HQL_ENTITY))
+        if _hql_no_row(atom):                       # row-walk cursor advanced past the only record
+            return False
+        return len(HQL_RECORD[attr]) >= n
+
+    match = re.match(r"^\(SELECT LOCATE\(SUBSTRING\(CAST\(_h\.(\w+) AS string\),(\d+),1\),'([^']*)'\).*?\)\s*>=\s*(\d+)$", atom, re.I)  # scalar char (LOCATE index)
+    if match:
+        attr, pos, literal, n = match.group(1), int(match.group(2)), match.group(3), int(match.group(4))
+        if attr not in HQL_RECORD:
+            raise _HqlError("org.hibernate.query.sqm.PathElementException: Could not resolve attribute '%s' of '%s'" % (attr, HQL_ENTITY))
+        if _hql_no_row(atom):
+            return False
+        value = HQL_RECORD[attr]
+        index = (literal.find(value[pos - 1]) + 1) if pos <= len(value) else 0    # 1-based, 0 if absent
+        return index >= n
+
+    match = re.match(r"^(?:\w+\.)?(\w+)\s+IS NOT NULL$", atom, re.I)             # path probe (entity leak)
+    if match:
+        attr = match.group(1)
+        if attr not in HQL_RECORD:
+            raise _HqlError("org.hibernate.query.sqm.PathElementException: Could not resolve attribute '%s' of '%s'" % (attr, HQL_ENTITY))
+        return HQL_RECORD[attr] is not None
+
+    raise _HqlError("org.hibernate.query.SyntaxException: unexpected token near '%s'" % atom[:24])
+
+
+def hql_evaluate(value):
+    """Evaluate "name = '<value>'" as an HQL boolean; returns True/False or raises _HqlError."""
+
+    clause = "name = '%s'" % value
+    return any(all(_hql_atom(a) for a in term.split(" AND ")) for term in clause.split(" OR "))
+
+# --- SPARQL endpoint (vulnerable name search over a tiny in-memory triple store) ------------------
+
+class _SparqlError(Exception):
+    pass
+
+# (subject, predicate, object) triples of the default graph. Objects are what a blind dump recovers.
+SPARQL_TRIPLES = (
+    ("http://example.org/p1", "http://xmlns.com/foaf/0.1/name", "luther"),
+    ("http://example.org/p1", "http://xmlns.com/foaf/0.1/mbox", "luther@example.org"),
+    ("http://example.org/secret", "http://example.org/flag", "S3CR3Tvalue"),
+)
+_SPARQL_PREDICATES = sorted(set(_[1] for _ in SPARQL_TRIPLES))
+_SPARQL_OBJECTS = sorted(_[2] for _ in SPARQL_TRIPLES)
+
+
+def _sparql_bind(inner, offset):
+    """The string/integer a sub-pattern binds to ?v, or None when the OFFSET is past the end."""
+
+    if "COUNT(*)" in inner:
+        return len(SPARQL_TRIPLES)
+    if "COUNT(DISTINCT ?p)" in inner:
+        return len(_SPARQL_PREDICATES)
+    if "DISTINCT ?p" in inner:
+        return _SPARQL_PREDICATES[offset] if offset < len(_SPARQL_PREDICATES) else None
+    if "SELECT ?o" in inner:
+        return _SPARQL_OBJECTS[offset] if offset < len(_SPARQL_OBJECTS) else None
+    return None
+
+
+def _sparql_cmp(value, cmp):
+    """Evaluate one comparison on the bound ?v, mirroring SPARQL semantics (an out-of-range SUBSTR is
+    the empty string, which is lexicographically below any real character)."""
+
+    match = re.match(r"^\?v >= (\d+)$", cmp)
+    if match:
+        return isinstance(value, int) and value >= int(match.group(1))
+    match = re.match(r"^STRLEN\(STR\(\?v\)\) >= (\d+)$", cmp)
+    if match:
+        return len("%s" % value) >= int(match.group(1))
+    # a quote or a backslash arrives ECHAR-escaped, the way a real store receives it inside a literal
+    match = re.match(r'^SUBSTR\(STR\(\?v\),(\d+),1\) >= "(\\.|.)"$', cmp)
+    if match:
+        pos, ch = int(match.group(1)), match.group(2)
+        ch = {'\\"': '"', "\\\\": "\\"}.get(ch, ch)
+        text = "%s" % value
+        return (text[pos - 1] if pos <= len(text) else "") >= ch
+    return False
+
+
+def _sparql_predicate(pred):
+    """Evaluate one injected FILTER predicate against the store."""
+
+    pred = pred.strip()
+    if pred in ("1=1", "(1=1)"):
+        return True
+    if pred in ("1=2", "(1=2)"):
+        return False
+    if "FILTER(!isIRI(?zo))" in pred:               # the confirm contradiction (two FILTERs)
+        return False
+    if pred == "EXISTS { ?zs ?zp ?zo }":            # the confirm positive
+        return bool(SPARQL_TRIPLES)
+    match = re.match(r"^EXISTS \{ SELECT \?v WHERE \{ (.*) FILTER\((.*)\) \} \}$", pred)
+    if match:
+        inner, cmp = match.group(1).strip(), match.group(2).strip()
+        offset = 0
+        off = re.search(r"OFFSET (\d+)", inner)
+        if off:
+            offset = int(off.group(1))
+        value = _sparql_bind(inner, offset)
+        return value is not None and _sparql_cmp(value, cmp)
+    return False
+
+
+def sparql_evaluate(value):
+    """Evaluate the injected FILTER of SELECT ... FILTER(?name = "<value>"). A well-formed boundary
+    reduces to its injected predicate; anything that leaves the string literal unbalanced raises a
+    Jena-style parser error (the fingerprint surface)."""
+
+    # recognised OR-style boundaries: <base><quote> || (<PRED>) || <tail>
+    for quote, tail in (('"', '""!="'), ("'", "''!='")):
+        marker = '%s || (' % quote
+        suffix = ') || %s' % tail
+        if marker in value and value.endswith(suffix):
+            pred = value.split(marker, 1)[1][:-len(suffix)]
+            return _sparql_predicate(pred)
+    # numeric boundary: <base>) || (<PRED>) || (1=1
+    if ") || (" in value and value.endswith(") || (1=1"):
+        pred = value.split(") || (", 1)[1][:-len(") || (1=1")]
+        return _sparql_predicate(pred)
+    # a bare, unbalanced break-out (the error probe) trips the parser
+    if value.count('"') % 2 or value.rstrip().endswith(("'", ")", ".")):
+        raise _SparqlError("Parse error: Lexical error at line 1, column %d.  Encountered: <EOF>" % (len(value) + 40))
+    # the untouched original value simply matches its row
+    return any(o == value for _s, p, o in SPARQL_TRIPLES if p.endswith("name"))
+
+# --- OData endpoint (vulnerable $filter over a tiny in-memory entity set) --------------------------
+
+class _ODataError(Exception):
+    pass
+
+# entities of the "Products" set. 'Secret' is readable via $filter yet never $select-ed, so a blind dump
+# recovers a property the endpoint does not otherwise expose.
+ODATA_ENTITIES = (
+    {"Id": 1, "Name": "luther", "Secret": "S3CR3Tvalue"},
+    {"Id": 2, "Name": "fluffy", "Secret": "hunter2"},
+    {"Id": 3, "Name": "wu", "Secret": "letmein"},
+)
+_ODATA_FIELDS = ("Id", "Name", "Secret")
+
+
+def _odata_depths(expr):
+    """Paren depth after each character, IGNORING parens that sit inside a string literal (OData escapes
+    an inner quote by doubling it). Counting them blind made this evaluator reject filters that a real
+    OData service accepts - `substring(Name,0,1) eq '('` returned 400 here and 200 from ASP.NET Core -
+    which would let a genuine client-side bug hide behind a target-side one."""
+
+    depths = []
+    depth, inside, index = 0, False, 0
+    while index < len(expr):
+        ch = expr[index]
+        if inside:
+            if ch == "'":
+                if expr[index:index + 2] == "''":
+                    depths.append(depth)                # a doubled quote stays inside the literal
+                    index += 1
+                else:
+                    inside = False
+        elif ch == "'":
+            inside = True
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        depths.append(depth)
+        index += 1
+    return depths
+
+
+def _odata_split(expr, sep):
+    """Split on `sep` at paren depth zero (so 'a and (b or c)' is not broken inside the parentheses)."""
+    parts, buf = [], []
+    for token in expr.split(sep):
+        buf.append(token)
+        chunk = sep.join(buf)
+        depths = _odata_depths(chunk)
+        if not depths or depths[-1] == 0:
+            parts.append(chunk)
+            buf = []
+    if buf:
+        parts.append(sep.join(buf))
+    return parts
+
+
+def _odata_wrapped(expr):
+    """True when the whole expression is enclosed by one matching paren pair."""
+    if not (expr.startswith("(") and expr.endswith(")")):
+        return False
+    depths = _odata_depths(expr)
+    return depths[-1] == 0 and all(_ > 0 for _ in depths[:-1])
+
+
+def _odata_eval(entity, expr):
+    """Recursively evaluate an OData boolean expression for one entity ('or' lowest precedence, then
+    'and', then a leaf atom), so parenthesised sub-expressions nest correctly."""
+    expr = expr.strip()
+    while _odata_wrapped(expr):
+        expr = expr[1:-1].strip()
+    ors = _odata_split(expr, " or ")
+    if len(ors) > 1:
+        return any(_odata_eval(entity, o) for o in ors)
+    ands = _odata_split(expr, " and ")
+    if len(ands) > 1:
+        return all(_odata_eval(entity, a) for a in ands)
+    return _odata_atom(entity, expr)
+
+
+def _odata_atom(entity, atom):
+    """Evaluate one leaf OData boolean atom against one entity, mirroring the shapes sqlmap emits. Raises
+    _ODataError on an unknown property (a 400 surface)."""
+
+    atom = atom.strip()
+    while _odata_wrapped(atom):
+        atom = atom[1:-1].strip()
+
+    match = re.match(r"^length\('([^']*)'\) eq (\d+)$", atom)
+    if match:
+        return len(match.group(1)) == int(match.group(2))
+    match = re.match(r"^startswith\('([^']*)','([^']*)'\)$", atom)
+    if match:
+        return match.group(1).startswith(match.group(2))
+    match = re.match(r"^contains\('([^']*)','([^']*)'\)$", atom)
+    if match:
+        return match.group(2) in match.group(1)
+    if atom.startswith("substringof("):
+        raise _ODataError("substringof is not a v4 function")
+    match = re.match(r"^'([^']*)' eq '([^']*)'$", atom)
+    if match:
+        return match.group(1) == match.group(2)
+    match = re.match(r"^(\d+) eq (\d+)$", atom)
+    if match:
+        return match.group(1) == match.group(2)
+    match = re.match(r"^(\w+) eq '([^']*)'$", atom)                      # <strprop> eq '<lit>'
+    if match:
+        if match.group(1) not in _ODATA_FIELDS:
+            raise _ODataError("Could not find a property named '%s' on type 'Default.Product'." % match.group(1))
+        return "%s" % entity.get(match.group(1)) == match.group(2)
+    match = re.match(r"^(\w+) ne null$", atom)                           # existence probe
+    if match:
+        if match.group(1) not in _ODATA_FIELDS:
+            raise _ODataError("Could not find a property named '%s' on type 'Default.Product'." % match.group(1))
+        return entity.get(match.group(1)) is not None
+    match = re.match(r"^(\w+) (eq|ge|gt|le|lt) (-?\d+)$", atom)          # <intprop> <op> <int>
+    if match:
+        prop, op, num = match.group(1), match.group(2), int(match.group(3))
+        if prop not in _ODATA_FIELDS:
+            raise _ODataError("Could not find a property named '%s' on type 'Default.Product'." % prop)
+        val = entity.get(prop)
+        if not isinstance(val, int):
+            return False
+        return {"eq": val == num, "ge": val >= num, "gt": val > num, "le": val <= num, "lt": val < num}[op]
+    match = re.match(r"^length\((\w+)\) (eq|ge) (\d+)$", atom)           # length(<prop>) <op> N
+    if match:
+        prop, op, num = match.group(1), match.group(2), int(match.group(3))
+        if prop not in _ODATA_FIELDS:
+            raise _ODataError("Could not find a property named '%s' on type 'Default.Product'." % prop)
+        length = len("%s" % entity.get(prop, ""))
+        return length == num if op == "eq" else length >= num
+    # substring(<prop>,pos,1) eq 'c' - an inner quote arrives DOUBLED, the way the OData spec escapes it
+    match = re.match(r"^substring\((\w+),(\d+),1\) eq '(''|.)'$", atom)
+    if match:
+        prop, pos, ch = match.group(1), int(match.group(2)), match.group(3)
+        ch = "'" if ch == "''" else ch
+        if prop not in _ODATA_FIELDS:
+            raise _ODataError("Could not find a property named '%s' on type 'Default.Product'." % prop)
+        text = "%s" % entity.get(prop, "")
+        return pos < len(text) and text[pos] == ch                      # 0-indexed, ordinal (case-sensitive)
+    raise _ODataError("Syntax error at position 0 in '%s'." % atom)
+
+
+def odata_evaluate(name):
+    """Return the entities matched by $filter=Name eq '<name>'. A balanced break-out reduces to its
+    injected predicate; an unbalanced string literal raises a Microsoft-OData-style parser error."""
+
+    expr = "Name eq '%s'" % name
+    if expr.count("'") % 2:
+        raise _ODataError("The query specified in the URI is not valid. There is an unterminated string "
+                          "literal at position 8 in '%s'." % expr)
+    return [entity for entity in ODATA_ENTITIES if _odata_eval(entity, expr)]
+
+# --- XPath endpoint (vulnerable search and login, backed by an in-memory XML document) ------------
+
+XSLT_DOC = """<?xml version="1.0"?><catalog><item><name>luther</name><price>10</price></item>\
+<item><name>fluffy</name><price>20</price></item></catalog>"""
+
+# The element slot: user input lands BETWEEN elements, so it can introduce whole XSLT instructions.
+XSLT_ELEMENT_SHEET = """<?xml version="1.0"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html"/><xsl:template match="/"><html><body><div>%s</div></body></html></xsl:template>
+</xsl:stylesheet>"""
+
+# The value slot: user input lands INSIDE select="...", so it can only carry an XPath expression.
+XSLT_VALUE_SHEET = """<?xml version="1.0"?>
+<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:output method="html"/><xsl:template match="/"><html><body><table>
+<xsl:for-each select="catalog/item"><xsl:sort select="%s"/><tr><td><xsl:value-of select="name"/></td></tr></xsl:for-each>
+</table></body></html></xsl:template>
+</xsl:stylesheet>"""
+
+XPATH_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<directory>
+  <department name="IT Operations">
+    <user id="1">
+      <username>luther</username>
+      <realname>Luther Blisset</realname>
+      <email>luther@example.com</email>
+      <password>db3a16990a0008a3b04707fdef6584a0</password>
+      <role>System Administrator</role>
+      <location>London</location>
+      <phone>+1 555 0100</phone>
+    </user>
+    <user id="2">
+      <username>fluffy</username>
+      <realname>Fluffy Bunny</realname>
+      <email>fluffy@example.com</email>
+      <password>4db967ce67b15e7fb84c266a76684729</password>
+      <role>Security Engineer</role>
+      <location>Amsterdam</location>
+      <phone>+1 555 0102</phone>
+    </user>
+    <user id="3">
+      <username>wu</username>
+      <realname>Wu Ming</realname>
+      <email>wu@example.com</email>
+      <password>f5a2950eaa10f9e99896800eacbe8275</password>
+      <role>Network Administrator</role>
+      <location>Shanghai</location>
+      <phone>+86 21 555 0103</phone>
+    </user>
+  </department>
+  <department name="Engineering">
+    <user id="4">
+      <username>linus</username>
+      <realname>Linus Torvalds</realname>
+      <email>linus@example.com</email>
+      <password>8e7b6a5c4d321908f7e6d5c4b3a2910f</password>
+      <role>Kernel Developer</role>
+      <location>Portland</location>
+      <phone>+1 555 0200</phone>
+    </user>
+    <user id="5">
+      <username>ada</username>
+      <realname>Ada Lovelace</realname>
+      <email>ada@example.com</email>
+      <password>1a2b3c4d5e6f7081920a1b2c3d4e5f60</password>
+      <role>Algorithm Designer</role>
+      <location>London</location>
+      <phone>+44 20 555 0201</phone>
+    </user>
+  </department>
+  <department name="Management">
+    <user id="6">
+      <username>grace</username>
+      <realname>Grace Hopper</realname>
+      <email>grace@example.com</email>
+      <password>9e8d7c6b5a493827160e9d8c7b6a5948</password>
+      <role>CTO</role>
+      <location>New York</location>
+      <phone>+1 555 0300</phone>
+    </user>
+  </department>
+</directory>"""
+
+def _xpath_element_to_dict(el):
+    """Convert an lxml element to a dict for JSON serialization."""
+    retVal = dict(el.attrib)
+    retVal["tag"] = el.tag
+    retVal["text"] = (el.text or "").strip()
+    children = []
+    for child in el:
+        children.append(_xpath_element_to_dict(child))
+    if children:
+        retVal["children"] = children
+    return retVal
+
+_conn = None
+_cursor = None
+_lock = None
+_server = None
+_alive = False
+_csrf_token = None
+_ratelimit_hits = 0
+
+# number of initial hits to '/ratelimit' answered with 429 before it behaves normally
+RATELIMIT_INITIAL_429 = 1
+
+def init(quiet=False):
+    global _conn
+    global _cursor
+    global _lock
+    global _csrf_token
+
+    _csrf_token = "".join(random.sample(string.ascii_letters + string.digits, 20))
+
+    _conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+    _cursor = _conn.cursor()
+    _lock = threading.Lock()
+
+    _cursor.executescript(SCHEMA)
+
+    if quiet:
+        global print
+
+        def _(*args, **kwargs):
+            pass
+
+        print = _
+
+class ThreadingServer(ThreadingMixIn, HTTPServer):
+    def finish_request(self, *args, **kwargs):
+        try:
+            HTTPServer.finish_request(self, *args, **kwargs)
+        except Exception:
+            if DEBUG:
+                traceback.print_exc()
+
+# Primitive (CRS-style) WAF/IPS emulator used to exercise the automatic WAF/IPS bypass. The request
+# surface is normalized like a real WAF (lowercase, comments->space, whitespace compressed) BEFORE
+# a cumulative anomaly score is summed; when the score reaches the per-level threshold the request
+# is blocked (403 + marker). The rules are shaped so that camouflage tampers (case/whitespace/
+# comments) are normalized away and a *structural* substitution (e.g. 'between'/'equaltolike',
+# which removes the scored '=' operator) is the genuine bypass - matching real-world behavior.
+#
+# The emulator also models the OTHER real-world dimension: a scanner-fingerprint rule (mirroring
+# CRS 913100) adds a constant score for a recognizable scanner User-Agent that *stacks* with the
+# payload score. Its weight is below every threshold, so the scanner UA alone never blocks (benign
+# browsing passes), but it tips an otherwise-permitted payload over the threshold - so neutralizing
+# the request fingerprint (a non-scanner User-Agent) is itself a genuine bypass, with no SQL tamper.
+WAF_NUMERIC_COMPARISON = r"\d+\s*=\s*\d+"       # numeric self-comparison (boolean payloads); the structural lever 'between'/'equaltolike' removes it
+WAF_RULES = (
+    (r"\bunion\b.{0,40}\bselect\b", 6),
+    (r"\binformation_schema\b", 5),
+    (r"\b(sleep|benchmark|extractvalue|updatexml|xp_cmdshell|waitfor)\b", 5),
+    (r"\b(select|insert|update|delete|drop)\b", 3),
+    (WAF_NUMERIC_COMPARISON, 4),
+    (r"<script", 6),
+)
+WAF_THRESHOLD = {1: 6, 2: 4, 3: 2, 4: 8, 5: 5}      # security_level -> cumulative score that triggers a block
+WAF_SCANNER_UA = r"(?i)\b(?:sqlmap|nikto|nessus|acunetix|nmap|masscan|w3af|havij|wpscan|dirbuster|arachni)\b"
+WAF_SCANNER_UA_WEIGHT = 3       # CRS 913100-style: constant score for a scanner User-Agent, stacked with the payload score
+
+# Levels 4-5 model a libinjection-class WAF (e.g. OWASP CRS rule 942100): ANY boolean-comparison
+# fingerprint scores a flat amount REGARDLESS of operator, so '=','LIKE','BETWEEN','IN' are all
+# caught equally - structural tampers (between/equaltolike) do NOT help. There, neutralizing the
+# scanner fingerprint is the only payload-preserving bypass (level 4); when even that is not enough
+# the search must bail honestly (level 5). This mirrors the hardest real-world case.
+WAF_LIBINJECTION_LEVELS = (4, 5)
+WAF_LIBINJECTION_WEIGHT = 5
+WAF_LIBINJECTION = r"(?i)\b(?:and|or)\b.{0,40}(?:=|>|<|\blike\b|\bbetween\b|\bin\b|\brlike\b|\bregexp\b)"
+
+def waf_score(value, ua=None, level=0):
+    value = (value or "").lower()
+    value = re.sub(r"/\*.*?\*/", " ", value)        # t:replaceComments (note: -> single space, not empty)
+    value = re.sub(r"(?:--|#)[^\n]*", " ", value)   # t:removeComments (line comments)
+    value = re.sub(r"\s+", " ", value)              # t:compressWhitespace
+    libinjection = level in WAF_LIBINJECTION_LEVELS
+    retVal = sum(weight for (pattern, weight) in WAF_RULES if not (libinjection and pattern == WAF_NUMERIC_COMPARISON) and re.search(pattern, value))
+    if libinjection and re.search(WAF_LIBINJECTION, value):     # operator-agnostic comparison score (tampers cannot remove it)
+        retVal += WAF_LIBINJECTION_WEIGHT
+    if ua and re.search(WAF_SCANNER_UA, ua):        # scanner-fingerprint score, stacked with the payload score
+        retVal += WAF_SCANNER_UA_WEIGHT
+    return retVal
+
+# --- LDAP endpoint (vulnerable search and login, backed by the directory table) ------------------
+
+def _ldap_escape_like(value):
+    """Escape a value for safe embedding in a SQLite LIKE pattern: backslash, percent,
+    and underscore are the only characters with special meaning in LIKE."""
+    if value is None:
+        return None
+    return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+def _ldap_attr(attr):
+    """Map an LDAP attribute name to the directory table column, or None if unknown."""
+    valid = {"dn", "uid", "cn", "sn", "givenName", "displayName", "userPassword", "mail", "objectClass", "objectCategory", "ou", "title", "department", "company", "o", "telephoneNumber", "mobile", "manager", "description", "l", "st", "street", "postalCode", "c", "employeeNumber", "employeeType", "member"}
+    return attr if attr in valid else None
+
+def _ldap_match(text, start):
+    """Find the closing ')' that balances the opening '(' at `start`. Skip escaped
+    hex sequences (e.g. \\28 for literal '(' inside a value) but treat every raw ')'
+    as a structural closer."""
+    depth = 0
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if ch == '(':
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        elif ch == '\\':
+            i += 1
+        i += 1
+    return len(text)
+
+def _ldap_parse_value(text, start):
+    """Parse an assertion value from filter text at position `start`, handling escape sequences.
+    Returns (value, end_pos)."""
+    retVal = []
+    i = start
+    while i < len(text) and text[i] not in (')',):
+        if text[i] == '\\' and i + 2 < len(text):
+            retVal.append(chr(int(text[i+1:i+3], 16)))
+            i += 3
+        else:
+            retVal.append(text[i])
+            i += 1
+    return ''.join(retVal), i
+
+def _ldap_filter_to_sql(text, start=0):
+    """Convert an LDAP filter substring starting at `start` to a parameterized
+    SQLite WHERE clause. Returns (sql_template, params, end_pos) or (None, [], end_pos)
+    on parse failure. Values are passed as parameters so that user-controlled
+    characters (apostrophe, backslash, etc.) cannot break the SQL string literal."""
+
+    if start >= len(text) or text[start] != '(':
+        return None, [], start
+
+    i = start + 1
+    if i >= len(text):
+        return None, [], start
+
+    op = text[i]
+    i += 1
+
+    if op in ('&', '|'):
+        # Compound filter: collect all sub-filters
+        sub_clauses = []
+        sub_params = []
+        while i < len(text) and text[i] == '(':
+            clause, params, i = _ldap_filter_to_sql(text, i)
+            if clause:
+                sub_clauses.append(clause)
+                sub_params.extend(params)
+        # Always use bracket-matched end so nested compounds don't shift the
+        # parent's notion of where this child ends (reviewer blocker 3)
+        end = _ldap_match(text, start)
+        if not sub_clauses:
+            return None, [], end
+        if len(sub_clauses) == 1:
+            return sub_clauses[0], sub_params, end
+        joiner = " AND " if op == '&' else " OR "
+        return "(%s)" % joiner.join(sub_clauses), sub_params, end
+
+    elif op == '!':
+        # NOT filter
+        clause, params, i = _ldap_filter_to_sql(text, i)
+        end = _ldap_match(text, start)
+        if clause:
+            return "(NOT (%s))" % clause, params, end
+        return None, [], end
+
+    else:
+        # Simple filter: attr OP value
+        # Re-read from start+1 to get the full attr name
+        j = start + 1
+        while j < len(text) and text[j] not in ('=', '>', '<', '~', ')'):
+            j += 1
+        attr = text[start+1:j].strip()
+        if not attr:
+            return None, [], _ldap_match(text, start)
+
+        col = _ldap_attr(attr)
+        if col is None:
+            return None, [], _ldap_match(text, start)
+
+        if j >= len(text):
+            return None, [], start
+
+        # Check for approx match (~=)
+        if text[j] == '~' and j + 1 < len(text) and text[j+1] == '=':
+            op_type = '~='
+            j += 2
+        elif text[j] == '>' and j + 1 < len(text) and text[j+1] == '=':
+            op_type = '>='
+            j += 2
+        elif text[j] == '<' and j + 1 < len(text) and text[j+1] == '=':
+            op_type = '<='
+            j += 2
+        elif text[j] == '=':
+            op_type = '='
+            j += 1
+        else:
+            return None, [], _ldap_match(text, start)
+
+        value, _ = _ldap_parse_value(text, j)
+        end = _ldap_match(text, start)
+
+        if op_type == '=':
+            if value == '*':
+                return "(%s IS NOT NULL AND %s != '')" % (col, col), [], end
+            elif '*' in value:
+                parts = value.split('*')
+                if len(parts) == 2 and not parts[0] and not parts[1]:
+                    # Just '*' -> presence
+                    return "(%s IS NOT NULL AND %s != '')" % (col, col), [], end
+                elif len(parts) == 2 and parts[0] and not parts[1]:
+                    # 'prefix*' -> anchored prefix match (LDAP semantics)
+                    return "(%s LIKE ? ESCAPE '\\')" % col, ["%s%%" % _ldap_escape_like(parts[0])], end
+                elif len(parts) == 2 and not parts[0] and parts[1]:
+                    # '*suffix' -> anchored suffix match (LDAP semantics)
+                    return "(%s LIKE ? ESCAPE '\\')" % col, ["%%%s" % _ldap_escape_like(parts[1])], end
+                else:
+                    # '*mid*', 'pre*mid*suf', etc. -- split('*') already
+                    # partitions the value into literal segments; joining
+                    # them with '%' naturally produces the correct anchored
+                    # LIKE pattern: empty first/last elements from surrounding
+                    # wildcards become leading/trailing '%' automatically.
+                    pattern = '%'.join(_ldap_escape_like(p) for p in parts)
+                    return "(%s LIKE ? ESCAPE '\\')" % col, [pattern], end
+            else:
+                return "(%s = ?)" % col, [value], end
+        elif op_type == '>=':
+            return "(%s >= ?)" % col, [value], end
+        elif op_type == '<=':
+            return "(%s <= ?)" % col, [value], end
+        elif op_type == '~=':
+            return "(%s = ?)" % col, [value], end
+
+        return None, [], end
+
+
+def _ldap_execute(filter_str):
+    """Execute an LDAP filter against the directory table. Returns (rows, error_msg)."""
+    if not filter_str or not filter_str.strip():
+        return None, "Bad search filter"
+
+    # Simple bracket validation
+    if filter_str.count('(') != filter_str.count(')'):
+        return None, "Bad search filter (-7)"
+
+    try:
+        clause, params, _ = _ldap_filter_to_sql(filter_str)
+        if not clause:
+            return None, "Bad search filter (-7)"
+
+        sql = "SELECT * FROM directory WHERE %s" % clause
+        with _lock:
+            _cursor.execute(sql, params)
+            rows = _cursor.fetchall()
+        return rows, None
+    except Exception as ex:
+        msg = str(ex)
+        # Emulate different back-end error messages
+        if "no such column" in msg.lower():
+            return None, "Bad search filter"
+        if "unrecognized" in msg.lower() or "syntax" in msg.lower():
+            return None, "Bad search filter (-7)"
+        return None, "Bad search filter (%s)" % msg.split(':')[0]
+
+def _ldap_row_to_obj(row):
+    """Convert a SQLite row to a dict with non-None attributes."""
+    if not row:
+        return None
+    keys = ("dn", "uid", "cn", "sn", "givenName", "displayName", "userPassword", "mail", "objectClass", "objectCategory", "ou", "title", "department", "company", "o", "telephoneNumber", "mobile", "manager", "description", "l", "st", "street", "postalCode", "c", "employeeNumber", "employeeType", "member")
+    return dict((k, row[i]) for i, k in enumerate(keys) if row[i] is not None)
+
+# --- GraphQL endpoint (vulnerable Apollo-style, backed by the same SQLite database) ----------
+
+# Hard-coded introspection response matching the schema below. Every GraphQL tool (including
+# sqlmap's --graphql engine) uses this to discover fields, arguments, and types.
+def _graphql_introspection():
+    return {
+        "data": {
+            "__schema": {
+                "queryType": {"name": "Query"},
+                "mutationType": {"name": "Mutation"},
+                "subscriptionType": None,
+                "directives": [],
+                "types": [
+                    {"kind": "OBJECT", "name": "Query", "fields": [
+                        {"name": "user", "args": [
+                            {"name": "username", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "String", "ofType": None}}}
+                        ], "type": {"kind": "OBJECT", "name": "User", "ofType": None}},
+                        {"name": "search", "args": [
+                            {"name": "term", "defaultValue": None, "type": {"kind": "SCALAR", "name": "String", "ofType": None}}
+                        ], "type": {"kind": "LIST", "name": None, "ofType": {"kind": "OBJECT", "name": "User", "ofType": None}}},
+                        {"name": "login", "args": [
+                            {"name": "username", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "String", "ofType": None}}},
+                            {"name": "password", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "String", "ofType": None}}}
+                        ], "type": {"kind": "OBJECT", "name": "AuthPayload", "ofType": None}},
+                    ], "inputFields": None, "enumValues": None},
+                    {"kind": "OBJECT", "name": "Mutation", "fields": [
+                        {"name": "updateUser", "args": [
+                            {"name": "id", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "Int", "ofType": None}}},
+                            {"name": "email", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "String", "ofType": None}}}
+                        ], "type": {"kind": "OBJECT", "name": "User", "ofType": None}},
+                    ], "inputFields": None, "enumValues": None},
+                    {"kind": "INPUT_OBJECT", "name": "UpdateUserInput", "inputFields": [
+                        {"name": "id", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "Int", "ofType": None}}},
+                        {"name": "email", "defaultValue": None, "type": {"kind": "NON_NULL", "name": None, "ofType": {"kind": "SCALAR", "name": "String", "ofType": None}}}
+                    ]},
+                    {"kind": "SCALAR", "name": "Int"},
+                    {"kind": "SCALAR", "name": "String"},
+                    {"kind": "SCALAR", "name": "Boolean"},
+                    {"kind": "SCALAR", "name": "Float"},
+                    {"kind": "SCALAR", "name": "ID"},
+                    {"kind": "OBJECT", "name": "User", "fields": [
+                        {"name": "id", "args": [], "type": {"kind": "SCALAR", "name": "Int", "ofType": None}},
+                        {"name": "name", "args": [], "type": {"kind": "SCALAR", "name": "String", "ofType": None}},
+                        {"name": "surname", "args": [], "type": {"kind": "SCALAR", "name": "String", "ofType": None}},
+                    ], "inputFields": None, "enumValues": None},
+                    {"kind": "OBJECT", "name": "AuthPayload", "fields": [
+                        {"name": "token", "args": [], "type": {"kind": "SCALAR", "name": "String", "ofType": None}},
+                        {"name": "user", "args": [], "type": {"kind": "OBJECT", "name": "User", "ofType": None}},
+                    ], "inputFields": None, "enumValues": None},
+                ]
+            }
+        }
+    }
+
+
+def _graphql_arg(raw):
+    """Parse a single GraphQL argument value: strip quotes from strings, keep numbers as-is"""
+    raw = raw.strip()
+    if raw.startswith('"') and raw.endswith('"'):
+        return raw[1:-1].replace('\\"', '"')
+    return raw
+
+
+def _graphql_match(text, start):
+    """Index just past the bracket matching the one at text[start] ('(' or '{'), skipping over
+    double-quoted strings so brackets inside argument literals (e.g. an injected SQL payload) and
+    nested selection sets do not throw off the balance."""
+
+    pairs = {'(': ')', '{': '}'}
+    opener, closer = text[start], pairs[text[start]]
+    depth, i, n = 0, start, len(text)
+    while i < n:
+        char = text[i]
+        if char == '"':
+            i += 1
+            while i < n and text[i] != '"':
+                i += 2 if text[i] == '\\' else 1
+        elif char == opener:
+            depth += 1
+        elif char == closer:
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
+def _graphql_selections(body):
+    """Split a selection set into its top-level (alias, field, rawArgs) fields, tolerating aliasing,
+    argument literals carrying brackets/quotes, and nested selection sets (which are skipped over)."""
+
+    identifier = re.compile(r'[A-Za-z_]\w*')
+    selections, i, n = [], 0, len(body)
+    while i < n:
+        while i < n and body[i] in ' \t\r\n,':
+            i += 1
+        match = identifier.match(body, i)
+        if not match:
+            i += 1
+            continue
+        name, i = match.group(0), match.end()
+
+        j = i
+        while j < n and body[j] in ' \t\r\n':
+            j += 1
+        if j < n and body[j] == ':':                # 'name' was an alias; the real field follows
+            j += 1
+            while j < n and body[j] in ' \t\r\n':
+                j += 1
+            match = identifier.match(body, j)
+            if not match:
+                continue
+            alias, field, i = name, match.group(0), match.end()
+        else:
+            alias, field = None, name
+
+        while i < n and body[i] in ' \t\r\n':
+            i += 1
+        rawArgs = ""
+        if i < n and body[i] == '(':
+            end = _graphql_match(body, i)
+            rawArgs, i = body[i + 1:end - 1], end
+
+        while i < n and body[i] in ' \t\r\n':
+            i += 1
+        if i < n and body[i] == '{':                # skip this field's (possibly nested) selection set
+            i = _graphql_match(body, i)
+
+        selections.append((alias, field, rawArgs))
+    return selections
+
+
+def _graphql_resolve(query, variables):
+    """Minimal GraphQL resolver: parse the query, call the matching resolver for each top-level field,
+    and return (data_dict_or_None, errors_list). Multiple aliased fields are supported in one request
+    (alias:field(args){...} ...), so a client can batch independent probes into a single round-trip."""
+
+    variables = variables or {}
+    errors = []
+    data = {}
+
+    op = "query"
+    for keyword in ("mutation", "subscription"):
+        if query.strip().startswith(keyword):
+            op = keyword
+            break
+
+    start = query.find('{')
+    if start == -1:
+        errors.append({"message": "Cannot parse query", "extensions": {"code": "GRAPHQL_PARSE_FAILED"}})
+        return None, errors
+
+    for alias, field, rawArgs in _graphql_selections(query[start + 1:_graphql_match(query, start) - 1]):
+        key = alias or field
+
+        # Parse arguments
+        args = {}
+        for am in re.finditer(r'(\w+)\s*:\s*("(?:[^"\\]|\\.)*"|\$?\w+(?:\.\w+)?)', rawArgs):
+            name, val = am.group(1), am.group(2)
+            if val.startswith('$'):
+                args[name] = variables.get(val[1:], None)
+            else:
+                args[name] = _graphql_arg(val)
+
+        try:
+            if field in ("__typename", "__schema"):
+                data[key] = op.title()
+            elif field == "user":
+                data[key] = _resolver_user(args.get("username"))
+            elif field == "search":
+                data[key] = _resolver_search(args.get("term"))
+            elif field == "login":
+                data[key] = _resolver_login(args.get("username"), args.get("password"))
+            elif field == "updateUser":
+                data[key] = _resolver_updateUser(args.get("id"), args.get("email"))
+            else:
+                errors.append({"message": "Cannot query field '%s' on type '%s'. Did you mean 'user', 'search', 'login', or 'updateUser'?" % (field, op.title()),
+                               "extensions": {"code": "GRAPHQL_VALIDATION_FAILED"}})
+        except Exception as ex:
+            # Leak the backend error through the GraphQL error envelope (as many real servers do
+            # in development mode) -- this drives error-based detection
+            errors.append({"message": "%s: %s" % (re.search(r"'([^']+)'", str(type(ex))).group(1), ex),
+                           "path": [key], "extensions": {"exception": str(ex)}})
+
+    if not data and not errors:
+        return None, errors
+    return data, errors
+
+
+# --- Vulnerable resolvers (direct string concatenation into SQLite) ------------------------
+
+def _resolver_user(username):
+    if not username:
+        return None
+    with _lock:
+        _cursor.execute("SELECT id, name, surname FROM users WHERE name='%s'" % username)
+        row = _cursor.fetchone()
+    return {"id": row[0], "name": row[1], "surname": row[2]} if row else None
+
+
+def _resolver_search(term):
+    with _lock:
+        _cursor.execute("SELECT id, name, surname FROM users WHERE name LIKE '%%%s%%'" % (term or ""))
+        rows = _cursor.fetchall()
+    return [{"id": r[0], "name": r[1], "surname": r[2]} for r in (rows or [])]
+
+
+def _resolver_login(username, password):
+    if not username or not password:
+        return None
+    with _lock:
+        _cursor.execute("SELECT u.id, u.name, u.surname FROM users u JOIN creds c ON u.id=c.user_id WHERE u.name='%s' AND c.password_hash='%s'" % (username, password))
+        row = _cursor.fetchone()
+    if row:
+        return {"token": "tok_%d_%s" % (row[0], row[1]), "user": {"id": row[0], "name": row[1], "surname": row[2]}}
+    return None  # returns null in data (boolean oracle: true=object, false=null)
+
+
+def _resolver_updateUser(id_, email):
+    with _lock:
+        _cursor.execute("UPDATE users SET surname='%s' WHERE id=%s" % (email, id_))
+        _cursor.execute("SELECT id, name, surname FROM users WHERE id=%s" % id_)
+        row = _cursor.fetchone()
+    return {"id": row[0], "name": row[1], "surname": row[2]} if row else None
+
+
+class ReqHandler(BaseHTTPRequestHandler):
+    def do_REQUEST(self):
+        path, query = self.path.split('?', 1) if '?' in self.path else (self.path, "")
+        params = {}
+
+        if query:
+            params.update(parse_qs(query))
+
+            if "<script>" in unquote_plus(query):
+                self.send_response(INTERNAL_SERVER_ERROR)
+                self.send_header("X-Powered-By", "Express")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write("CLOUDFLARE_ERROR_500S_BOX".encode(UNICODE_ENCODING))
+                return
+
+        if hasattr(self, "data"):
+            if self.data.startswith('{') and self.data.endswith('}'):
+                params.update(json.loads(self.data))
+            elif self.data.startswith('<') and self.data.endswith('>'):
+                params.update(dict((_[0], _[1].replace("&apos;", "'").replace("&quot;", '"').replace("&lt;", '<').replace("&gt;", '>').replace("&amp;", '&')) for _ in re.findall(r'name="([^"]+)" value="([^"]*)"', self.data)))
+            else:
+                self.data = self.data.replace(';', '&')     # Note: seems that Python3 started ignoring parameter splitting with ';'
+                params.update(parse_qs(self.data))
+
+        for name in self.headers:
+            params[name.lower()] = self.headers[name]
+
+        if "cookie" in params:
+            for part in params["cookie"].split(';'):
+                part = part.strip()
+                if '=' in part:
+                    name, value = part.split('=', 1)
+                    params[name.strip()] = unquote_plus(value.strip())
+
+        for key in params:
+            if params[key] and isinstance(params[key], (tuple, list)):
+                params[key] = params[key][-1]
+
+        self.url, self.params = path, params
+
+        # primitive WAF/IPS emulator (opt-in via 'security_level' param; 0/absent = off)
+        try:
+            level = int(self.params.get("security_level", 0) or 0)
+        except (TypeError, ValueError):
+            level = 0
+
+        if level > 0:
+            surface = "%s %s" % (unquote_plus(query), getattr(self, "data", "") or "")
+            if waf_score(surface, ua=self.params.get("user-agent"), level=level) >= WAF_THRESHOLD.get(level, 2):
+                self.send_response(FORBIDDEN)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(b"<html><body>Request blocked: security policy violation (WAF)</body></html>")
+                return
+
+        # rate-limit emulator ('/ratelimit'): the first hit(s) answer 429 with a 'Retry-After', then
+        # it behaves like the default SQLi endpoint - so a client that honors the backoff and retries
+        # eventually gets through (drives the adaptive rate-limit handling)
+        if self.url == "/ratelimit":
+            global _ratelimit_hits
+            _ratelimit_hits += 1
+            if _ratelimit_hits <= RATELIMIT_INITIAL_429:
+                self.send_response(429)
+                self.send_header("Retry-After", "0")
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(b"<html><body>Too Many Requests</body></html>")
+                return
+            self.url = "/"
+
+        if self.url == "/xxe":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/xml; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            body = getattr(self, "data", "") or ""
+            try:
+                from lxml import etree
+                # VULNERABLE: a parser configured to load DTDs and resolve entities (incl.
+                # external file:// general entities) - the textbook XXE misconfiguration.
+                parser = etree.XMLParser(resolve_entities=True, load_dtd=True, no_network=True)
+                root = etree.fromstring(body.encode(UNICODE_ENCODING), parser)
+                output = "<result>%s</result>" % "".join(root.itertext())     # reflects expanded entities
+            except Exception as ex:
+                output = "<error>%s: %s</error>" % (type(ex).__name__, ex)    # parser diagnostic (error-based tier)
+
+            self.wfile.write(output.encode(UNICODE_ENCODING, "ignore"))
+            return
+
+        if self.url == "/jwt":
+            self.send_response(OK)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            parsed = _jwt_parse(self.params.get("session", ""))
+            output = "<html><body>access denied. please sign in.</body></html>"
+            if parsed:
+                header, payload, _ = parsed
+                kid = header.get("kid")
+                if hasattr(kid, "count") and kid.count("'") % 2 == 1:   # str/unicode (py2/py3), not an int/dict
+                    # VULNERABLE: 'kid' feeds a key-lookup query unsanitized -> a lone quote breaks it
+                    output = "<html><body>You have an error in your SQL syntax near '%s'</body></html>" % kid
+                elif (header.get("alg") or "").lower() == "none":
+                    output = "<html><body>welcome back, %s. secret area.</body></html>" % payload.get("user")   # VULN: unsigned accepted
+                elif _jwt_forge(header, payload, JWT_SECRET) == self.params.get("session"):
+                    output = "<html><body>welcome back, %s. secret area.</body></html>" % payload.get("user")
+
+            self.wfile.write(output.encode(UNICODE_ENCODING, "ignore"))
+            return
+
+        if self.url == "/csrf":
+            if self.params.get("csrf_token") == _csrf_token:
+                self.url = "/"
+            else:
+                self.send_response(OK)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.end_headers()
+
+                form = (
+                    "<html><body>"
+                    "CSRF protection check<br>"
+                    "<form action='/csrf' method='POST'>"
+                    "<input type='hidden' name='csrf_token' value='%s'>"
+                    "id: <input type='text' name='id'>"
+                    "<input type='submit' value='Submit'>"
+                    "</form>"
+                    "</body></html>"
+                ) % _csrf_token
+
+                self.wfile.write(form.encode(UNICODE_ENCODING))
+                return
+
+        if self.url == "/nosql":
+            self.send_response(OK)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            try:
+                output = "<html><body><b>Welcome %s</b></body></html>" % self.params.get("name") if nosql_match(self.params) else "<html><body><b>Invalid credentials</b></body></html>"
+            except re.error:       # invalid $regex -> emulate a MongoDB driver error (drives fingerprinting)
+                output = "<html><body>MongoServerError: Regular expression is invalid: missing terminating ] for character class</body></html>"
+
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/graphql":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            query = self.params.get("query", "")
+            variables = self.params.get("variables") or {}
+
+            if not isinstance(variables, dict):
+                try:
+                    variables = json.loads(str(variables))
+                except Exception:
+                    variables = {}
+
+            if "__schema" in query:
+                output = json.dumps(_graphql_introspection())
+            else:
+                data, errors = _graphql_resolve(query, variables)
+                resp = {}
+                if errors:
+                    resp["errors"] = errors
+                if data:
+                    resp["data"] = data
+                output = json.dumps(resp, default=str)
+
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url in ("/ldap", "/ldap/search"):
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            q = self.params.get("q", "")
+            if q:
+                filter_str = "(|(cn=*%s*)(sn=*%s*)(mail=*%s*)(uid=*%s*)(description=*%s*))" % (q, q, q, q, q)
+                rows, error = _ldap_execute(filter_str)
+                if error:
+                    output = json.dumps({"resultCode": 1, "errorMessage": error})
+                else:
+                    entries = [_ldap_row_to_obj(r) for r in (rows or [])]
+                    output = json.dumps({"resultCode": 0, "entries": entries, "count": len(entries)}, default=str)
+            else:
+                output = json.dumps({"resultCode": 0, "entries": [], "count": 0})
+
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/ldap/login":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            user = self.params.get("user", "")
+            password = self.params.get("pass", "")
+            if user and password:
+                filter_str = "(&(uid=%s)(userPassword=%s))" % (user, password)
+                rows, error = _ldap_execute(filter_str)
+                if error:
+                    output = json.dumps({"resultCode": 49, "errorMessage": error})
+                elif rows:
+                    entry = _ldap_row_to_obj(rows[0])
+                    output = json.dumps({"resultCode": 0, "authenticated": True, "user": entry}, default=str)
+                else:
+                    output = json.dumps({"resultCode": 49, "authenticated": False, "errorMessage": "Invalid credentials"})
+            else:
+                output = json.dumps({"resultCode": 49, "authenticated": False, "errorMessage": "Missing credentials"})
+
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/hql/search":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            name = self.params.get("name", "")
+            try:
+                matched = hql_evaluate(name)                     # VULNERABLE: input concatenated into HQL
+                output = json.dumps({"results": [HQL_RECORD] if matched else [], "count": 1 if matched else 0})
+            except _HqlError as ex:
+                output = json.dumps({"results": [], "count": 0, "error": str(ex)})
+
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/sparql/search":
+            # VULNERABLE: the parameter is concatenated into a FILTER string literal of a SPARQL query,
+            # SELECT ?name WHERE { ?p foaf:name ?name . FILTER(?name = "<q>") }. A broken-out FILTER
+            # becomes an attacker-controlled boolean (boolean-based blind); a syntax break surfaces a
+            # Jena-style parser error.
+            q = self.params.get("q", "luther")
+            try:
+                matched = sparql_evaluate(q)
+                rows = "".join("<li>%s</li>" % o for _s, p, o in SPARQL_TRIPLES
+                               if p.endswith("name") and matched)
+                self.send_response(OK)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(("<html><body><ul>%s</ul></body></html>" % rows).encode(UNICODE_ENCODING))
+            except _SparqlError as ex:
+                self.send_response(INTERNAL_SERVER_ERROR)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(("<html><body><pre>%s</pre></body></html>" % str(ex)).encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/odata/search":
+            # VULNERABLE: the parameter is concatenated into an OData $filter string literal,
+            # $filter=Name eq '<name>'. A broken-out filter becomes an attacker-controlled boolean
+            # (boolean-based blind); an unbalanced literal surfaces a Microsoft-OData parser error (400).
+            # The response only shows Id and Name (as if $select=Id,Name), yet 'Secret' stays reachable
+            # through the injected filter - the property a blind dump recovers.
+            name = self.params.get("name", "luther")
+            try:
+                matched = odata_evaluate(name)
+                rows = "".join("<li>%s: %s</li>" % (e["Id"], e["Name"]) for e in matched)
+                self.send_response(OK)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(("<html><body><ul>%s</ul></body></html>" % rows).encode(UNICODE_ENCODING))
+            except _ODataError as ex:
+                self.send_response(BAD_REQUEST)
+                self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": {"message": str(ex)}}).encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/echo":
+            # A pure reflector: no engine of any kind behind it, it only shows the parameter back. Every
+            # non-SQL switch must stay silent here. A differential built on "the page changed" is
+            # satisfied by reflection alone, which is how several engines reported this shape as
+            # injectable - so this endpoint is the regression gate for that whole class.
+            self.send_response(OK)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(("<html><body>you searched for: %s</body></html>" % self.params.get("q", "")).encode(UNICODE_ENCODING))
+            return
+
+        if self.url in ("/xslt/element", "/xslt/value"):
+            # VULNERABLE: user input is concatenated into a stylesheet which is then compiled and applied
+            element = self.url.endswith("element")
+            source = self.params.get("tpl" if element else "sort", "" if element else "name")
+            try:
+                from lxml import etree
+                sheet = (XSLT_ELEMENT_SHEET if element else XSLT_VALUE_SHEET) % source
+                transform = etree.XSLT(etree.fromstring(sheet.encode("utf-8")))
+                output = str(transform(etree.fromstring(XSLT_DOC.encode("utf-8"))))
+                code = OK
+            except Exception as ex:
+                output = "<html><body><h1>XSLT error</h1><pre>%s: %s</pre></body></html>" % (type(ex).__name__, ex)
+                code = INTERNAL_SERVER_ERROR
+
+            self.send_response(code)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/xpath/search":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            q = self.params.get("q", "")
+            entries = []
+            error = None
+
+            if q:
+                try:
+                    from lxml import etree
+                    root = etree.fromstring(XPATH_XML.encode("utf-8"))
+                    # VULNERABLE: unsanitized user input directly interpolated into XPath
+                    xpath_expr = "/directory/department/user[contains(username,'%s') or contains(realname,'%s')]" % (q, q)
+                    elements = root.xpath(xpath_expr)
+                    entries = [_xpath_element_to_dict(el) for el in elements]
+                except Exception as ex:
+                    error = "%s: %s" % (type(ex).__name__, str(ex))
+
+            output = json.dumps({"entries": entries, "count": len(entries), "error": error}, default=str)
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/xpath/login":
+            self.send_response(OK)
+            self.send_header("Content-type", "application/json; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            username = self.params.get("username", "")
+            password = self.params.get("password", "")
+            error = None
+            authenticated = False
+
+            if username and password:
+                try:
+                    from lxml import etree
+                    root = etree.fromstring(XPATH_XML.encode("utf-8"))
+                    # VULNERABLE: unsanitized interpolation into XPath login expression
+                    xpath_expr = "/directory/department/user[username='%s' and password='%s']" % (username, password)
+                    results = root.xpath(xpath_expr)
+                    if results:
+                        authenticated = True
+                except Exception as ex:
+                    error = "%s: %s" % (type(ex).__name__, str(ex))
+
+            output = json.dumps({"authenticated": authenticated, "error": error}, default=str)
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/ssti/search":
+            self.send_response(OK)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+            q = self.params.get("q", "")
+            output = "<html><body>"
+
+            if q:
+                try:
+                    from jinja2 import Template
+                    # VULNERABLE: unsanitized user input passed to Jinja2 template engine
+                    template = Template("Hello " + q)
+                    output += template.render()
+                except Exception as ex:
+                    # Leak template engine error for error-based detection
+                    output += "<b>%s: %s</b>" % (type(ex).__name__, str(ex))
+            else:
+                output += "Hello"
+
+            output += "</body></html>"
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == "/fp":
+            # False-positive battery traps (exercised on demand by '--fp-test'). Every trap is
+            # deliberately NON-injectable but baits a specific FP defense; sqlmap must report "not
+            # injectable" for all of them (each is paired, in FP_TESTS, with a real injectable twin).
+            trap = self.params.get("trap", "reflect")
+            idv = self.params.get("id", "1")
+
+            def _rnd(n=8):
+                return "".join(random.choice("0123456789abcdef") for _ in range(n))
+
+            if trap == "intcast":
+                # parameterized int lookup: id=1 -> row, non-int (e.g. "1 AND 1=1") -> empty. A boolean
+                # payload yields a differential yet it is NOT SQLi -> the false-positive check must reject it.
+                try:
+                    hit = int(idv) in (1, 2, 3)
+                except ValueError:
+                    hit = False
+                output = "<html><body><b>SQL results:</b><table border=\"1\">%s</table></body></html>" % ("<tr><td>%s</td><td>luther</td><td>blisset</td></tr>" % idv if hit else "")
+            elif trap == "structrand":
+                # heavy dynamic TEXT (defeats dynamic-content removal) + STABLE structure; id is not
+                # reflected into the structure -> stresses the structure-aware comparison oracle.
+                rows = "".join("<tr><td>%s</td><td>%s</td></tr>" % (_rnd(), _rnd()) for _ in range(3))
+                output = ("<html><head><title>Report</title></head><body><div class=\"csrf\">%s</div>"
+                          "<nav class=\"top\">token %s</nav><table id=\"grid\" class=\"res\">%s</table>"
+                          "<div class=\"foot\">%s</div></body></html>" % (_rnd(), _rnd(), rows, _rnd()))
+            elif trap == "acceptall":
+                # 200 + identical content for EVERYTHING incl. garbage -> the reads-everything-true channel.
+                output = "<html><body><b>OK</b> welcome to the portal</body></html>"
+            elif trap == "reflect":
+                # echoes the parameter verbatim (reflection) with no SQL sink.
+                output = "<html><body>you searched for: %s</body></html>" % idv
+            elif trap == "errors":
+                # DB-error-looking text for any non-baseline input -> baits error-based detection.
+                output = "<html><body>Warning: mysql_fetch_array(): supplied argument is not a valid MySQL result</body></html>" if idv != "1" else "<html><body><b>SQL results:</b><table><tr><td>1</td><td>luther</td></tr></table></body></html>"
+            elif trap == "lengthrand":
+                # response length varies at random (not with the payload) -> baits length-based heuristics.
+                output = "<html><body>ok %s</body></html>" % _rnd(random.choice([4, 40, 400]))
+            elif trap == "slowrand":
+                # random latency, uncorrelated with the payload -> baits time-based detection.
+                time.sleep(random.choice([0, 0, 0, 1]))
+                output = "<html><body>ok %s</body></html>" % _rnd()
+            else:
+                output = "<html><body>?</body></html>"
+
+            self.send_response(OK)
+            self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(output.encode(UNICODE_ENCODING))
+            return
+
+        if self.url == '/':
+            if not any(_ in self.params for _ in ("id", "query")):
+                self.send_response(OK)
+                self.send_header("Content-type", "text/html; charset=%s" % UNICODE_ENCODING)
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(b"<!DOCTYPE html><html><head><title>vulnserver</title></head><body><h3>GET:</h3><a href='/?id=1'>link</a><hr><h3>POST:</h3><form method='post'>ID: <input type='text' name='id'><input type='submit' value='Submit'></form></body></html>")
+            else:
+                code, output = OK, "<body><html>"
+                contentType = "text/html"
+
+                try:
+                    if self.params.get("echo", ""):
+                        output += "%s<br>" % self.params["echo"]
+
+                    if self.params.get("reflect", ""):
+                        output += "%s<br>" % self.params.get("id")
+
+                    with _lock:
+                        if "query" in self.params:
+                            _cursor.execute(self.params["query"])
+                        elif "id" in self.params:
+                            if "base64" in self.params:
+                                _cursor.execute("SELECT * FROM users WHERE id=%s LIMIT 0, 1" % base64.b64decode("%s===" % self.params["id"], altchars=self.params.get("altchars")).decode())
+                            else:
+                                _cursor.execute("SELECT * FROM users WHERE id=%s LIMIT 0, 1" % self.params["id"])
+                        results = _cursor.fetchall()
+
+                    if self.params.get("json", ""):
+                        # JSON response mode: serialize the SAME query results as application/json
+                        # (exercises the structure-aware comparison oracle end to end). HTML branches
+                        # below are untouched, so existing tests are unaffected.
+                        if self.params.get("code", "") and not results:
+                            code = INTERNAL_SERVER_ERROR
+                        else:
+                            contentType = "application/json"
+                            output = json.dumps({"results": [list(row) for row in results], "count": len(results)})
+                    else:
+                        output += "<b>SQL results:</b><br>\n"
+
+                        if self.params.get("code", ""):
+                            if not results:
+                                code = INTERNAL_SERVER_ERROR
+                        else:
+                            if results:
+                                output += "<table border=\"1\">\n"
+
+                                for row in results:
+                                    output += "<tr>"
+                                    for value in row:
+                                        output += "<td>%s</td>" % value
+                                    output += "</tr>\n"
+
+                                output += "</table>\n"
+                            else:
+                                output += "no results found"
+
+                            if not results:
+                                output = "<title>No results</title>" + output
+                            else:
+                                output = "<title>Results</title>" + output
+
+                        output += "</body></html>"
+                except Exception as ex:
+                    code = INTERNAL_SERVER_ERROR
+                    output = "%s: %s" % (re.search(r"'([^']+)'", str(type(ex))).group(1), ex)
+
+                self.send_response(code)
+
+                self.send_header("Content-type", contentType)
+                self.send_header("Connection", "close")
+
+                if self.raw_requestline.startswith(b"HEAD"):
+                    self.send_header("Content-Length", str(len(output)))
+                    self.end_headers()
+                else:
+                    self.end_headers()
+                    self.wfile.write(output if isinstance(output, bytes) else output.encode(UNICODE_ENCODING))
+        else:
+            self.send_response(NOT_FOUND)
+            self.send_header("Connection", "close")
+            self.end_headers()
+
+    def do_GET(self):
+        self.do_REQUEST()
+
+    def do_PUT(self):
+        self.do_POST()
+
+    def do_HEAD(self):
+        self.do_REQUEST()
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-length", 0))
+        if length:
+            data = self.rfile.read(length)
+            data = unquote_plus(data.decode(UNICODE_ENCODING, "ignore"))
+            self.data = data
+        elif self.headers.get("Transfer-encoding") == "chunked":
+            data, line = b"", b""
+            count = 0
+
+            while True:
+                line += self.rfile.read(1)
+                if line.endswith(b'\n'):
+                    if count % 2 == 1:
+                        current = line.rstrip(b"\r\n")
+                        if not current:
+                            break
+                        else:
+                            data += current
+
+                    count += 1
+                    line = b""
+
+            self.data = data.decode(UNICODE_ENCODING, "ignore")
+
+        self.do_REQUEST()
+
+    def log_message(self, format, *args):
+        return
+
+def run(address=LISTEN_ADDRESS, port=LISTEN_PORT):
+    global _alive
+    global _server
+    try:
+        _alive = True
+        _server = ThreadingServer((address, port), ReqHandler)
+        print("[i] running HTTP server at 'http://%s:%d'" % (address, port))
+        _server.serve_forever()
+    except KeyboardInterrupt:
+        _server.socket.close()
+        raise
+    finally:
+        _alive = False
+
+if __name__ == "__main__":
+    try:
+        init()
+        run(sys.argv[1] if len(sys.argv) > 1 else LISTEN_ADDRESS, int(sys.argv[2] if len(sys.argv) > 2 else LISTEN_PORT))
+    except KeyboardInterrupt:
+        print("\r[x] Ctrl-C received")

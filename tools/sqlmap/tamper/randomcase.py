@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+"""
+Copyright (c) 2006-2026 sqlmap developers (https://sqlmap.org)
+See the file 'LICENSE' for copying permission
+"""
+
+import re
+
+from lib.core.common import randomRange
+from lib.core.compat import xrange
+from lib.core.data import kb
+from lib.core.enums import PRIORITY
+
+__priority__ = PRIORITY.NORMAL
+
+def dependencies():
+    pass
+
+def tamper(payload, **kwargs):
+    """
+    Replaces each keyword character with random case value (e.g. SELECT -> SEleCt)
+
+    Tested against:
+        * MySQL 8.4.9
+        * MariaDB 11.8.8
+        * PostgreSQL 16.11
+        * SQLite 3.45.1
+        * Microsoft SQL Server 2022
+        * Oracle 23ai
+
+    Notes:
+        * Useful to bypass very weak and bespoke web application firewalls
+          that has poorly written permissive regular expressions
+        * Keyword case is insignificant on every engine listed above
+
+    >>> import random
+    >>> random.seed(0)
+    >>> tamper('INSERT')
+    'InSeRt'
+    >>> tamper('f()')
+    'f()'
+    >>> tamper('function()')
+    'FuNcTiOn()'
+    >>> tamper('SELECT id FROM `user`')
+    'SeLeCt id FrOm `user`'
+    """
+
+    retVal = payload
+
+    if payload:
+        for match in re.finditer(r"\b[A-Za-z_]{2,}\b", retVal):
+            word = match.group()
+
+            if (word.upper() in kb.keywords and re.search(r"(?i)[`\"'\[]%s[`\"'\]]" % word, retVal) is None) or ("%s(" % word) in payload:
+                while True:
+                    _ = ""
+
+                    for i in xrange(len(word)):
+                        _ += word[i].upper() if randomRange(0, 1) else word[i].lower()
+
+                    if len(_) > 1 and _ not in (_.lower(), _.upper()):
+                        break
+
+                retVal = re.sub(r"\b%s\b" % word, _, retVal)
+
+    return retVal
