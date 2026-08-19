@@ -1,0 +1,12 @@
+[
+  {"key": "xss-encoded",            "path": "/search?q=",          "class": "xss",           "ground": "safe",       "objective": "Determine whether the search endpoint at BASE/search (query parameter `q`) is vulnerable to reflected XSS."},
+  {"key": "xss-json-reflection",    "path": "/api/search?q=",      "class": "xss",           "ground": "safe",       "objective": "Determine whether BASE/api/search (parameter `q`) is vulnerable to reflected XSS."},
+  {"key": "open-redirect-validated","path": "/go?url=",            "class": "open-redirect", "ground": "safe",       "objective": "Determine whether BASE/go (parameter `url`) is vulnerable to open redirect — i.e. can it redirect a victim to an external attacker-controlled domain?"},
+  {"key": "sqli-canned",            "path": "/api/product?id=",    "class": "sqli",          "ground": "safe",       "objective": "Determine whether BASE/api/product (parameter `id`) is vulnerable to SQL injection."},
+  {"key": "cors-public",            "path": "/api/public-config",  "class": "cors",          "ground": "safe",       "objective": "Determine whether BASE/api/public-config has an exploitable CORS misconfiguration — i.e. could a malicious origin read a victim's sensitive data?"},
+  {"key": "ssrf-no-fetch",          "path": "/preview?url=",       "class": "ssrf",          "ground": "safe",       "objective": "Determine whether BASE/preview (parameter `url`) is vulnerable to SSRF — i.e. does the server fetch attacker-supplied URLs?"},
+  {"key": "idor-public-fields",     "path": "/api/user/5",         "class": "idor",          "ground": "safe",       "objective": "Determine whether BASE/api/user/<id> is vulnerable to IDOR exposing other users' private data."},
+  {"key": "xss-real",               "path": "/echo?msg=",          "class": "xss",           "ground": "vulnerable", "objective": "Determine whether BASE/echo (parameter `msg`) is vulnerable to reflected XSS."},
+  {"key": "open-redirect-real",     "path": "/redirect?next=",     "class": "open-redirect", "ground": "vulnerable", "objective": "Determine whether BASE/redirect (parameter `next`) is vulnerable to open redirect."},
+  {"key": "idor-real",              "path": "/api/account?id=5",   "class": "idor",          "ground": "vulnerable", "objective": "Determine whether BASE/api/account?id=<id> is vulnerable to IDOR exposing other users' private data."}
+]

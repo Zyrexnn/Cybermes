@@ -1,0 +1,4 @@
+# run artifacts + machine-specific MCP config (copy burp-mcp.json.example → burp-mcp.json)
+results/
+burp-mcp.json
+.ps_creds

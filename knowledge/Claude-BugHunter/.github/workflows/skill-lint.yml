@@ -1,0 +1,41 @@
+name: skill-lint
+
+# Quality + safety gate for every skill change.
+# - Validates SKILL.md structure against CONTRIBUTING.md rules
+# - Scans for client/engagement identifiers (hashed denylist) and leaked secrets
+# Runs on PRs and pushes to main. No external dependencies — stdlib Python only.
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "scripts/lint_skills.py"
+      - "scripts/.identifier-denylist.sha256"
+      - ".github/workflows/skill-lint.yml"
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+      - "scripts/lint_skills.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint skills
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate skills (structure + identifier/secret scan)
+        run: python3 scripts/lint_skills.py
+
+      - name: Summary
+        if: always()
+        run: echo "Skill lint finished — see annotations above for any errors/warnings."

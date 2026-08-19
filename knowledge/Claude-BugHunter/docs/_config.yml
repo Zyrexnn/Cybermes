@@ -1,0 +1,40 @@
+# GitHub Pages config for the claude-bughunter docs site.
+# Built from the /docs folder. Uses just-the-docs for built-in search.
+title: claude-bughunter
+description: >-
+  A Claude skill bundle that turns Claude Code into a senior bug-hunting
+  researcher and external red-team operator. 51+ skills, 681 disclosed-report
+  patterns, enterprise attack matrices, Burp MCP integration.
+remote_theme: just-the-docs/just-the-docs
+
+url: "https://elementalsouls.github.io"
+baseurl: "/Claude-BugHunter"
+
+# Search (just-the-docs built-in)
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+
+# Repo links in the nav footer
+aux_links:
+  "GitHub":
+    - "https://github.com/elementalsouls/Claude-BugHunter"
+  "Sponsor — Atlas Cloud":
+    - "https://www.atlascloud.ai/console/coding-plan"
+aux_links_new_tab: true
+
+color_scheme: dark
+heading_anchors: true
+
+# Don't try to render engineering/meta files as site pages.
+exclude:
+  - disclosed-reports/
+  - verification/
+  - automation/
+  - "*.py"
+  - ".DS_Store"
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag

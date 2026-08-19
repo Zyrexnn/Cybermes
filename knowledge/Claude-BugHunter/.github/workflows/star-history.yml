@@ -1,0 +1,45 @@
+name: star-history
+
+# Regenerates the self-hosted star-history chart committed at assets/star-history-*.svg.
+#
+# Why self-hosted: the third-party chart services the README used previously
+# (star-history.com, starchart.cc) return 500s and rate-limit errors, which
+# silently blanks the chart. Rendering from GitHub's own API removes that
+# runtime dependency — the README shows a committed asset that always loads.
+#
+# No external dependencies — stdlib Python plus the preinstalled gh CLI.
+
+on:
+  schedule:
+    - cron: "17 4 * * *" # daily, 04:17 UTC
+  workflow_dispatch: # manual refresh
+
+permissions:
+  contents: write
+
+concurrency:
+  group: star-history
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Regenerate chart
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/gen_star_history.py
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- assets/star-history-light.svg assets/star-history-dark.svg; then
+            echo "chart unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/star-history-light.svg assets/star-history-dark.svg
+          git commit -m "chore(assets): refresh star history chart"
+          git push

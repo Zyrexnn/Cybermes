@@ -1,0 +1,33 @@
+name: 🎯 False-positive / bad guidance report
+description: A skill led to a finding that turned out to be invalid, or gave guidance that breaks the false-positive discipline.
+title: "[fp] <skill> — <what was wrong>"
+labels: ["false-positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project takes false-positive discipline seriously (OOB confirmation, unique markers, body-diff, server-policy-vs-state). Help us tighten the skills. **Anonymize all target data.**
+  - type: input
+    id: skill
+    attributes:
+      label: Which skill produced the bad guidance?
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What did the skill claim / suggest?
+    validations:
+      required: true
+  - type: textarea
+    id: reality
+    attributes:
+      label: Why was it actually invalid?
+      description: e.g. reflected value was server policy not attacker-controlled state; no OOB confirmation; response diff was noise.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested guardrail
+      description: What validation step or wording would have prevented it?

@@ -1,0 +1,371 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1000" width="1920" height="1000" role="img" aria-label="Claude-BugHunter Engagement Flow — 6-phase pipeline with 7-Question Gate decision branches">
+  <defs>
+    <linearGradient id="ef-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0e"/>
+      <stop offset="100%" stop-color="#101018"/>
+    </linearGradient>
+    <pattern id="ef-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a26" stroke-width="0.5"/>
+    </pattern>
+    <filter id="ef-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff2d4f"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1000" fill="url(#ef-bg)"/>
+  <rect width="1920" height="1000" fill="url(#ef-grid)"/>
+
+  <g stroke="#ff2d4f" stroke-width="2" fill="none">
+    <path d="M 40 30 L 20 30 L 20 50"/>
+    <path d="M 1880 30 L 1900 30 L 1900 50"/>
+    <path d="M 40 970 L 20 970 L 20 950"/>
+    <path d="M 1880 970 L 1900 970 L 1900 950"/>
+  </g>
+
+  <g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#5a5a6a" letter-spacing="2">
+    <text x="60" y="60">▸ ENGAGEMENT PIPELINE</text>
+    <text x="780" y="60">· 6 PHASES · 7-Q GATE · BRANCHED OUTCOMES · ~1d-1w END-TO-END ·</text>
+    <text x="1860" y="60" text-anchor="end">DOC ▸ FLOW.0X03</text>
+  </g>
+  <line x1="40" y1="78" x2="1880" y2="78" stroke="#2a2a35" stroke-width="1"/>
+
+  <!-- TIMELINE BAR -->
+  <g transform="translate(60, 110)">
+    <text x="0" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a" letter-spacing="2">▸ TIMELINE</text>
+    <line x1="80" y1="-5" x2="1820" y2="-5" stroke="#2a2a35" stroke-width="1"/>
+    <g font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="1">
+      <text x="120" y="14" text-anchor="middle">~30 MIN</text>
+      <text x="425" y="14" text-anchor="middle">2–4 H</text>
+      <text x="725" y="14" text-anchor="middle">1–3 D</text>
+      <text x="1025" y="14" text-anchor="middle">~30 S</text>
+      <text x="1325" y="14" text-anchor="middle">~15 MIN</text>
+      <text x="1625" y="14" text-anchor="middle">~1 H</text>
+    </g>
+    <g fill="#ff2d4f" opacity="0.7">
+      <circle cx="120" cy="-5" r="4"/>
+      <circle cx="425" cy="-5" r="4"/>
+      <circle cx="725" cy="-5" r="4"/>
+      <circle cx="1025" cy="-5" r="4"/>
+      <circle cx="1325" cy="-5" r="4"/>
+      <circle cx="1625" cy="-5" r="4"/>
+    </g>
+  </g>
+
+  <!-- 6 PHASE COLUMNS -->
+  <!-- Each ~280w, gap ~30 -->
+  <!-- Phase 01: SCOPE -->
+  <g transform="translate(60, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#3b82f6" stroke-width="1.5"/>
+    <rect width="280" height="50" fill="#3b82f6" fill-opacity="0.15"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#3b82f6" font-weight="700" letter-spacing="3">[01]  SCOPE</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#3b82f6">P-01</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#b8b8c0" font-weight="600">Parse program rules.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#b8b8c0" font-weight="600">Decide what's in / out.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#93b8e0">
+      <text x="20" y="170">▪ bug-bounty</text>
+      <text x="20" y="190">▪ bb-methodology</text>
+      <text x="20" y="210">▪ osint-methodology</text>
+    </g>
+
+    <text x="20" y="250" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TOOLS</text>
+    <line x1="20" y1="258" x2="260" y2="258" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#7a7a8a">
+      <text x="20" y="280">▪ hunt &lt;target&gt; (shell)</text>
+      <text x="20" y="300">▪ /scope</text>
+    </g>
+
+    <text x="20" y="340" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ OUTPUT</text>
+    <line x1="20" y1="348" x2="260" y2="348" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="370">▸ scope.md</text>
+      <text x="20" y="390">▸ ~/Targets/&lt;t&gt;/</text>
+      <text x="20" y="410">▸ in/OOS lists</text>
+      <text x="20" y="430">▸ accepted-impact</text>
+    </g>
+
+    <rect x="20" y="450" width="240" height="32" fill="#3b82f6" fill-opacity="0.1" stroke="#3b82f6" stroke-opacity="0.5"/>
+    <text x="140" y="471" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#3b82f6" letter-spacing="2">~30 MIN · INTAKE</text>
+  </g>
+
+  <!-- Phase 02: RECON -->
+  <g transform="translate(365, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#3b82f6" stroke-width="1.5"/>
+    <rect width="280" height="50" fill="#3b82f6" fill-opacity="0.15"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#3b82f6" font-weight="700" letter-spacing="3">[02]  RECON</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#3b82f6">P-02</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#b8b8c0" font-weight="600">Asset discovery.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#b8b8c0" font-weight="600">Find attack surface.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#93b8e0">
+      <text x="20" y="170">▪ offensive-osint</text>
+      <text x="20" y="190">▪ web2-recon</text>
+      <text x="20" y="210">▪ bb-local-toolkit</text>
+    </g>
+
+    <text x="20" y="250" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TOOLS</text>
+    <line x1="20" y1="258" x2="260" y2="258" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#7a7a8a">
+      <text x="20" y="280">▪ subfinder · dnsx · httpx</text>
+      <text x="20" y="300">▪ katana · gau · waybackurls</text>
+      <text x="20" y="320">▪ /recon · /surface · /intel</text>
+    </g>
+
+    <text x="20" y="360" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ OUTPUT</text>
+    <line x1="20" y1="368" x2="260" y2="368" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="390">▸ subdomain map</text>
+      <text x="20" y="410">▸ JS endpoints · secrets</text>
+      <text x="20" y="430">▸ ranked attack surface</text>
+    </g>
+
+    <rect x="20" y="450" width="240" height="32" fill="#3b82f6" fill-opacity="0.1" stroke="#3b82f6" stroke-opacity="0.5"/>
+    <text x="140" y="471" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#3b82f6" letter-spacing="2">2–4 H · PASSIVE</text>
+  </g>
+
+  <!-- Phase 03: HUNT -->
+  <g transform="translate(670, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#ff2d4f" stroke-width="2"/>
+    <rect width="280" height="50" fill="#ff2d4f" fill-opacity="0.2"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#ff2d4f" font-weight="700" letter-spacing="3" filter="url(#ef-glow)">[03]  HUNT</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#ff2d4f">P-03 · ⚡</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#ffffff" font-weight="600">Per-class testing.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#ffffff" font-weight="600">Auto-trigger by topic.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#fed7aa">
+      <text x="20" y="170">▪ 24× hunt-* skills</text>
+      <text x="20" y="190">▪ security-arsenal</text>
+      <text x="20" y="210">▪ web3-audit · meme-coin</text>
+    </g>
+
+    <text x="20" y="250" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TOOLS</text>
+    <line x1="20" y1="258" x2="260" y2="258" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#7a7a8a">
+      <text x="20" y="280">▪ Burp Suite + MCP</text>
+      <text x="20" y="300">▪ /hunt · /chain · /autopilot</text>
+      <text x="20" y="320">▪ Turbo Intruder · sqlmap</text>
+    </g>
+
+    <text x="20" y="360" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ OUTPUT</text>
+    <line x1="20" y1="368" x2="260" y2="368" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="390">▸ candidate finding</text>
+      <text x="20" y="410">▸ raw HTTP requests</text>
+      <text x="20" y="430">▸ chain hypothesis</text>
+    </g>
+
+    <rect x="20" y="450" width="240" height="32" fill="#ff2d4f" fill-opacity="0.15" stroke="#ff2d4f" stroke-opacity="0.5"/>
+    <text x="140" y="471" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#ff2d4f" letter-spacing="2">1–3 D · ACTIVE ⚡</text>
+  </g>
+
+  <!-- Phase 04: VALIDATE (the gate) -->
+  <g transform="translate(975, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#f59e0b" stroke-width="2"/>
+    <rect width="280" height="50" fill="#f59e0b" fill-opacity="0.2"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#f59e0b" font-weight="700" letter-spacing="3">[04]  VALIDATE</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#f59e0b">GATE · ▲</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#fde68a" font-weight="600">7-Question Gate.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#fde68a" font-weight="600">Kill bad findings here.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ THE 7 QUESTIONS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="10" fill="#fde68a">
+      <text x="20" y="166">Q1 real HTTP req?</text>
+      <text x="20" y="182">Q2 accepted impact?</text>
+      <text x="20" y="198">Q3 in scope?</text>
+      <text x="20" y="214">Q4 unprivileged?</text>
+      <text x="20" y="230">Q5 not known?</text>
+      <text x="20" y="246">Q6 prove impact?</text>
+      <text x="20" y="262">Q7 not on never-list?</text>
+    </g>
+
+    <text x="20" y="296" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="304" x2="260" y2="304" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#fde68a">
+      <text x="20" y="324">▪ triage-validation</text>
+    </g>
+
+    <text x="20" y="360" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TOOLS</text>
+    <line x1="20" y1="368" x2="260" y2="368" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#7a7a8a">
+      <text x="20" y="390">▪ /triage · /validate</text>
+      <text x="20" y="410">▪ /remember</text>
+    </g>
+
+    <rect x="20" y="430" width="240" height="32" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-opacity="0.5"/>
+    <text x="140" y="451" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#f59e0b" letter-spacing="2">~30 S · DECISION ▲</text>
+  </g>
+
+  <!-- Phase 05: CAPTURE -->
+  <g transform="translate(1280, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#a855f7" stroke-width="1.5"/>
+    <rect width="280" height="50" fill="#a855f7" fill-opacity="0.15"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#a855f7" font-weight="700" letter-spacing="3">[05]  CAPTURE</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#a855f7">P-05</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#e9d5ff" font-weight="600">Evidence with hygiene.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#e9d5ff" font-weight="600">Redact before submit.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#e9d5ff">
+      <text x="20" y="170">▪ evidence-hygiene ★</text>
+    </g>
+
+    <text x="20" y="210" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ PROTOCOLS</text>
+    <line x1="20" y1="218" x2="260" y2="218" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="240">▸ cookie redaction</text>
+      <text x="20" y="260">▸ PII black-bar</text>
+      <text x="20" y="280">▸ HAR sanitization</text>
+      <text x="20" y="300">▸ screenshot order</text>
+      <text x="20" y="320">▸ DevTools console</text>
+      <text x="20" y="340">▸ filename hygiene</text>
+    </g>
+
+    <text x="20" y="380" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ OUTPUT</text>
+    <line x1="20" y1="388" x2="260" y2="388" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="410">▸ redacted PoC pack</text>
+      <text x="20" y="430">▸ scrubbed HAR</text>
+    </g>
+
+    <rect x="20" y="450" width="240" height="32" fill="#a855f7" fill-opacity="0.1" stroke="#a855f7" stroke-opacity="0.5"/>
+    <text x="140" y="471" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#a855f7" letter-spacing="2">~15 MIN · POC PACK</text>
+  </g>
+
+  <!-- Phase 06: REPORT -->
+  <g transform="translate(1585, 160)">
+    <rect width="280" height="500" fill="#0d0d14" stroke="#22c55e" stroke-width="1.5"/>
+    <rect width="280" height="50" fill="#22c55e" fill-opacity="0.15"/>
+    <text x="20" y="32" font-family="ui-monospace, monospace" font-size="13" fill="#22c55e" font-weight="700" letter-spacing="3">[06]  REPORT</text>
+    <text x="260" y="32" text-anchor="end" font-family="ui-monospace, monospace" font-size="11" fill="#22c55e">P-06 · 💰</text>
+    <text x="20" y="80" font-family="-apple-system, sans-serif" font-size="13" fill="#bbf7d0" font-weight="600">Submit through platform.</text>
+    <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="13" fill="#bbf7d0" font-weight="600">Defend severity.</text>
+
+    <text x="20" y="140" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ ACTIVE SKILLS</text>
+    <line x1="20" y1="148" x2="260" y2="148" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#bbf7d0">
+      <text x="20" y="170">▪ report-writing</text>
+      <text x="20" y="190">▪ bugcrowd-reporting ★</text>
+    </g>
+
+    <text x="20" y="230" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TEMPLATES</text>
+    <line x1="20" y1="238" x2="260" y2="238" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#b8b8c0">
+      <text x="20" y="260">▸ HackerOne</text>
+      <text x="20" y="280">▸ Bugcrowd (VRT + OOS)</text>
+      <text x="20" y="300">▸ Intigriti · Immunefi</text>
+      <text x="20" y="320">▸ CVSS 3.1 + 4.0</text>
+    </g>
+
+    <text x="20" y="360" font-family="ui-monospace, monospace" font-size="10" fill="#5a5a6a" letter-spacing="2">▸ TOOLS</text>
+    <line x1="20" y1="368" x2="260" y2="368" stroke="#2a2a35" stroke-dasharray="2 2"/>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#7a7a8a">
+      <text x="20" y="390">▪ /report · /chain</text>
+      <text x="20" y="410">▪ submissions.txt log</text>
+    </g>
+
+    <rect x="20" y="450" width="240" height="32" fill="#22c55e" fill-opacity="0.15" stroke="#22c55e" stroke-opacity="0.5"/>
+    <text x="140" y="471" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#22c55e" letter-spacing="2">~1 H · DELIVER 💰</text>
+  </g>
+
+  <!-- Connecting arrows: phase 1 -> 2 -> 3 -> 4 (top of cards) -->
+  <g stroke="#ff2d4f" stroke-width="2" fill="none">
+    <line x1="345" y1="385" x2="358" y2="385" marker-end="url(#arrow-red)"/>
+    <line x1="650" y1="385" x2="663" y2="385" marker-end="url(#arrow-red)"/>
+    <line x1="955" y1="385" x2="968" y2="385" marker-end="url(#arrow-red)"/>
+  </g>
+
+  <!-- VALIDATE branches: PASS to CAPTURE, KILL out, CHAIN-REQUIRED back to HUNT, DOWNGRADE through -->
+  <!-- PASS arrow (validate -> capture) -->
+  <g stroke="#22c55e" stroke-width="2" fill="none">
+    <line x1="1260" y1="380" x2="1273" y2="380" marker-end="url(#arrow-green)"/>
+  </g>
+  <text x="1252" y="368" text-anchor="end" font-family="ui-monospace, monospace" font-size="10" fill="#22c55e" font-weight="700" letter-spacing="2">PASS ▸</text>
+
+  <!-- CAPTURE -> REPORT arrow -->
+  <g stroke="#22c55e" stroke-width="2" fill="none">
+    <line x1="1565" y1="380" x2="1578" y2="380" marker-end="url(#arrow-green)"/>
+  </g>
+
+  <!-- BRANCH OUTCOMES PANEL (below cards) -->
+  <g transform="translate(60, 700)">
+    <rect width="1805" height="220" fill="#0d0d14" stroke="#2a2a35" stroke-width="1"/>
+    <g transform="translate(20, 32)">
+      <rect x="0" y="-14" width="3" height="20" fill="#f59e0b"/>
+      <text x="14" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#f59e0b" letter-spacing="3" font-weight="700">▸ VALIDATE GATE OUTCOMES</text>
+      <text x="350" y="0" font-family="ui-monospace, monospace" font-size="12" fill="#5a5a6a" letter-spacing="2">// 4 branches from the 7-Question Gate</text>
+    </g>
+
+    <!-- 4 outcomes -->
+    <g transform="translate(40, 70)">
+      <rect width="420" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1.5"/>
+      <text x="20" y="32" font-family="ui-monospace, monospace" font-size="14" font-weight="700" fill="#22c55e" letter-spacing="3">▸ PASS</text>
+      <text x="20" y="56" font-family="-apple-system, sans-serif" font-size="13" fill="#bbf7d0">All 7 questions = YES</text>
+      <text x="20" y="78" font-family="-apple-system, sans-serif" font-size="12" fill="#86c499">→ proceed to CAPTURE [05]</text>
+      <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="11" fill="#5a8a6a" font-style="italic">most engagements: 1 in 4 candidates</text>
+    </g>
+
+    <g transform="translate(485, 70)">
+      <rect width="420" height="120" fill="#1a0a0d" stroke="#ff2d4f" stroke-width="1.5"/>
+      <text x="20" y="32" font-family="ui-monospace, monospace" font-size="14" font-weight="700" fill="#ff2d4f" letter-spacing="3">✕ KILL</text>
+      <text x="20" y="56" font-family="-apple-system, sans-serif" font-size="13" fill="#fed7aa">Any question = NO</text>
+      <text x="20" y="78" font-family="-apple-system, sans-serif" font-size="12" fill="#b89b88">→ abandon, don't draft. log to memory.</text>
+      <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="11" fill="#7a6052" font-style="italic">protects validity ratio · saves hours</text>
+    </g>
+
+    <g transform="translate(930, 70)">
+      <rect width="420" height="120" fill="#1a1410" stroke="#a855f7" stroke-width="1.5"/>
+      <text x="20" y="32" font-family="ui-monospace, monospace" font-size="14" font-weight="700" fill="#a855f7" letter-spacing="3">↩ CHAIN-REQUIRED</text>
+      <text x="20" y="56" font-family="-apple-system, sans-serif" font-size="13" fill="#e9d5ff">Q6 = NO (impact too weak)</text>
+      <text x="20" y="78" font-family="-apple-system, sans-serif" font-size="12" fill="#c4b5d6">→ loop back to HUNT [03] · find chain partner</text>
+      <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="11" fill="#7a6f8a" font-style="italic">/chain composes A→B→C for higher payout</text>
+    </g>
+
+    <g transform="translate(1375, 70)">
+      <rect width="420" height="120" fill="#1a160a" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="20" y="32" font-family="ui-monospace, monospace" font-size="14" font-weight="700" fill="#f59e0b" letter-spacing="3">↘ DOWNGRADE</text>
+      <text x="20" y="56" font-family="-apple-system, sans-serif" font-size="13" fill="#fde68a">Q2 borderline · severity drops</text>
+      <text x="20" y="78" font-family="-apple-system, sans-serif" font-size="12" fill="#c4a96a">→ continue to CAPTURE at lower severity</text>
+      <text x="20" y="100" font-family="-apple-system, sans-serif" font-size="11" fill="#8a7350" font-style="italic">bugcrowd-reporting fights this in REPORT</text>
+    </g>
+  </g>
+
+  <!-- Branch arrows from VALIDATE down to outcomes -->
+  <g stroke-width="1.5" fill="none" opacity="0.7">
+    <!-- PASS arrow (already drawn going right at y=380); add downward indicator -->
+    <path d="M 1100 660 L 1100 690 L 250 690 L 250 700" stroke="#22c55e" stroke-dasharray="3 3" marker-end="url(#arrow-green)"/>
+    <path d="M 1110 660 L 1110 695 L 695 695 L 695 700" stroke="#ff2d4f" stroke-dasharray="3 3" marker-end="url(#arrow-red)"/>
+    <path d="M 1120 660 L 1120 700" stroke="#a855f7" stroke-dasharray="3 3" marker-end="url(#arrow-amber)"/>
+    <path d="M 1130 660 L 1130 695 L 1585 695 L 1585 700" stroke="#f59e0b" stroke-dasharray="3 3" marker-end="url(#arrow-amber)"/>
+  </g>
+
+  <!-- Footer legend / phase color key -->
+  <g transform="translate(60, 960)" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11" letter-spacing="2">
+    <g><rect x="0" y="-9" width="11" height="11" fill="#3b82f6"/><text x="20" y="0" fill="#5a5a6a">PLANNING</text></g>
+    <g transform="translate(140, 0)"><rect x="0" y="-9" width="11" height="11" fill="#ff2d4f"/><text x="20" y="0" fill="#5a5a6a">ACTIVE / OFFENSIVE</text></g>
+    <g transform="translate(360, 0)"><rect x="0" y="-9" width="11" height="11" fill="#f59e0b"/><text x="20" y="0" fill="#5a5a6a">DECISION GATE</text></g>
+    <g transform="translate(540, 0)"><rect x="0" y="-9" width="11" height="11" fill="#a855f7"/><text x="20" y="0" fill="#5a5a6a">CAPTURE</text></g>
+    <g transform="translate(680, 0)"><rect x="0" y="-9" width="11" height="11" fill="#22c55e"/><text x="20" y="0" fill="#5a5a6a">DELIVERY</text></g>
+    <text x="1740" y="0" text-anchor="end" fill="#ff2d4f" font-weight="600">ENGAGEMENT FLOW · END</text>
+  </g>
+</svg>

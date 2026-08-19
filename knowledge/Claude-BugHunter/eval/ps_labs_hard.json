@@ -1,0 +1,38 @@
+[
+  {
+    "key": "blind-sqli-conditional",
+    "class": "sqli-blind",
+    "slug": "/web-security/sql-injection/blind/lab-conditional-responses",
+    "objective": "A tracking cookie is vulnerable to blind SQL injection with conditional responses (no direct data output, but the page differs when a condition is true). Exploit it to retrieve the administrator's password from the users table and log in as the administrator user."
+  },
+  {
+    "key": "blind-sqli-time-delays",
+    "class": "sqli-blind",
+    "slug": "/web-security/sql-injection/blind/lab-time-delays-info-retrieval",
+    "objective": "A tracking cookie is vulnerable to blind SQL injection with no conditional difference in responses. Use time-delay (time-based blind) techniques to retrieve the administrator's password and log in as the administrator user."
+  },
+  {
+    "key": "ssrf-blacklist-filter",
+    "class": "ssrf",
+    "slug": "/web-security/ssrf/lab-ssrf-with-blacklist-filter",
+    "objective": "The stock-check feature is vulnerable to SSRF, but a blacklist filter blocks obvious internal addresses. Bypass the filter to access the admin interface at http://localhost/admin and delete the user 'carlos'."
+  },
+  {
+    "key": "ssrf-open-redirect-bypass",
+    "class": "ssrf",
+    "slug": "/web-security/ssrf/lab-ssrf-filter-bypass-via-open-redirection",
+    "objective": "The stock-check feature fetches a URL but blocks internal targets. Find and abuse an open redirect elsewhere in the application to bypass the filter, reach the internal admin interface, and delete the user 'carlos'."
+  },
+  {
+    "key": "jwt-jwk-injection",
+    "class": "jwt",
+    "slug": "/web-security/jwt/lab-jwt-authentication-bypass-via-jwk-header-injection",
+    "objective": "The application authenticates with JWTs and trusts a 'jwk' parameter embedded in the token header. Forge an admin JWT signed with your own RSA key (embedded via the jwk header) to access the admin panel at /admin and delete the user 'carlos'."
+  },
+  {
+    "key": "race-limit-overrun",
+    "class": "race-condition",
+    "slug": "/web-security/race-conditions/lab-race-conditions-limit-overrun",
+    "objective": "The purchasing/discount flow has a limit-overrun race condition. Exploit it (concurrent requests) to buy the 'Lightweight L33t Leather Jacket' for far less than its listed price."
+  }
+]

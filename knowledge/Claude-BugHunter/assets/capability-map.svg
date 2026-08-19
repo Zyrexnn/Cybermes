@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1100" width="1920" height="1100" role="img" aria-label="Claude-BugHunter Capability Map — 3-layer architecture with 82 skills">
+  <defs>
+    <linearGradient id="cm-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0e"/>
+      <stop offset="100%" stop-color="#101018"/>
+    </linearGradient>
+    <pattern id="cm-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a26" stroke-width="0.5"/>
+    </pattern>
+    <filter id="cm-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="layer-1-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2a3e" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0f1620" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="layer-2-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a1218" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#1f0a0d" stop-opacity="0.4"/>
+    </linearGradient>
+    <linearGradient id="layer-3-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0e2818" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#08160e" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1100" fill="url(#cm-bg)"/>
+  <rect width="1920" height="1100" fill="url(#cm-grid)"/>
+
+  <g stroke="#ff2d4f" stroke-width="2" fill="none">
+    <path d="M 40 30 L 20 30 L 20 50"/>
+    <path d="M 1880 30 L 1900 30 L 1900 50"/>
+    <path d="M 40 1070 L 20 1070 L 20 1050"/>
+    <path d="M 1880 1070 L 1900 1070 L 1900 1050"/>
+  </g>
+
+  <g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#5a5a6a" letter-spacing="2">
+    <text x="60" y="60">▸ CAPABILITY MAP</text>
+    <text x="780" y="60">· 82 SKILLS · 3 LAYERS · 7 DOMAINS · 681+ DISCLOSED PATTERNS ·</text>
+    <text x="1860" y="60" text-anchor="end">DOC ▸ ARCHITECTURE.0X02</text>
+  </g>
+  <line x1="40" y1="78" x2="1880" y2="78" stroke="#2a2a35" stroke-width="1"/>
+
+  <!-- LAYER 03 · SHIP IT (top) -->
+  <g transform="translate(0, 110)">
+    <rect x="40" y="0" width="1840" height="220" fill="url(#layer-3-bg)" stroke="#16542a" stroke-width="1" stroke-opacity="0.4"/>
+    <g transform="translate(60, 32)">
+      <rect x="0" y="-14" width="3" height="20" fill="#22c55e"/>
+      <text x="14" y="0" font-family="ui-monospace, monospace" font-size="14" fill="#22c55e" letter-spacing="3" font-weight="700">◆ LAYER 03 · SHIP IT</text>
+      <text x="280" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#5a5a6a" letter-spacing="2">// validate · capture · submit</text>
+      <text x="1820" y="0" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#5a5a6a" letter-spacing="2">5 SKILLS · 0X03</text>
+    </g>
+
+    <g font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <g transform="translate(60, 70)">
+        <rect width="340" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="20" font-weight="700" fill="#ffffff">triage-validation</text>
+        <text x="322" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">SH-01</text>
+        <text x="18" y="60" font-size="13" fill="#86c499">7-Question Gate</text>
+        <text x="18" y="82" font-size="12" fill="#5a8a6a">PASS · KILL · DOWNGRADE</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#22c55e">/triage  /validate</text>
+      </g>
+
+      <g transform="translate(420, 70)">
+        <rect width="340" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="20" font-weight="700" fill="#ffffff">evidence-hygiene</text>
+        <text x="322" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">SH-02</text>
+        <text x="18" y="60" font-size="13" fill="#86c499">cookie redact · PII black-bar</text>
+        <text x="18" y="82" font-size="12" fill="#5a8a6a">HAR scrub · screenshot order</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#22c55e">★ ORIGINAL</text>
+      </g>
+
+      <g transform="translate(780, 70)">
+        <rect width="340" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="20" font-weight="700" fill="#ffffff">report-writing</text>
+        <text x="322" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">SH-03</text>
+        <text x="18" y="60" font-size="13" fill="#86c499">H1 · Bugcrowd · Intigriti · Immunefi</text>
+        <text x="18" y="82" font-size="12" fill="#5a8a6a">CVSS 3.1 + 4.0 · impact-first</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#22c55e">/report</text>
+      </g>
+
+      <g transform="translate(1140, 70)">
+        <rect width="340" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="20" font-weight="700" fill="#ffffff">bugcrowd-reporting</text>
+        <text x="322" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">SH-04</text>
+        <text x="18" y="60" font-size="13" fill="#86c499">VRT fallback · severity request</text>
+        <text x="18" y="82" font-size="12" fill="#5a8a6a">OOS rebuttals · chain refs</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#22c55e">★ ORIGINAL</text>
+      </g>
+
+      <g transform="translate(1500, 70)">
+        <rect width="340" height="120" fill="#0a1410" stroke="#22c55e" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="20" font-weight="700" fill="#ffffff">security-arsenal</text>
+        <text x="322" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">SH-05</text>
+        <text x="18" y="60" font-size="13" fill="#86c499">payloads · bypass tables</text>
+        <text x="18" y="82" font-size="12" fill="#5a8a6a">wordlists · gf patterns</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ARROW: Layer 02 -> Layer 03 -->
+  <g transform="translate(960, 350)">
+    <text x="0" y="0" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a" letter-spacing="2">▲ findings flow up</text>
+    <line x1="-30" y1="6" x2="30" y2="6" stroke="#ff2d4f" stroke-width="1" stroke-opacity="0.5"/>
+    <path d="M 0 12 L -8 22 L 8 22 Z" fill="#ff2d4f" fill-opacity="0.5"/>
+  </g>
+
+  <!-- LAYER 02 · HUNT ARSENAL (middle, biggest) -->
+  <g transform="translate(0, 380)">
+    <rect x="40" y="0" width="1840" height="380" fill="url(#layer-2-bg)" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.4"/>
+    <g transform="translate(60, 32)">
+      <rect x="0" y="-14" width="3" height="20" fill="#ff2d4f"/>
+      <text x="14" y="0" font-family="ui-monospace, monospace" font-size="14" fill="#ff2d4f" letter-spacing="3" font-weight="700">◆ LAYER 02 · HUNT ARSENAL</text>
+      <text x="380" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#5a5a6a" letter-spacing="2">// 24 vuln classes · curated from disclosed H1 PoCs</text>
+      <text x="1820" y="0" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#ff2d4f" letter-spacing="2">★ AUTHOR-CURATED · 0X02</text>
+    </g>
+
+    <!-- Sub-row 1: Web App -->
+    <g transform="translate(60, 80)" font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <text x="0" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#fed7aa" letter-spacing="2" font-weight="600">[A] WEB APP</text>
+      <text x="120" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a">7 classes · 226 reports</text>
+      <g transform="translate(0, 14)">
+        <g transform="translate(0,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">XSS</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">174</text><text x="14" y="38" font-size="10" fill="#86826a">stored · reflected · DOM</text></g>
+        <g transform="translate(232,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">IDOR</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">26</text><text x="14" y="38" font-size="10" fill="#86826a">cross-tenant · UUID guess</text></g>
+        <g transform="translate(464,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">SQLi</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">8</text><text x="14" y="38" font-size="10" fill="#86826a">classic · blind · time-based</text></g>
+        <g transform="translate(696,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">XXE</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">4</text><text x="14" y="38" font-size="10" fill="#86826a">in-band · OOB · DOCX</text></g>
+        <g transform="translate(928,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">CSRF</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">10</text><text x="14" y="38" font-size="10" fill="#86826a">chain-required · token bypass</text></g>
+        <g transform="translate(1160,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Upload</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">10×</text><text x="14" y="38" font-size="10" fill="#86826a">10 bypass tables · polyglot</text></g>
+        <g transform="translate(1392,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">SSTI</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">5×</text><text x="14" y="38" font-size="10" fill="#86826a">Jinja · Twig · Freemarker</text></g>
+      </g>
+    </g>
+
+    <!-- Sub-row 2: Auth -->
+    <g transform="translate(60, 160)" font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <text x="0" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#fed7aa" letter-spacing="2" font-weight="600">[B] AUTH &amp; IDENTITY</text>
+      <text x="180" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a">5 classes · 14+ reports</text>
+      <g transform="translate(0, 14)">
+        <g transform="translate(0,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">OAuth</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">10</text><text x="14" y="38" font-size="10" fill="#86826a">redirect_uri · state · code theft</text></g>
+        <g transform="translate(232,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">SAML</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">8×</text><text x="14" y="38" font-size="10" fill="#86826a">XSW1-XSW8 · sig stripping</text></g>
+        <g transform="translate(464,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">ATO</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">9×</text><text x="14" y="38" font-size="10" fill="#86826a">9 paths · password reset · OAuth</text></g>
+        <g transform="translate(696,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">MFA-bypass</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">7×</text><text x="14" y="38" font-size="10" fill="#86826a">7 patterns · OTP brute · race</text></g>
+        <g transform="translate(928,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Auth-bypass</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">4</text><text x="14" y="38" font-size="10" fill="#86826a">access control · privesc</text></g>
+      </g>
+    </g>
+
+    <!-- Sub-row 3: API/Infra -->
+    <g transform="translate(60, 240)" font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <text x="0" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#fed7aa" letter-spacing="2" font-weight="600">[C] API &amp; INFRA</text>
+      <text x="160" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a">6 classes · 90+ reports</text>
+      <g transform="translate(0, 14)">
+        <g transform="translate(0,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">SSRF</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">9</text><text x="14" y="38" font-size="10" fill="#86826a">11 IP-bypass · cloud meta</text></g>
+        <g transform="translate(232,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">RCE</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">67</text><text x="14" y="38" font-size="10" fill="#86826a">crown jewel · deserialization</text></g>
+        <g transform="translate(464,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">GraphQL</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">3</text><text x="14" y="38" font-size="10" fill="#86826a">introspection · alias batching</text></g>
+        <g transform="translate(696,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">API-misconfig</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">4×</text><text x="14" y="38" font-size="10" fill="#86826a">mass-assign · JWT · proto pollute</text></g>
+        <g transform="translate(928,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Cloud-misconfig</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">5×</text><text x="14" y="38" font-size="10" fill="#86826a">S3 · K8s · CI/CD · Lambda</text></g>
+        <g transform="translate(1160,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Subdomain TO</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">11</text><text x="14" y="38" font-size="10" fill="#86826a">27+ provider fingerprints</text></g>
+      </g>
+    </g>
+
+    <!-- Sub-row 4: Advanced -->
+    <g transform="translate(60, 320)" font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <text x="0" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#fed7aa" letter-spacing="2" font-weight="600">[D] ADVANCED</text>
+      <text x="130" y="0" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a">6 classes · 244+ reports</text>
+      <g transform="translate(0, 14)">
+        <g transform="translate(0,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Race / TOCTOU</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">3</text><text x="14" y="38" font-size="10" fill="#86826a">double-spend · MFA-via-race</text></g>
+        <g transform="translate(232,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Cache poison</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">4</text><text x="14" y="38" font-size="10" fill="#86826a">CDN · deception · X-Fwd-*</text></g>
+        <g transform="translate(464,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">HTTP smuggling</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">4×</text><text x="14" y="38" font-size="10" fill="#86826a">CL.TE · TE.CL · H2.CL</text></g>
+        <g transform="translate(696,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Business logic</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">7</text><text x="14" y="38" font-size="10" fill="#86826a">coupon · referral · checkout</text></g>
+        <g transform="translate(928,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">LLM / agentic AI</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">10×</text><text x="14" y="38" font-size="10" fill="#86826a">prompt injection · ASI01-10</text></g>
+        <g transform="translate(1160,0)"><rect width="220" height="48" fill="#1a1410" stroke="#7f1d1d" stroke-width="1" stroke-opacity="0.6"/><text x="14" y="22" font-size="14" font-weight="700" fill="#ffffff">Misc · catch-all</text><text x="206" y="22" text-anchor="end" font-size="11" fill="#fed7aa" font-family="monospace">225</text><text x="14" y="38" font-size="10" fill="#86826a">long tail of disclosed reports</text></g>
+      </g>
+    </g>
+  </g>
+
+  <!-- ARROW: Layer 01 -> Layer 02 -->
+  <g transform="translate(960, 790)">
+    <text x="0" y="0" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#5a5a6a" letter-spacing="2">▲ leads from recon · skills auto-trigger by topic</text>
+    <line x1="-30" y1="6" x2="30" y2="6" stroke="#ff2d4f" stroke-width="1" stroke-opacity="0.5"/>
+    <path d="M 0 12 L -8 22 L 8 22 Z" fill="#ff2d4f" fill-opacity="0.5"/>
+  </g>
+
+  <!-- LAYER 01 · METHODOLOGY + RECON (bottom) -->
+  <g transform="translate(0, 820)">
+    <rect x="40" y="0" width="1840" height="220" fill="url(#layer-1-bg)" stroke="#1e3a5f" stroke-width="1" stroke-opacity="0.4"/>
+    <g transform="translate(60, 32)">
+      <rect x="0" y="-14" width="3" height="20" fill="#3b82f6"/>
+      <text x="14" y="0" font-family="ui-monospace, monospace" font-size="14" fill="#3b82f6" letter-spacing="3" font-weight="700">◆ LAYER 01 · METHODOLOGY + RECON</text>
+      <text x="450" y="0" font-family="ui-monospace, monospace" font-size="13" fill="#5a5a6a" letter-spacing="2">// scope · plan · enumerate · feed the hunt</text>
+      <text x="1820" y="0" text-anchor="end" font-family="ui-monospace, monospace" font-size="13" fill="#5a5a6a" letter-spacing="2">6 SKILLS · 0X01</text>
+    </g>
+
+    <g font-family="-apple-system, BlinkMacSystemFont, sans-serif">
+      <g transform="translate(60, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">bug-bounty</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-01</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">master orchestrator</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">routes to other skills</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">VENDORED</text>
+      </g>
+
+      <g transform="translate(360, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">bb-methodology</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-02</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">5-phase non-linear flow</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">+ critical-thinking framework</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">VENDORED</text>
+      </g>
+
+      <g transform="translate(660, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">osint-methodology</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-03</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">5-stage recon pipeline</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">29-type asset graph · severity</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">★ ORIGINAL</text>
+      </g>
+
+      <g transform="translate(960, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">offensive-osint</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-04</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">15 reference modules</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">progressive-disclosure arsenal</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">★ ORIGINAL</text>
+      </g>
+
+      <g transform="translate(1260, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">web2-recon</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-05</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">subfinder · dnsx · httpx</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">katana · waybackurls · gau</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">VENDORED</text>
+      </g>
+
+      <g transform="translate(1560, 70)">
+        <rect width="280" height="120" fill="#0a1018" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.5"/>
+        <text x="18" y="32" font-size="18" font-weight="700" fill="#ffffff">bb-local-toolkit</text>
+        <text x="262" y="32" text-anchor="end" font-size="11" font-family="ui-monospace, monospace" fill="#5a5a6a">MR-06</text>
+        <text x="18" y="60" font-size="13" fill="#93b8e0">full pipeline router</text>
+        <text x="18" y="82" font-size="12" fill="#5a7a9a">local cloned BB repos</text>
+        <text x="18" y="100" font-size="11" font-family="ui-monospace, monospace" fill="#3b82f6">★ ORIGINAL</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Footer legend -->
+  <g transform="translate(60, 1075)" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11" letter-spacing="2">
+    <text x="0" y="0" fill="#22c55e">★ ORIGINAL</text>
+    <text x="120" y="0" fill="#5a5a6a">= author-curated</text>
+    <text x="280" y="0" fill="#3b82f6">VENDORED</text>
+    <text x="380" y="0" fill="#5a5a6a">= shuvonsec/claude-bug-bounty (MIT)</text>
+    <text x="1860" y="0" text-anchor="end" fill="#ff2d4f" font-weight="600">CAPABILITY MAP · END</text>
+  </g>
+</svg>

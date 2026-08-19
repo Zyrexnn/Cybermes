@@ -1,0 +1,44 @@
+name: ✨ New skill proposal
+description: Propose a new hunt-* or capability skill. Open this BEFORE writing the SKILL.md (per CONTRIBUTING.md).
+title: "[skill] hunt-<name> — <one-line purpose>"
+labels: ["skill-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Per CONTRIBUTING.md, propose new skills here first so we can confirm scope and avoid overlap before you write the full SKILL.md.
+  - type: input
+    id: name
+    attributes:
+      label: Proposed skill name
+      description: lowercase-hyphen only, e.g. hunt-fintech-graphql
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: What gap does it fill?
+      description: What can't be done well with the existing 51 skills? Be specific.
+    validations:
+      required: true
+  - type: textarea
+    id: overlap
+    attributes:
+      label: Overlap check
+      description: Which existing skills are closest, and why is this distinct enough to stand alone?
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Source material
+      description: Disclosed reports, CVEs, or research this would be built from (links preferred — the house style cites named reports).
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope confirmation
+      options:
+        - label: This is external-attack-surface focused (not internal AD / C2 / post-exploit — those are deliberately out of scope).
+          required: true
+        - label: It contains no real client/engagement identifiers, credentials, or target-specific exploits — all class-based / anonymized.
+          required: true

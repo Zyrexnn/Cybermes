@@ -1,0 +1,14 @@
+services:
+  origin:
+    build: ./origin
+    container_name: phase2h-origin
+    ports:
+      - "58015:5000"
+
+  nginx:
+    build: ./nginx
+    container_name: phase2h-nginx
+    ports:
+      - "58016:80"
+    depends_on:
+      - origin

@@ -1,0 +1,35 @@
+{
+  "name": "elementalsouls",
+  "owner": {
+    "name": "Sachin Sharma",
+    "url": "https://github.com/elementalsouls"
+  },
+  "metadata": {
+    "description": "Offensive-security skill bundles for Claude Code by ElementalSoul.",
+    "version": "2.1.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-bughunter",
+      "source": "./",
+      "description": "82-skill bug-hunting & external red-team bundle — 57 hunt-* web/vuln-class + framework skills, enterprise platform attack chains (M365/Entra, Okta, SharePoint, vCenter, SSL-VPN, APK/iOS), recon/OSINT, reporting & validation gates, Burp MCP integration. Skills auto-load by topic; 15 slash commands.",
+      "version": "2.1.0",
+      "author": {
+        "name": "Sachin Sharma",
+        "url": "https://github.com/elementalsouls"
+      },
+      "homepage": "https://elementalsouls.github.io/Claude-BugHunter",
+      "category": "security",
+      "tags": [
+        "security",
+        "offensive-security",
+        "bug-bounty",
+        "red-team",
+        "pentest",
+        "recon",
+        "osint",
+        "hunt"
+      ]
+    }
+  ]
+}

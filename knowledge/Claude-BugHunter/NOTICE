@@ -1,0 +1,13 @@
+ADDITIONAL NOTES
+
+This repository is dual-licensed: code under the MIT License (see LICENSE),
+and documentation/skill content under CC BY 4.0 (see LICENSE-CONTENT).
+
+It contains:
+1. Original work by the copyright holder, licensed under MIT.
+2. References and recipes for installing upstream community skills, which
+   retain their original licenses (typically MIT). See docs/credits.md for
+   attribution.
+
+The repository does NOT redistribute upstream community skills directly —
+users install them from their original sources via the bootstrap script.

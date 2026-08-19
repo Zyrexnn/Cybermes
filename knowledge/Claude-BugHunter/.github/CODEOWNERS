@@ -1,0 +1,8 @@
+# Default owner for everything — gets auto-requested on every PR.
+* @elementalsouls
+
+# Safety-critical files: changes here should always be maintainer-reviewed.
+/scripts/lint_skills.py            @elementalsouls
+/scripts/.identifier-denylist.sha256 @elementalsouls
+/.github/                          @elementalsouls
+/SECURITY.md                       @elementalsouls

@@ -1,0 +1,68 @@
+# macOS
+.DS_Store
+._*
+
+# Claude Code per-project settings (auto-generated)
+.claude/
+
+# Editor backups
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Engagement artifacts — NEVER commit
+# (these end up in your local working dirs but should not enter the repo)
+evidence/
+*.har
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.mov
+# …but allow display assets under assets/ (banner, diagrams)
+!assets/*.png
+!assets/*.jpg
+!assets/*.jpeg
+findings/
+submissions.txt
+notes.md
+/scope.md
+CLAUDE.md.local
+targets/
+
+# Local-only artifacts
+.obsidian/
+graphify-out/
+
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+*-credentials.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+# packaging build output (cbh is pip/pipx installable)
+build/
+dist/
+*.egg-info/
+
+# Node (if anyone adds tooling later)
+node_modules/
+
+# Test artifacts
+.pytest_cache/
+*.log
+
+# Local cbh recon outputs (when run from repo root)
+recon/
+
+# Maintainer-only plaintext client-identifier denylist (never commit names)
+scripts/.identifier-denylist.local
+New_version/

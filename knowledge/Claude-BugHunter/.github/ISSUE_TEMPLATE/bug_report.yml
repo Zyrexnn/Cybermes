@@ -1,0 +1,45 @@
+name: 🐞 Bug / incorrect skill behavior
+description: A skill misfires, fails to trigger, gives wrong guidance, or a script errors.
+title: "[bug] <short summary>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please **do not paste real client/engagement data, credentials, or target identifiers** — anonymize everything (see CONTRIBUTING.md).
+  - type: input
+    id: skill
+    attributes:
+      label: Which skill / command?
+      placeholder: "e.g. hunt-ssrf, /hunt, scripts/cbh.py"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Include the prompt you used and what Claude did (or didn't do). Redact any sensitive data.
+    validations:
+      required: true
+  - type: dropdown
+    id: trigger
+    attributes:
+      label: Did the skill auto-trigger?
+      options:
+        - "Yes, it loaded but behaved wrong"
+        - "No, it never triggered when it should have"
+        - "It triggered when it should NOT have"
+        - "N/A"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Claude Code version, OS, install method (symlink/copy)"
