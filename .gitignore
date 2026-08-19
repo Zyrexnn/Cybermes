@@ -1,0 +1,75 @@
+# =============================================================================
+# Cybermes Git Ignore Rules
+# =============================================================================
+
+# 1. Hermes Agent Local State, Data & Sessions
+.hermes/
+*.db
+*.sqlite*
+*.lock
+!uv.lock
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+gateway-starts.log
+
+# 2. Python Virtual Environments, Distributions & Bytecode
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 3. Environment Variables & Secret Credentials
+.env
+.env.*
+!.env.example
+auth.json*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 4. Compiled Binary Security Tools (Download via setup/docker)
+tools/bin/*
+!tools/bin/.gitkeep
+!tools/bin/nmap
+
+# 5. Runtime Logs, Reconnaissance Dumps & Dynamic Outputs
+logs/*
+!logs/.gitkeep
+output/*
+!output/.gitkeep
+recon/*
+!recon/.gitkeep
+targets/*
+!targets/.gitkeep
+*.log
+
+# 6. IDE, Editor & OS Artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 7. Node, Browser & Temporary Files
+node_modules/
+npm-debug.log*
+chrome/
+playwright-report/
+*.tmp
+*.bak
+.mdbook-build.*
+.tmp_*
