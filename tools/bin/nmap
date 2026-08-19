@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+if [ -x "/usr/bin/nmap" ]; then
+  exec /usr/bin/nmap "$@"
+elif [ -x "/usr/local/bin/nmap" ]; then
+  exec /usr/local/bin/nmap "$@"
+else
+  exec nmap "$@"
+fi
