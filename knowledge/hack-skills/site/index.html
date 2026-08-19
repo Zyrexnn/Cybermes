@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-theme-pref="system">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>HackSkills — composable security playbooks for AI agents</title>
+<meta name="description" content="A composable, agent-ready knowledge base of 100+ deep security playbooks — web, API, auth, OS escalation, AD, mobile, pwn, RE, crypto, blockchain, AI/ML, and forensics." />
+<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+<meta property="og:title" content="HackSkills — composable security playbooks for AI agents" />
+<meta property="og:description" content="100+ deep security playbooks. Master / category / topic. Search, copy, install with one command." />
+<meta property="og:type" content="website" />
+<link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg" />
+<link rel="icon" href="assets/img/favicon.ico" sizes="32x32" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png" />
+<link rel="stylesheet" href="assets/css/style.css" />
+<script>
+  // 早期主题应用 (避免 FOUC) — 关键词: theme bootstrap, anti-flash
+  (function () {
+    try {
+      var pref = localStorage.getItem("hackskills:theme") || "system";
+      var sysDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      var effective = pref === "system" ? (sysDark ? "dark" : "light") : pref;
+      document.documentElement.setAttribute("data-theme", effective);
+      document.documentElement.setAttribute("data-theme-pref", pref);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<canvas id="ambient-canvas" aria-hidden="true"></canvas>
+
+<a class="skip-link" href="#browse">skip to skills</a>
+
+<!-- ======================================================================
+     PROVENANCE BAR  - 学术风顶部细标注: counts / build / license
+     关键词: provenance bar, build metadata, academic stripe
+     ====================================================================== -->
+<div class="provenance-bar" role="contentinfo" aria-label="Build metadata">
+  <div class="provenance-bar-inner">
+    <span class="provenance-bar-tag">SKILLS</span>
+    <span><span id="prov-skills-num">-</span> playbooks</span>
+    <span class="provenance-bar-sep">.</span>
+    <span><span id="prov-cats-num">-</span> categories</span>
+    <span class="provenance-bar-sep">.</span>
+    <span>build <span id="prov-build">-</span></span>
+    <span class="provenance-bar-sep">.</span>
+    <span>MIT licensed</span>
+    <span class="provenance-bar-sep">.</span>
+    <span>authorized research only</span>
+  </div>
+</div>
+
+<header class="nav" role="banner">
+  <div class="nav-inner">
+    <a href="#" class="brand" aria-label="HackSkills home">
+      <svg class="brand-mark" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M4 8 L14 4 L24 8 L24 18 L14 24 L4 18 Z" />
+        <path d="M14 4 L14 24" stroke-opacity=".4" />
+        <path d="M4 8 L24 18" stroke-opacity=".25" />
+        <path d="M24 8 L4 18" stroke-opacity=".25" />
+      </svg>
+      <span class="brand-text">hack<span class="brand-dot">.</span>skills</span>
+      <span class="brand-version" id="brand-version">v-</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#install">install</a>
+      <a href="#browse">browse</a>
+      <a href="https://github.com/yaklang/hack-skills/blob/main/README.md" target="_blank" rel="noopener noreferrer">docs</a>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <a href="https://hackbenchmark.com" class="sister-link" target="_blank" rel="noopener" title="Sister site: hackbenchmark - AI agents vs. real-world web vulns">Benchmark <span class="sister-arrow" aria-hidden="true">_&gt;</span></a>
+      <a href="https://skills.yaklang.io" class="sister-link" target="_blank" rel="noopener" title="Sister site: Yak Skills - Yaklang programming & Yak hot patch skills">Yak Skills <span class="sister-arrow" aria-hidden="true">_&gt;</span></a>
+    </nav>
+
+    <div class="nav-actions">
+      <button id="nav-download" class="nav-download-btn" type="button" aria-label="Download encrypted ZIP" title="Download encrypted ZIP">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>ZIP</span>
+      </button>
+      <a class="icon-btn" href="https://github.com/yaklang/hack-skills" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true">
+          <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-1.97c-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.91-.25 1.89-.38 2.86-.38.97 0 1.95.13 2.86.38 2.18-1.49 3.14-1.18 3.14-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.07.78 2.16v3.2c0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+        </svg>
+      </a>
+      <button id="theme-toggle" class="icon-btn theme-toggle" type="button" aria-label="Toggle theme" title="Theme: system">
+        <svg class="ico ico-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg class="ico ico-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg class="ico ico-system" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="13" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <img class="hero-bg-img"
+         src="assets/img/hero-banner.jpg"
+         alt=""
+         decoding="async"
+         fetchpriority="high"
+         loading="eager" />
+    <div class="hero-bg-veil"></div>
+    <div class="hero-bg-noise"></div>
+  </div>
+
+  <div class="hero-inner">
+    <div class="badge-row">
+      <span class="badge">v<span id="hero-version">…</span></span>
+      <span class="badge badge-soft"><span id="hero-skills-num">…</span> skills</span>
+      <span class="badge badge-soft"><span id="hero-cats-num">…</span> categories</span>
+      <span class="badge badge-ghost">authorized research only</span>
+    </div>
+
+    <h1 class="hero-title">
+      Composable security playbooks
+      <span class="hero-title-dim">for AI agents.</span>
+    </h1>
+    <p class="hero-sub">
+      One master entry, six category routers, and 100+ deep topic skills —
+      drilled down on demand by your agent. Static, auditable, install in a single command.
+    </p>
+
+    <form class="hero-search" id="hero-search-form" role="search" autocomplete="off">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </span>
+      <input
+        id="hero-search-input"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        placeholder='Search 101 skills…   try "xss waf"   "category:auth"   "tier:deep"'
+        aria-label="Search skills"
+      />
+      <kbd class="kbd-hint" aria-hidden="true">/</kbd>
+    </form>
+
+    <div class="hero-meta">
+      <span><span id="hero-lines">—</span> lines of distilled methodology</span>
+      <span class="dot-sep" aria-hidden="true">·</span>
+      <span>last build <span id="hero-build">—</span></span>
+    </div>
+  </div>
+
+  <div class="hero-marquee" aria-label="Featured skills (click to filter)">
+    <div class="marquee-fade marquee-fade-l" aria-hidden="true"></div>
+    <div class="marquee-fade marquee-fade-r" aria-hidden="true"></div>
+    <div class="marquee-track" id="marquee-track">
+      <!-- chips populated by app.js -->
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="section-head">
+    <h2>Install</h2>
+    <p>Two ways to wire HackSkills into your agent. Bundle the whole kit, or pull a single playbook on demand.</p>
+  </div>
+
+  <div class="install-card">
+    <div class="install-tabs" role="tablist" aria-label="Install method">
+      <button class="install-tab" role="tab" aria-selected="true" data-tab="bundle">Bundle</button>
+      <button class="install-tab" role="tab" aria-selected="false" data-tab="single">Single skill</button>
+      <button class="install-tab" role="tab" aria-selected="false" data-tab="curl">curl</button>
+      <button class="install-tab" role="tab" aria-selected="false" data-tab="agent">For your agent</button>
+      <button class="install-tab install-tab-zip" role="tab" aria-selected="false" data-tab="zip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Offline ZIP
+      </button>
+    </div>
+
+    <!-- Bundle -->
+    <div class="install-panel" role="tabpanel" data-panel="bundle" data-active="true">
+      <p class="panel-lead">One command pulls the whole kit (master + category + 100+ topic skills) and registers them with your skills loader.</p>
+      <div class="codebox">
+        <span class="cmd-prompt" aria-hidden="true">$</span>
+        <code id="cmd-bundle">npx skills add yaklang/hack-skills</code>
+        <button class="copy-btn" data-copy-target="#cmd-bundle" aria-label="Copy">copy</button>
+      </div>
+      <p class="panel-foot dim">Recommended for first-time setup. Works with any tool that consumes the <code>skills</code> CLI convention.</p>
+    </div>
+
+    <!-- Single skill -->
+    <div class="install-panel" role="tabpanel" data-panel="single" hidden>
+      <p class="panel-lead">Pick a single playbook — useful when you only need one topic and want to keep the loader minimal.</p>
+      <div class="select-row">
+        <label class="select-label" for="single-skill-select">Skill</label>
+        <select id="single-skill-select" class="select"></select>
+      </div>
+      <div class="codebox">
+        <span class="cmd-prompt" aria-hidden="true">$</span>
+        <code id="cmd-single">npx skills add yaklang/hack-skills/<span class="cmd-arg" id="cmd-single-arg">hack</span></code>
+        <button class="copy-btn" data-copy-target="#cmd-single" aria-label="Copy">copy</button>
+      </div>
+      <p class="panel-foot dim">If your tooling supports per-skill registration (frontmatter <code>name</code> identifier), this scopes to one playbook only.</p>
+    </div>
+
+    <!-- curl -->
+    <div class="install-panel" role="tabpanel" data-panel="curl" hidden>
+      <p class="panel-lead">Plain HTTP. Pull the raw <code>SKILL.md</code> for any skill — drop it into a custom prompt, RAG store, or your own skills folder.</p>
+      <div class="select-row">
+        <label class="select-label" for="curl-skill-select">Skill</label>
+        <select id="curl-skill-select" class="select"></select>
+      </div>
+      <div class="codebox">
+        <span class="cmd-prompt" aria-hidden="true">$</span>
+        <code id="cmd-curl">curl -fsSL <span class="cmd-arg" id="cmd-curl-arg">https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hack/SKILL.md</span></code>
+        <button class="copy-btn" data-copy-target="#cmd-curl" aria-label="Copy">copy</button>
+      </div>
+      <p class="panel-foot dim">No installer required. The Markdown file is self-contained and includes routing hints in its frontmatter.</p>
+    </div>
+
+    <!-- Agent -->
+    <div class="install-panel" role="tabpanel" data-panel="agent" hidden>
+      <p class="panel-lead">Hand a single URL to your AI agent — Cursor, Claude Desktop, MCP-style loaders, or any tool that reads remote Markdown.</p>
+      <div class="select-row">
+        <label class="select-label" for="agent-skill-select">Skill</label>
+        <select id="agent-skill-select" class="select"></select>
+      </div>
+      <div class="kv-rows">
+        <div class="kv-row">
+          <span class="kv-key">frontmatter name</span>
+          <code class="kv-val" id="agent-name">hack</code>
+          <button class="copy-btn copy-btn-sm" data-copy-target="#agent-name" aria-label="Copy">copy</button>
+        </div>
+        <div class="kv-row">
+          <span class="kv-key">raw url</span>
+          <code class="kv-val" id="agent-url">https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hack/SKILL.md</code>
+          <button class="copy-btn copy-btn-sm" data-copy-target="#agent-url" aria-label="Copy">copy</button>
+        </div>
+        <div class="kv-row">
+          <span class="kv-key">github source</span>
+          <a class="kv-val kv-link" id="agent-blob" href="#" target="_blank" rel="noopener noreferrer">github.com/…</a>
+        </div>
+      </div>
+      <p class="panel-foot dim">Most agent loaders will respect the <code>name:</code> field in frontmatter as a stable identifier, even when the source URL moves.</p>
+    </div>
+
+    <!-- Offline ZIP archive -->
+    <div class="install-panel" role="tabpanel" data-panel="zip" hidden>
+      <p class="panel-lead">Air-gapped friendly. AES-256 encrypted ZIP — keeps the playbooks intact when downloading via networks where antivirus / EDR / browser scanners flag offensive markdown.</p>
+
+      <div class="zip-grid">
+        <div class="zip-pwd-box">
+          <div class="zip-pwd-label">password</div>
+          <div class="zip-pwd-row">
+            <code id="zip-password">hack-skills</code>
+            <button class="copy-btn" data-copy-target="#zip-password" aria-label="Copy password">copy</button>
+          </div>
+          <div class="zip-pwd-note dim">Public constant — printed openly in workflow, README, CDN logs, and this page. <strong>Not access control.</strong></div>
+        </div>
+
+        <div class="zip-reason-box">
+          <div class="zip-reason-title">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+            Why is the ZIP password protected?
+          </div>
+          <ul>
+            <li>HackSkills bundles offensive-security playbooks (XSS, SSTI, AD attacks, etc.). Plain markdown frequently triggers AV / EDR / browser content scanners on public CDNs and gets silently dropped or quarantined.</li>
+            <li>Wrapping the archive with AES-256 + a public password (<code>hack-skills</code>) bypasses content heuristics so the file actually arrives intact.</li>
+            <li>Anyone can download. Anyone can extract. The password is printed everywhere on purpose.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="zip-downloads">
+        <a class="btn btn-primary zip-dl-primary" href="https://oss-qn.yaklang.com/hack-skills/latest/hack-skills.zip" download="hack-skills.zip" data-zip-source="cdn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download ZIP <span class="dim">(CDN)</span>
+        </a>
+        <a class="btn" href="https://aliyun-oss.yaklang.com/hack-skills/latest/hack-skills.zip" download="hack-skills.zip" data-zip-source="mirror">Mirror CDN</a>
+        <a class="btn btn-link" href="https://oss-qn.yaklang.com/hack-skills/latest/version.txt" target="_blank" rel="noopener noreferrer">version.txt</a>
+      </div>
+
+      <div class="codebox">
+        <span class="cmd-prompt" aria-hidden="true">$</span>
+        <code id="cmd-zip">curl -fsSLO https://oss-qn.yaklang.com/hack-skills/latest/hack-skills.zip &amp;&amp; 7z x -phack-skills hack-skills.zip</code>
+        <button class="copy-btn" data-copy-target="#cmd-zip" aria-label="Copy">copy</button>
+      </div>
+
+      <p class="panel-foot dim">Works with <code>7z</code>, <code>unzip -P hack-skills</code>, native macOS Archive Utility, and most cross-platform tools. SHA-256 manifest is published per version under the same OSS prefix.</p>
+    </div>
+  </div>
+</section>
+
+<section class="browse" id="browse">
+  <div class="section-head">
+    <h2>Browse</h2>
+    <p>Filter by category, tier, or free-text. <kbd class="kbd-inline">/</kbd> to focus search anywhere.</p>
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <div class="toolbar-search">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </span>
+      <input
+        id="search-input"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        placeholder='search…'
+        aria-label="Search skills"
+      />
+      <button id="search-clear" type="button" class="search-clear" aria-label="Clear search" title="Clear (Esc)">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="filter-chips" role="toolbar" aria-label="Tier filter">
+      <button class="chip" data-tier="all" aria-pressed="true">All</button>
+      <button class="chip" data-tier="master" aria-pressed="false">P0 master</button>
+      <button class="chip" data-tier="category" aria-pressed="false">P1 category</button>
+      <button class="chip" data-tier="deep" aria-pressed="false">P2 topic</button>
+    </div>
+
+    <div class="toolbar-counter">
+      <span id="result-counter">— matches</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Categories">
+      <div class="sidebar-title">Categories</div>
+      <nav id="category-nav" class="category-nav">
+        <!-- categories populated by app.js -->
+      </nav>
+    </aside>
+
+    <div class="results">
+      <div id="loading" class="state state-loading">
+        <div class="spinner" aria-hidden="true"></div>
+        <span>loading skills.json…</span>
+      </div>
+      <div id="empty" class="state state-empty hidden">
+        <div class="state-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6" stroke-opacity=".5"/></svg>
+        </div>
+        <div class="state-title">No matches</div>
+        <div class="state-sub">Try a different keyword or <kbd class="kbd-inline">/</kbd> to refocus.</div>
+      </div>
+      <div id="error" class="state state-error hidden">
+        <div class="state-title">Failed to load skills.json</div>
+        <div class="state-sub">Check your network or refresh the page.</div>
+      </div>
+      <div id="cards" class="cards"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <span class="dim">© <span id="foot-year">2026</span> yaklang/hack-skills</span>
+      <span class="dim sep">·</span>
+      <span class="dim">build <span id="foot-version">—</span></span>
+      <span class="dim sep">·</span>
+      <span class="dim"><span id="foot-build-time">—</span></span>
+    </div>
+    <div class="foot-links">
+      <a href="https://github.com/yaklang/hack-skills" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://github.com/yaklang/hack-skills/blob/main/README.md" target="_blank" rel="noopener noreferrer">README</a>
+      <a href="https://github.com/yaklang/hack-skills/blob/main/README_CN.md" target="_blank" rel="noopener noreferrer">中文</a>
+      <a href="https://github.com/yaklang/hack-skills/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+      <span class="foot-sep" aria-hidden="true">.</span>
+      <span class="foot-sister-label dim">sister sites</span>
+      <a class="sister-link" href="https://hackbenchmark.com" target="_blank" rel="noopener noreferrer">hack.benchmark <span class="sister-arrow" aria-hidden="true">_&gt;</span></a>
+      <a class="sister-link" href="https://skills.yaklang.io" target="_blank" rel="noopener noreferrer">yak.skills <span class="sister-arrow" aria-hidden="true">_&gt;</span></a>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ZIP download modal: shows the public password + reasoning before users actually click download -->
+<!-- 关键词: zip download modal, public password notice, AES256 anti-AV -->
+<div class="modal-backdrop" id="zip-modal" hidden>
+  <div class="modal-card" role="dialog" aria-labelledby="zip-modal-title" aria-modal="true">
+    <button class="modal-close" id="zip-modal-close" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+
+    <div class="modal-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="11" width="16" height="10" rx="2"/>
+        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+      </svg>
+    </div>
+
+    <h3 id="zip-modal-title">Download HackSkills (encrypted ZIP)</h3>
+    <p class="modal-sub dim">Read this before you download — the archive is password-protected on purpose, and the password is right here.</p>
+
+    <div class="modal-pwd">
+      <div class="modal-pwd-label">password</div>
+      <div class="modal-pwd-row">
+        <code id="modal-zip-password">hack-skills</code>
+        <button class="copy-btn copy-btn-lg" data-copy-text="hack-skills" aria-label="Copy password">copy</button>
+      </div>
+    </div>
+
+    <div class="modal-reason">
+      <div class="modal-reason-title">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        Why password protected?
+      </div>
+      <ul>
+        <li>HackSkills ships offensive-security playbooks. Plain <code>.md</code> on public CDNs gets flagged by AV / EDR / browser content scanners and silently dropped.</li>
+        <li>The ZIP is wrapped in <strong>AES-256</strong> with a <strong>public constant password</strong> to bypass content heuristics. <strong>Not access control.</strong></li>
+        <li>The password is printed in the README, the GitHub Actions workflow, CI logs, and right here. Anyone can extract.</li>
+      </ul>
+    </div>
+
+    <div class="modal-downloads">
+      <a class="btn btn-primary" id="modal-zip-dl-primary" href="https://oss-qn.yaklang.com/hack-skills/latest/hack-skills.zip" download="hack-skills.zip">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download (CDN)
+      </a>
+      <a class="btn" href="https://aliyun-oss.yaklang.com/hack-skills/latest/hack-skills.zip" download="hack-skills.zip">Mirror CDN</a>
+    </div>
+
+    <div class="modal-meta">
+      <div class="modal-meta-row">
+        <span class="modal-meta-key">version</span>
+        <code id="modal-zip-version">checking…</code>
+      </div>
+      <div class="modal-meta-row">
+        <span class="modal-meta-key">algorithm</span>
+        <code>AES-256 (zip)</code>
+      </div>
+    </div>
+
+    <div class="codebox modal-codebox">
+      <span class="cmd-prompt" aria-hidden="true">$</span>
+      <code id="modal-zip-cmd">curl -fsSLO https://oss-qn.yaklang.com/hack-skills/latest/hack-skills.zip &amp;&amp; 7z x -phack-skills hack-skills.zip</code>
+      <button class="copy-btn" data-copy-target="#modal-zip-cmd" aria-label="Copy">copy</button>
+    </div>
+
+    <p class="modal-foot dim">Works with <code>7z</code>, <code>unzip -P hack-skills</code>, macOS Archive Utility, etc.</p>
+  </div>
+</div>
+
+<template id="card-template">
+  <article class="card" tabindex="0">
+    <div class="card-row">
+      <span class="card-tier" data-tier=""></span>
+      <span class="card-cat-label"></span>
+    </div>
+    <h3 class="card-title">
+      <a class="card-title-link" href="#" target="_blank" rel="noopener noreferrer">
+        <span class="card-name"></span>
+      </a>
+    </h3>
+    <code class="card-id"></code>
+    <p class="card-desc"></p>
+    <div class="card-foot">
+      <div class="card-stats">
+        <span class="card-stat" title="SKILL.md lines">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <span class="card-lines">0</span>
+        </span>
+        <span class="card-stat card-extra hidden" title="extra docs">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="card-extra-count">0</span>
+        </span>
+      </div>
+      <div class="card-actions">
+        <button class="card-copy" type="button" aria-label="Copy install snippet" title="Copy install snippet">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span>copy</span>
+        </button>
+        <a class="card-open" target="_blank" rel="noopener noreferrer">open
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>
+        </a>
+      </div>
+    </div>
+  </article>
+</template>
+
+<script src="assets/js/matrix.js" defer></script>
+<script src="assets/js/effects.js" defer></script>
+<script src="assets/js/search.js" defer></script>
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>

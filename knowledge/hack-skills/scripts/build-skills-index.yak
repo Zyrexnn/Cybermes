@@ -1,0 +1,500 @@
+// =============================================================================
+// hack-skills 主页索引构建脚本
+// 功能:
+//   1. 扫描 skills/*/SKILL.md, 解析 frontmatter 获取 name / description
+//   2. 统计每个 skill 目录下所有 *.md 行数 (SKILL/SCENARIOS/ADVANCED_*)
+//   3. 读取 site/data/categories.yaml, 校验分类与目录一致性
+//   4. 输出 site/data/skills.json 供前端 index.html 消费
+// 用途: GitHub Actions Pages 构建 / 本地预览
+// 关键词: build-skills-index, skills.json, frontmatter parsing, category validation
+// =============================================================================
+
+// CLI 参数
+// 关键词: cli.String, 命令行参数解析
+project_root_arg = cli.String("project-root", cli.setDefault(""), cli.setHelp("project root, default to cwd"))
+skills_dir_arg = cli.String("skills-dir", cli.setDefault("skills"), cli.setHelp("skills source directory (relative to project root)"))
+categories_file_arg = cli.String("categories", cli.setDefault("site/data/categories.yaml"), cli.setHelp("categories yaml file"))
+output_arg = cli.String("output", cli.setDefault("site/data/skills.json"), cli.setHelp("output skills.json path"))
+version_arg = cli.String("version", cli.setDefault("dev"), cli.setHelp("version string (e.g. YYYYMMDD-shortsha)"))
+commit_arg = cli.String("commit", cli.setDefault("local"), cli.setHelp("git commit sha"))
+github_repo_arg = cli.String("github-repo", cli.setDefault("yaklang/hack-skills"), cli.setHelp("github repo for blob url generation"))
+github_branch_arg = cli.String("github-branch", cli.setDefault("main"), cli.setHelp("github branch for blob url generation"))
+strict_arg = cli.Bool("strict", cli.setHelp("fail on category mismatch (default: true on CI)"))
+cli.check()
+
+// 路径计算
+// 关键词: os.Getwd, file.Join, 路径计算
+project_root = project_root_arg
+if project_root == "" {
+    project_root = os.Getwd()~
+}
+log.info("project root: %s", project_root)
+
+skills_dir = skills_dir_arg
+if !file.IsAbs(skills_dir) {
+    skills_dir = file.Join(project_root, skills_dir)
+}
+assert file.IsDir(skills_dir), f"skills directory not found: ${skills_dir}"
+
+categories_file = categories_file_arg
+if !file.IsAbs(categories_file) {
+    categories_file = file.Join(project_root, categories_file)
+}
+assert file.IsFile(categories_file), f"categories file not found: ${categories_file}"
+
+output_path = output_arg
+if !file.IsAbs(output_path) {
+    output_path = file.Join(project_root, output_path)
+}
+log.info("skills dir:      %s", skills_dir)
+log.info("categories file: %s", categories_file)
+log.info("output:          %s", output_path)
+log.info("version:         %s", version_arg)
+log.info("commit:          %s", commit_arg)
+log.info("github repo:     %s @ %s", github_repo_arg, github_branch_arg)
+
+// =============================================================================
+// 1. 读取 categories.yaml
+// 关键词: yaml.Unmarshal, categories parsing
+// =============================================================================
+log.info("loading categories.yaml")
+cat_bytes = file.ReadFile(categories_file)~
+cat_obj, cat_err = yaml.Unmarshal(cat_bytes)
+if cat_err != nil {
+    log.error("failed to parse categories.yaml: %v", cat_err)
+    assert false, f"categories yaml parse failed: ${cat_err}"
+}
+assert cat_obj != nil, "categories yaml must not be empty"
+
+categories_raw = cat_obj["categories"]
+assert categories_raw != nil, "categories.yaml must contain 'categories' key"
+assert len(categories_raw) > 0, "categories list must not be empty"
+
+tier_overrides_raw = cat_obj["tier_overrides"]
+tier_overrides = {}
+if tier_overrides_raw != nil {
+    for k, v in tier_overrides_raw {
+        tier_overrides[sprint(k)] = sprint(v)
+    }
+}
+
+// 构建 skill -> category 反向映射, 同时校验 categories 内 skill 唯一性
+// 关键词: skill to category mapping, uniqueness check
+skill_to_category = {}
+declared_skills = []
+categories_meta = []
+for cat in categories_raw {
+    cid = sprint(cat["id"])
+    cname = sprint(cat["name"])
+    corder_raw = cat["order"]
+    corder = 0
+    if corder_raw != nil {
+        corder = int(corder_raw)
+    }
+    cdesc = ""
+    if cat["description"] != nil {
+        cdesc = sprint(cat["description"])
+    }
+    skills_in_cat = cat["skills"]
+    assert skills_in_cat != nil, f"category ${cid} must have skills list"
+    assert len(skills_in_cat) > 0, f"category ${cid} skills list must not be empty"
+
+    skill_ids = []
+    for s in skills_in_cat {
+        sid = sprint(s)
+        if skill_to_category[sid] != nil {
+            log.error("skill %q declared in multiple categories: %v and %v",
+                sid, skill_to_category[sid], cid)
+            assert false, f"duplicate skill across categories: ${sid}"
+        }
+        skill_to_category[sid] = cid
+        skill_ids = append(skill_ids, sid)
+        declared_skills = append(declared_skills, sid)
+    }
+
+    categories_meta = append(categories_meta, {
+        "id": cid,
+        "name": cname,
+        "order": corder,
+        "description": cdesc,
+        "skills": skill_ids,
+    })
+}
+log.info("categories loaded: %d, declared skills: %d", len(categories_meta), len(declared_skills))
+
+// =============================================================================
+// 2. 列出 skills 目录下的真实子目录
+// 关键词: os.ReadDir, skill directory enumeration
+// =============================================================================
+log.info("enumerating skill directories")
+entries = file.Ls(skills_dir)
+assert entries != nil, f"file.Ls returned nil for ${skills_dir}"
+real_skill_dirs = []
+for entry in entries {
+    if !entry.IsDir {
+        continue
+    }
+    name = entry.Name
+    if str.HasPrefix(name, ".") {
+        continue
+    }
+    real_skill_dirs = append(real_skill_dirs, name)
+}
+log.info("real skill directories: %d", len(real_skill_dirs))
+
+// =============================================================================
+// 3. 双向一致性校验: 目录 ⇔ categories.yaml
+// 关键词: bidirectional validation, missing skill detection
+// =============================================================================
+real_set = {}
+for n in real_skill_dirs {
+    real_set[n] = true
+}
+declared_set = {}
+for n in declared_skills {
+    declared_set[n] = true
+}
+
+missing_in_categories = []
+for n in real_skill_dirs {
+    if declared_set[n] == nil {
+        missing_in_categories = append(missing_in_categories, n)
+    }
+}
+
+missing_in_filesystem = []
+for n in declared_skills {
+    if real_set[n] == nil {
+        missing_in_filesystem = append(missing_in_filesystem, n)
+    }
+}
+
+has_validation_error = false
+if len(missing_in_categories) > 0 {
+    log.error("=== skills present on disk but missing in categories.yaml ===")
+    for n in missing_in_categories {
+        log.error("  + %s", n)
+    }
+    has_validation_error = true
+}
+if len(missing_in_filesystem) > 0 {
+    log.error("=== skills declared in categories.yaml but missing on disk ===")
+    for n in missing_in_filesystem {
+        log.error("  - %s", n)
+    }
+    has_validation_error = true
+}
+
+if has_validation_error {
+    if strict_arg {
+        assert false, "category validation failed in strict mode, please fix categories.yaml or skill directories"
+    } else {
+        log.warn("category validation failed but --strict not set, continuing anyway")
+    }
+} else {
+    log.info("category validation passed: %d skills consistent", len(real_skill_dirs))
+}
+
+// =============================================================================
+// 4. 解析每个 SKILL.md 的 frontmatter 并统计行数
+// 关键词: frontmatter parsing, line count, markdown stats
+// =============================================================================
+
+// 推断 tier
+// 关键词: tier inference, master/category/deep classification
+func inferTier(skill_id) {
+    if tier_overrides[skill_id] != nil {
+        return tier_overrides[skill_id]
+    }
+    if skill_id == "hack" {
+        return "master"
+    }
+    if str.HasSuffix(skill_id, "-sec") {
+        return "category"
+    }
+    return "deep"
+}
+
+// 解析 frontmatter, 返回 (name, description, ok)
+// 关键词: frontmatter extraction, --- delimiter
+// 实现说明: 按字节级行扫描重组, 规避 yak 字符串切片在 utf-8 多字节字符
+//   (例如箭头符号、em dash) 上的偏移量与 rune count 不一致问题
+func parseFrontmatter(content) {
+    text = string(content)
+    if !str.HasPrefix(text, "---") {
+        return "", "", false
+    }
+    lines = str.Split(text, "\n")
+    if len(lines) < 3 {
+        return "", "", false
+    }
+    if str.TrimSpace(lines[0]) != "---" {
+        return "", "", false
+    }
+    end_line = -1
+    for i := 1; i < len(lines); i++ {
+        trimmed = str.TrimSpace(lines[i])
+        if trimmed == "---" || trimmed == "..." {
+            end_line = i
+            break
+        }
+    }
+    if end_line < 0 {
+        return "", "", false
+    }
+    fm_lines = lines[1:end_line]
+    fm_yaml = str.Join(fm_lines, "\n")
+    obj, parse_err = yaml.Unmarshal([]byte(fm_yaml))
+    if parse_err != nil {
+        log.warn("frontmatter yaml parse error: %v", parse_err)
+        return "", "", false
+    }
+    if obj == nil {
+        return "", "", false
+    }
+    name_v = ""
+    desc_v = ""
+    if obj["name"] != nil {
+        name_v = sprint(obj["name"])
+    }
+    if obj["description"] != nil {
+        desc_v = str.TrimSpace(sprint(obj["description"]))
+    }
+    return name_v, desc_v, true
+}
+
+// 计算文本行数
+// 关键词: line counting, text statistics
+func countLines(text) {
+    if len(text) == 0 {
+        return 0
+    }
+    return len(str.Split(text, "\n"))
+}
+
+// 收集每个 skill 目录下的所有 .md 文件统计
+// 关键词: extra docs collection, .md aggregation
+func collectExtraDocs(skill_dir, project_root_p) {
+    docs = []
+    entries = file.Ls(skill_dir)
+    if entries == nil {
+        return docs
+    }
+    for e in entries {
+        if e.IsDir {
+            continue
+        }
+        n = e.Name
+        if !str.HasSuffix(n, ".md") {
+            continue
+        }
+        if n == "SKILL.md" {
+            continue
+        }
+        full = file.Join(skill_dir, n)
+        body = file.ReadFile(full)~
+        rel_p = str.TrimPrefix(full, project_root_p + "/")
+        rel_p = str.ReplaceAll(rel_p, "\\", "/")
+        docs = append(docs, {
+            "name": n,
+            "lines": countLines(string(body)),
+            "size": len(body),
+            "path": rel_p,
+        })
+    }
+    return docs
+}
+
+skills_meta = []
+total_lines = 0
+total_size = 0
+total_extra = 0
+
+for skill_id in real_skill_dirs {
+    skill_dir = file.Join(skills_dir, skill_id)
+    skill_md = file.Join(skill_dir, "SKILL.md")
+    if !file.IsFile(skill_md) {
+        log.warn("missing SKILL.md in %s, skipping", skill_id)
+        continue
+    }
+    body = file.ReadFile(skill_md)~
+    fm_name, fm_desc, fm_ok = parseFrontmatter(body)
+    if !fm_ok {
+        log.warn("frontmatter parse failed for %s, falling back to id", skill_id)
+        fm_name = skill_id
+    }
+    if fm_name == "" {
+        fm_name = skill_id
+    }
+
+    skill_lines = countLines(string(body))
+    skill_size = len(body)
+    extra = collectExtraDocs(skill_dir, project_root)
+
+    cat_id = skill_to_category[skill_id]
+    if cat_id == nil {
+        cat_id = "uncategorized"
+    }
+
+    rel_path = file.Join("skills", skill_id, "SKILL.md")
+    rel_path = str.ReplaceAll(rel_path, "\\", "/")
+    blob_url = sprintf("https://github.com/%s/blob/%s/%s", github_repo_arg, github_branch_arg, rel_path)
+    raw_url = sprintf("https://raw.githubusercontent.com/%s/%s/%s", github_repo_arg, github_branch_arg, rel_path)
+
+    extra_lines = 0
+    for d in extra {
+        extra_lines += d["lines"]
+    }
+
+    meta = {
+        "id": skill_id,
+        "name": fm_name,
+        "description": fm_desc,
+        "category": sprint(cat_id),
+        "tier": inferTier(skill_id),
+        "skillLines": skill_lines,
+        "skillSize": skill_size,
+        "extraDocs": extra,
+        "extraLines": extra_lines,
+        "totalLines": skill_lines + extra_lines,
+        "path": rel_path,
+        "blobUrl": blob_url,
+        "rawUrl": raw_url,
+    }
+    skills_meta = append(skills_meta, meta)
+
+    total_lines += skill_lines + extra_lines
+    total_size += skill_size
+    total_extra += len(extra)
+}
+
+log.info("processed %d skills, total markdown lines: %d, extra docs: %d",
+    len(skills_meta), total_lines, total_extra)
+assert len(skills_meta) > 0, "no skill metadata produced, refuse to write empty index"
+
+// =============================================================================
+// 5. 组装最终 JSON
+// 关键词: skills.json assembly, final output
+// =============================================================================
+
+// 按分类顺序整理 skills 列表（确保前端默认渲染顺序稳定）
+// 关键词: stable ordering, category-driven sort
+skill_by_id = {}
+for s in skills_meta {
+    skill_by_id[s["id"]] = s
+}
+
+ordered_categories = []
+for cm in categories_meta {
+    cat_skills = []
+    for sid in cm["skills"] {
+        s = skill_by_id[sid]
+        if s == nil {
+            continue
+        }
+        cat_skills = append(cat_skills, s)
+    }
+    ordered_categories = append(ordered_categories, {
+        "id": cm["id"],
+        "name": cm["name"],
+        "order": cm["order"],
+        "description": cm["description"],
+        "skillCount": len(cat_skills),
+        "skills": cat_skills,
+    })
+}
+
+// tier 分布统计
+// 关键词: tier distribution stats
+tier_counts = {"master": 0, "category": 0, "deep": 0}
+for s in skills_meta {
+    t = s["tier"]
+    if tier_counts[t] == nil {
+        tier_counts[t] = 0
+    }
+    tier_counts[t] += 1
+}
+
+build_time_utc = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+
+result = {
+    "schema": "hack-skills-index/v1",
+    "version": version_arg,
+    "commit": commit_arg,
+    "buildTime": build_time_utc,
+    "totalSkills": len(skills_meta),
+    "totalCategories": len(ordered_categories),
+    "totalLines": total_lines,
+    "totalSize": total_size,
+    "tierCounts": tier_counts,
+    "githubRepo": github_repo_arg,
+    "githubBranch": github_branch_arg,
+    "categories": ordered_categories,
+    "skills": skills_meta,
+}
+
+// =============================================================================
+// 6. 写出 skills.json
+// 关键词: json.dumps, file.Save, atomic write
+// =============================================================================
+
+// 保证父目录存在
+// 关键词: parent dir creation
+output_dir = file.GetDirPath(output_path)
+if !file.IsDir(output_dir) {
+    log.info("creating output dir: %s", output_dir)
+    err = file.MkdirAll(output_dir)
+    if err != nil {
+        log.error("mkdir failed: %v", err)
+        assert false, f"mkdir failed: ${err}"
+    }
+}
+
+json_str = json.dumps(result, json.withIndent("  "))
+assert len(json_str) > 0, "json dump must not be empty"
+
+save_err = file.Save(output_path, json_str)
+if save_err != nil {
+    log.error("save skills.json failed: %v", save_err)
+    assert false, f"save failed: ${save_err}"
+}
+assert file.IsFile(output_path), f"output file should exist: ${output_path}"
+
+// 回环验证: 重新加载并核对总数
+// 关键词: roundtrip verification, json reload
+log.info("verifying output by reloading json")
+reload_bytes = file.ReadFile(output_path)~
+reload_obj, reload_err = json.New(reload_bytes)
+if reload_err != nil {
+    log.error("reload json failed: %v", reload_err)
+    assert false, f"reload failed: ${reload_err}"
+}
+reload_val = reload_obj.Value()
+assert reload_val != nil, "reloaded json should not be nil"
+reload_total = int(reload_val["totalSkills"])
+assert reload_total == len(skills_meta), f"roundtrip totalSkills mismatch: ${reload_total} vs ${len(skills_meta)}"
+
+// =============================================================================
+// 7. 输出构建摘要
+// 关键词: build summary, stats
+// =============================================================================
+log.info("=== build summary ===")
+log.info("output:           %s", output_path)
+log.info("file size:        %d bytes", len(json_str))
+log.info("schema:           hack-skills-index/v1")
+log.info("version:          %s", version_arg)
+log.info("commit:           %s", commit_arg)
+log.info("build time (UTC): %s", build_time_utc)
+log.info("total skills:     %d", len(skills_meta))
+log.info("total categories: %d", len(ordered_categories))
+log.info("total lines:      %d", total_lines)
+log.info("total extra docs: %d", total_extra)
+log.info("tier distribution:")
+for t, c in tier_counts {
+    log.info("  %-10s %d", t, c)
+}
+log.info("category distribution:")
+for cm in ordered_categories {
+    log.info("  [%2d] %-12s %3d skills  (%s)", cm["order"], cm["id"], cm["skillCount"], cm["name"])
+}
+log.info("skills.json build completed successfully")

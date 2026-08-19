@@ -1,0 +1,3937 @@
+{
+  "buildTime": "2026-04-29T06:12:56Z",
+  "categories": [
+    {
+      "description": "信息收集 / 方法论 / 全局路由",
+      "id": "recon",
+      "name": "Reconnaissance \u0026 Methodology",
+      "order": 1,
+      "skillCount": 3,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/hack/SKILL.md",
+          "category": "recon",
+          "description": "Entry P0 primary router for HackSkills. Use when the task involves web application testing, API security assessment, recon, vulnerability triage, exploit path planning, or choosing the right next category skill before any deep topic skill.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "hack",
+          "name": "hack",
+          "path": "skills/hack/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hack/SKILL.md",
+          "skillLines": 162,
+          "skillSize": 8111,
+          "tier": "master",
+          "totalLines": 162
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/recon-for-sec/SKILL.md",
+          "category": "recon",
+          "description": "Entry P1 category router for reconnaissance and methodology. Use when mapping scope, discovering assets, fingerprinting technology, building endpoint inventory, and choosing the first high-value security testing path.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "recon-for-sec",
+          "name": "recon-for-sec",
+          "path": "skills/recon-for-sec/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/recon-for-sec/SKILL.md",
+          "skillLines": 29,
+          "skillSize": 1385,
+          "tier": "category",
+          "totalLines": 29
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/recon-and-methodology/SKILL.md",
+          "category": "recon",
+          "description": "Reconnaissance and methodology playbook. Use when mapping assets, discovering endpoints, fingerprinting technology, and building a structured testing plan for a new target.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "recon-and-methodology",
+          "name": "recon-and-methodology",
+          "path": "skills/recon-and-methodology/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/recon-and-methodology/SKILL.md",
+          "skillLines": 390,
+          "skillSize": 12196,
+          "tier": "deep",
+          "totalLines": 390
+        }
+      ]
+    },
+    {
+      "description": "REST / GraphQL / 移动后端",
+      "id": "api",
+      "name": "API Security",
+      "order": 2,
+      "skillCount": 5,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-sec/SKILL.md",
+          "category": "api",
+          "description": "Entry P1 category router for API security. Use when choosing between API recon, authorization, token abuse, and hidden-parameter workflows before any deeper API topic skill.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "api-sec",
+          "name": "api-sec",
+          "path": "skills/api-sec/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-sec/SKILL.md",
+          "skillLines": 49,
+          "skillSize": 2390,
+          "tier": "category",
+          "totalLines": 49
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-recon-and-docs/SKILL.md",
+          "category": "api",
+          "description": "API reconnaissance and documentation review playbook. Use when discovering endpoints, schemas, versions, OpenAPI specs, hidden docs, and surface area for API testing.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "api-recon-and-docs",
+          "name": "api-recon-and-docs",
+          "path": "skills/api-recon-and-docs/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-recon-and-docs/SKILL.md",
+          "skillLines": 61,
+          "skillSize": 1823,
+          "tier": "deep",
+          "totalLines": 61
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-authorization-and-bola/SKILL.md",
+          "category": "api",
+          "description": "API authorization and BOLA testing playbook. Use when APIs expose object identifiers, nested resources, hidden writable fields, or weak function-level authorization.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "api-authorization-and-bola",
+          "name": "api-authorization-and-bola",
+          "path": "skills/api-authorization-and-bola/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-authorization-and-bola/SKILL.md",
+          "skillLines": 48,
+          "skillSize": 1795,
+          "tier": "deep",
+          "totalLines": 48
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-auth-and-jwt-abuse/SKILL.md",
+          "category": "api",
+          "description": "API authentication and JWT abuse playbook. Use when testing bearer tokens, API keys, claim trust, header spoofing, rate limits, and API auth boundary weaknesses.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "api-auth-and-jwt-abuse",
+          "name": "api-auth-and-jwt-abuse",
+          "path": "skills/api-auth-and-jwt-abuse/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-auth-and-jwt-abuse/SKILL.md",
+          "skillLines": 76,
+          "skillSize": 2267,
+          "tier": "deep",
+          "totalLines": 76
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/graphql-and-hidden-parameters/SKILL.md",
+          "category": "api",
+          "description": "GraphQL and hidden parameter testing playbook. Use when exploring introspection, batching, undocumented fields, hidden parameters, schema abuse, and GraphQL authorization gaps.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "graphql-and-hidden-parameters",
+          "name": "graphql-and-hidden-parameters",
+          "path": "skills/graphql-and-hidden-parameters/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/graphql-and-hidden-parameters/SKILL.md",
+          "skillLines": 50,
+          "skillSize": 1763,
+          "tier": "deep",
+          "totalLines": 50
+        }
+      ]
+    },
+    {
+      "description": "认证 / 会话 / 授权 / 令牌",
+      "id": "auth",
+      "name": "Authentication \u0026 Authorization",
+      "order": 3,
+      "skillCount": 6,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/auth-sec/SKILL.md",
+          "category": "auth",
+          "description": "Entry P1 category router for authentication and authorization. Use when testing login flows, sessions, object authorization, JWT, OAuth, CORS, CSRF, and enterprise SSO weaknesses before any deeper auth topic skill.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "auth-sec",
+          "name": "auth-sec",
+          "path": "skills/auth-sec/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/auth-sec/SKILL.md",
+          "skillLines": 41,
+          "skillSize": 2362,
+          "tier": "category",
+          "totalLines": 41
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/authbypass-authentication-flaws/SKILL.md",
+          "category": "auth",
+          "description": "Authentication bypass testing playbook. Use when assessing login flows, password reset logic, account recovery, MFA bypass, token predictability, brute-force resistance, and session boundary flaws.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "authbypass-authentication-flaws",
+          "name": "authbypass-authentication-flaws",
+          "path": "skills/authbypass-authentication-flaws/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/authbypass-authentication-flaws/SKILL.md",
+          "skillLines": 442,
+          "skillSize": 15177,
+          "tier": "deep",
+          "totalLines": 442
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/jwt-oauth-token-attacks/SKILL.md",
+          "category": "auth",
+          "description": "JWT and OAuth token attack playbook. Use when validating token trust, signing algorithms, key handling, claim abuse, bearer flows, and OAuth account-binding weaknesses.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "jwt-oauth-token-attacks",
+          "name": "jwt-oauth-token-attacks",
+          "path": "skills/jwt-oauth-token-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/jwt-oauth-token-attacks/SKILL.md",
+          "skillLines": 302,
+          "skillSize": 9441,
+          "tier": "deep",
+          "totalLines": 302
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/oauth-oidc-misconfiguration/SKILL.md",
+          "category": "auth",
+          "description": "OAuth and OIDC misconfiguration testing playbook. Use when reviewing redirect URI handling, state and nonce validation, PKCE, token audience, callback binding, and identity-provider trust flaws.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "oauth-oidc-misconfiguration",
+          "name": "oauth-oidc-misconfiguration",
+          "path": "skills/oauth-oidc-misconfiguration/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/oauth-oidc-misconfiguration/SKILL.md",
+          "skillLines": 46,
+          "skillSize": 2322,
+          "tier": "deep",
+          "totalLines": 46
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/saml-sso-assertion-attacks/SKILL.md",
+          "category": "auth",
+          "description": "SAML SSO assertion attack playbook. Use when testing signature validation, assertion wrapping, audience restrictions, ACS handling, XML trust boundaries, and enterprise SSO flaws.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "saml-sso-assertion-attacks",
+          "name": "saml-sso-assertion-attacks",
+          "path": "skills/saml-sso-assertion-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/saml-sso-assertion-attacks/SKILL.md",
+          "skillLines": 41,
+          "skillSize": 2000,
+          "tier": "deep",
+          "totalLines": 41
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/idor-broken-object-authorization/SKILL.md",
+          "category": "auth",
+          "description": "IDOR and broken object authorization testing playbook. Use when requests expose object identifiers, tenant boundaries, writable fields, or missing object-level authorization checks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "idor-broken-object-authorization",
+          "name": "idor-broken-object-authorization",
+          "path": "skills/idor-broken-object-authorization/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/idor-broken-object-authorization/SKILL.md",
+          "skillLines": 337,
+          "skillSize": 10671,
+          "tier": "deep",
+          "totalLines": 337
+        }
+      ]
+    },
+    {
+      "description": "XSS / SQLi / SSRF / SSTI / 反序列化等",
+      "id": "injection",
+      "name": "Injection Attacks",
+      "order": 4,
+      "skillCount": 18,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/injection-checking/SKILL.md",
+          "category": "injection",
+          "description": "Entry P1 category router for injection testing. Use when routing between XSS, SQLi, SSRF, XXE, SSTI, command injection, and NoSQL injection workflows based on how attacker-controlled input is consumed.",
+          "extraDocs": [
+            {
+              "lines": 451,
+              "name": "EXTRA_INJECTION_TYPES.md",
+              "path": "skills/injection-checking/EXTRA_INJECTION_TYPES.md",
+              "size": 11716
+            }
+          ],
+          "extraLines": 451,
+          "id": "injection-checking",
+          "name": "injection-checking",
+          "path": "skills/injection-checking/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/injection-checking/SKILL.md",
+          "skillLines": 50,
+          "skillSize": 2277,
+          "tier": "category",
+          "totalLines": 501
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xss-cross-site-scripting/SKILL.md",
+          "category": "injection",
+          "description": "XSS playbook. Use when user-controlled content reaches HTML, attributes, JavaScript, DOM sinks, uploads, or multi-context rendering paths.",
+          "extraDocs": [
+            {
+              "lines": 277,
+              "name": "ADVANCED_XSS_TRICKS.md",
+              "path": "skills/xss-cross-site-scripting/ADVANCED_XSS_TRICKS.md",
+              "size": 8959
+            },
+            {
+              "lines": 279,
+              "name": "SCENARIOS.md",
+              "path": "skills/xss-cross-site-scripting/SCENARIOS.md",
+              "size": 8736
+            }
+          ],
+          "extraLines": 556,
+          "id": "xss-cross-site-scripting",
+          "name": "xss-cross-site-scripting",
+          "path": "skills/xss-cross-site-scripting/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xss-cross-site-scripting/SKILL.md",
+          "skillLines": 380,
+          "skillSize": 13420,
+          "tier": "deep",
+          "totalLines": 936
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/sqli-sql-injection/SKILL.md",
+          "category": "injection",
+          "description": "SQL injection playbook. Use when input reaches SQL queries, authentication logic, sorting, filtering, reporting, or DB-specific blind and out-of-band execution paths.",
+          "extraDocs": [
+            {
+              "lines": 576,
+              "name": "SCENARIOS.md",
+              "path": "skills/sqli-sql-injection/SCENARIOS.md",
+              "size": 14750
+            },
+            {
+              "lines": 646,
+              "name": "SQLMAP_ADVANCED.md",
+              "path": "skills/sqli-sql-injection/SQLMAP_ADVANCED.md",
+              "size": 17699
+            }
+          ],
+          "extraLines": 1222,
+          "id": "sqli-sql-injection",
+          "name": "sqli-sql-injection",
+          "path": "skills/sqli-sql-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/sqli-sql-injection/SKILL.md",
+          "skillLines": 486,
+          "skillSize": 15043,
+          "tier": "deep",
+          "totalLines": 1708
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ssrf-server-side-request-forgery/SKILL.md",
+          "category": "injection",
+          "description": "SSRF playbook. Use when the server fetches URLs, resolves hostnames, imports remote content, or can be driven toward internal networks, cloud metadata, or secondary protocols.",
+          "extraDocs": [
+            {
+              "lines": 227,
+              "name": "SCENARIOS.md",
+              "path": "skills/ssrf-server-side-request-forgery/SCENARIOS.md",
+              "size": 7458
+            },
+            {
+              "lines": 651,
+              "name": "URL_PARSER_TRICKS.md",
+              "path": "skills/ssrf-server-side-request-forgery/URL_PARSER_TRICKS.md",
+              "size": 20899
+            }
+          ],
+          "extraLines": 878,
+          "id": "ssrf-server-side-request-forgery",
+          "name": "ssrf-server-side-request-forgery",
+          "path": "skills/ssrf-server-side-request-forgery/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ssrf-server-side-request-forgery/SKILL.md",
+          "skillLines": 324,
+          "skillSize": 11353,
+          "tier": "deep",
+          "totalLines": 1202
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ssti-server-side-template-injection/SKILL.md",
+          "category": "injection",
+          "description": "SSTI playbook. Use when template expressions, server-side rendering, preview features, or templating engines may evaluate attacker-controlled content.",
+          "extraDocs": [
+            {
+              "lines": 457,
+              "name": "ENGINE_PAYLOADS.md",
+              "path": "skills/ssti-server-side-template-injection/ENGINE_PAYLOADS.md",
+              "size": 10457
+            },
+            {
+              "lines": 320,
+              "name": "SCENARIOS.md",
+              "path": "skills/ssti-server-side-template-injection/SCENARIOS.md",
+              "size": 9291
+            }
+          ],
+          "extraLines": 777,
+          "id": "ssti-server-side-template-injection",
+          "name": "ssti-server-side-template-injection",
+          "path": "skills/ssti-server-side-template-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ssti-server-side-template-injection/SKILL.md",
+          "skillLines": 345,
+          "skillSize": 11672,
+          "tier": "deep",
+          "totalLines": 1122
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/cmdi-command-injection/SKILL.md",
+          "category": "injection",
+          "description": "Command injection playbook. Use when user input may reach shell commands, process execution, converters, import pipelines, or blind out-of-band command sinks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "cmdi-command-injection",
+          "name": "cmdi-command-injection",
+          "path": "skills/cmdi-command-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/cmdi-command-injection/SKILL.md",
+          "skillLines": 688,
+          "skillSize": 19898,
+          "tier": "deep",
+          "totalLines": 688
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/nosql-injection/SKILL.md",
+          "category": "injection",
+          "description": "NoSQL injection playbook. Use when MongoDB-style operators, JSON query objects, flexible search filters, or backend query DSLs may allow data or logic abuse.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "nosql-injection",
+          "name": "nosql-injection",
+          "path": "skills/nosql-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/nosql-injection/SKILL.md",
+          "skillLines": 342,
+          "skillSize": 9061,
+          "tier": "deep",
+          "totalLines": 342
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xxe-xml-external-entity/SKILL.md",
+          "category": "injection",
+          "description": "XXE playbook. Use when XML, SVG, OOXML, SOAP, or parser-driven imports may resolve external entities, files, or internal network resources.",
+          "extraDocs": [
+            {
+              "lines": 113,
+              "name": "SCENARIOS.md",
+              "path": "skills/xxe-xml-external-entity/SCENARIOS.md",
+              "size": 3046
+            }
+          ],
+          "extraLines": 113,
+          "id": "xxe-xml-external-entity",
+          "name": "xxe-xml-external-entity",
+          "path": "skills/xxe-xml-external-entity/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xxe-xml-external-entity/SKILL.md",
+          "skillLines": 555,
+          "skillSize": 16250,
+          "tier": "deep",
+          "totalLines": 668
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/deserialization-insecure/SKILL.md",
+          "category": "injection",
+          "description": "Insecure deserialization playbook. Use when Java, PHP, or Python applications deserialize untrusted data via ObjectInputStream, unserialize, pickle, or similar mechanisms that may lead to RCE, file access, or privilege escalation.",
+          "extraDocs": [
+            {
+              "lines": 512,
+              "name": "JAVA_GADGET_CHAINS.md",
+              "path": "skills/deserialization-insecure/JAVA_GADGET_CHAINS.md",
+              "size": 18010
+            }
+          ],
+          "extraLines": 512,
+          "id": "deserialization-insecure",
+          "name": "deserialization-insecure",
+          "path": "skills/deserialization-insecure/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/deserialization-insecure/SKILL.md",
+          "skillLines": 725,
+          "skillSize": 24376,
+          "tier": "deep",
+          "totalLines": 1237
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/expression-language-injection/SKILL.md",
+          "category": "injection",
+          "description": "Expression Language injection playbook. Use when Java EL, SpEL, OGNL, or MVEL expressions may evaluate attacker-controlled input in Spring, Struts2, Confluence, or similar frameworks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "expression-language-injection",
+          "name": "expression-language-injection",
+          "path": "skills/expression-language-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/expression-language-injection/SKILL.md",
+          "skillLines": 244,
+          "skillSize": 8244,
+          "tier": "deep",
+          "totalLines": 244
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/jndi-injection/SKILL.md",
+          "category": "injection",
+          "description": "JNDI injection playbook. Use when Java applications perform JNDI lookups with attacker-controlled names, especially via Log4j2, Spring, or any code path reaching InitialContext.lookup().",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "jndi-injection",
+          "name": "jndi-injection",
+          "path": "skills/jndi-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/jndi-injection/SKILL.md",
+          "skillLines": 266,
+          "skillSize": 8195,
+          "tier": "deep",
+          "totalLines": 266
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/crlf-injection/SKILL.md",
+          "category": "injection",
+          "description": "CRLF injection playbook. Use when user input reaches HTTP response headers, Location redirects, Set-Cookie values, or log files where carriage-return/line-feed characters can split or inject content.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "crlf-injection",
+          "name": "crlf-injection",
+          "path": "skills/crlf-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/crlf-injection/SKILL.md",
+          "skillLines": 176,
+          "skillSize": 4423,
+          "tier": "deep",
+          "totalLines": 176
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/request-smuggling/SKILL.md",
+          "category": "injection",
+          "description": "HTTP request smuggling and desynchronization testing. Use when front proxies, CDNs, or load balancers disagree with the origin on message framing (Content-Length vs Transfer-Encoding), on HTTP/2→HTTP/1 translation, or when exploring client-side desync via browser fetch pipelines.",
+          "extraDocs": [
+            {
+              "lines": 499,
+              "name": "H2_SMUGGLING_VARIANTS.md",
+              "path": "skills/request-smuggling/H2_SMUGGLING_VARIANTS.md",
+              "size": 15513
+            }
+          ],
+          "extraLines": 499,
+          "id": "request-smuggling",
+          "name": "request-smuggling",
+          "path": "skills/request-smuggling/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/request-smuggling/SKILL.md",
+          "skillLines": 311,
+          "skillSize": 14375,
+          "tier": "deep",
+          "totalLines": 810
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/prototype-pollution/SKILL.md",
+          "category": "injection",
+          "description": "Prototype pollution testing for JavaScript stacks. Use when user input is merged into objects (query parsers, JSON bodies, deep assign), when configuring libraries via untrusted keys, or when hunting RCE gadgets via polluted Object.prototype in Node or the browser.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "prototype-pollution",
+          "name": "prototype-pollution",
+          "path": "skills/prototype-pollution/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/prototype-pollution/SKILL.md",
+          "skillLines": 191,
+          "skillSize": 8994,
+          "tier": "deep",
+          "totalLines": 191
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/type-juggling/SKILL.md",
+          "category": "injection",
+          "description": "PHP type juggling and weak comparison (`==`) bypass. Use when authentication, HMAC/signature checks, or token validation uses loose equality, numeric coercion, or hash comparisons without strict types — common in legacy PHP and CTF-style code paths.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "type-juggling",
+          "name": "type-juggling",
+          "path": "skills/type-juggling/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/type-juggling/SKILL.md",
+          "skillLines": 292,
+          "skillSize": 11701,
+          "tier": "deep",
+          "totalLines": 292
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http-parameter-pollution/SKILL.md",
+          "category": "injection",
+          "description": "HTTP Parameter Pollution (HPP): duplicate query/body keys parsed differently by servers, proxies, WAFs, and app frameworks. Use when filters and application layers disagree on which value wins, enabling bypass, SSRF second URL, logic abuse, or CSRF token confusion.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "http-parameter-pollution",
+          "name": "http-parameter-pollution",
+          "path": "skills/http-parameter-pollution/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http-parameter-pollution/SKILL.md",
+          "skillLines": 209,
+          "skillSize": 6952,
+          "tier": "deep",
+          "totalLines": 209
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xslt-injection/SKILL.md",
+          "category": "injection",
+          "description": "XSLT injection testing: processor fingerprinting, XXE and document() SSRF, EXSLT write primitives, PHP/Java/.NET extension RCE surfaces. Use when user-controlled XSLT/stylesheet input or transform endpoints are in scope.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "xslt-injection",
+          "name": "xslt-injection",
+          "path": "skills/xslt-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xslt-injection/SKILL.md",
+          "skillLines": 282,
+          "skillSize": 10407,
+          "tier": "deep",
+          "totalLines": 282
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csv-formula-injection/SKILL.md",
+          "category": "injection",
+          "description": "CSV/spreadsheet formula injection (DDE, Excel/LibreOffice, Google Sheets IMPORT*). Use when exports, imports, or user fields feed spreadsheets or reporting tools.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "csv-formula-injection",
+          "name": "csv-formula-injection",
+          "path": "skills/csv-formula-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csv-formula-injection/SKILL.md",
+          "skillLines": 145,
+          "skillSize": 4539,
+          "tier": "deep",
+          "totalLines": 145
+        }
+      ]
+    },
+    {
+      "description": "上传 / 下载 / LFI / 路径穿越",
+      "id": "file",
+      "name": "File \u0026 Path Attacks",
+      "order": 5,
+      "skillCount": 3,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/file-access-vuln/SKILL.md",
+          "category": "file",
+          "description": "Entry P1 category router for file access and upload workflows. Use when testing download endpoints, file paths, local file inclusion, upload flows, preview pipelines, archive extraction, or storage and sharing boundaries.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "file-access-vuln",
+          "name": "file-access-vuln",
+          "path": "skills/file-access-vuln/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/file-access-vuln/SKILL.md",
+          "skillLines": 33,
+          "skillSize": 1472,
+          "tier": "category",
+          "totalLines": 33
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/path-traversal-lfi/SKILL.md",
+          "category": "file",
+          "description": "Path traversal and LFI playbook. Use when file paths, download endpoints, include operations, archive extraction, or wrapper behavior may expose filesystem control.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "path-traversal-lfi",
+          "name": "path-traversal-lfi",
+          "path": "skills/path-traversal-lfi/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/path-traversal-lfi/SKILL.md",
+          "skillLines": 802,
+          "skillSize": 24206,
+          "tier": "deep",
+          "totalLines": 802
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/upload-insecure-files/SKILL.md",
+          "category": "file",
+          "description": "Insecure file upload playbook. Use when testing upload validation, storage paths, processing pipelines, preview behavior, overwrite risks, and upload-to-RCE chains.",
+          "extraDocs": [
+            {
+              "lines": 159,
+              "name": "SCENARIOS.md",
+              "path": "skills/upload-insecure-files/SCENARIOS.md",
+              "size": 4047
+            }
+          ],
+          "extraLines": 159,
+          "id": "upload-insecure-files",
+          "name": "upload-insecure-files",
+          "path": "skills/upload-insecure-files/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/upload-insecure-files/SKILL.md",
+          "skillLines": 542,
+          "skillSize": 17984,
+          "tier": "deep",
+          "totalLines": 701
+        }
+      ]
+    },
+    {
+      "description": "业务逻辑 / 竞争 / 会话攻击",
+      "id": "logic",
+      "name": "Business Logic \u0026 Session",
+      "order": 6,
+      "skillCount": 8,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/business-logic-vuln/SKILL.md",
+          "category": "logic",
+          "description": "Entry P1 category router for business logic testing. Use when workflow abuse, race conditions, pricing flaws, or multi-step state attacks matter more than parser-level input injection.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "business-logic-vuln",
+          "name": "business-logic-vuln",
+          "path": "skills/business-logic-vuln/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/business-logic-vuln/SKILL.md",
+          "skillLines": 33,
+          "skillSize": 1236,
+          "tier": "category",
+          "totalLines": 33
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/business-logic-vulnerabilities/SKILL.md",
+          "category": "logic",
+          "description": "Business logic vulnerability playbook. Use when reasoning about workflows, race conditions, price manipulation, coupon abuse, state machines, and multi-step authorization gaps.",
+          "extraDocs": [
+            {
+              "lines": 299,
+              "name": "SCENARIOS.md",
+              "path": "skills/business-logic-vulnerabilities/SCENARIOS.md",
+              "size": 9260
+            }
+          ],
+          "extraLines": 299,
+          "id": "business-logic-vulnerabilities",
+          "name": "business-logic-vulnerabilities",
+          "path": "skills/business-logic-vulnerabilities/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/business-logic-vulnerabilities/SKILL.md",
+          "skillLines": 340,
+          "skillSize": 10431,
+          "tier": "deep",
+          "totalLines": 639
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/race-condition/SKILL.md",
+          "category": "logic",
+          "description": "Race condition and TOCTOU testing for web apps. Use when testing one-time operations, concurrent HTTP abuse, rate-limit bypass, Turbo Intruder gates, HTTP/2 single-packet attacks, and CWE-362-style synchronization gaps.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "race-condition",
+          "name": "race-condition",
+          "path": "skills/race-condition/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/race-condition/SKILL.md",
+          "skillLines": 527,
+          "skillSize": 21618,
+          "tier": "deep",
+          "totalLines": 527
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csrf-cross-site-request-forgery/SKILL.md",
+          "category": "logic",
+          "description": "CSRF testing playbook. Use when reviewing state-changing web flows, anti-CSRF defenses, SameSite behavior, JSON CSRF, login CSRF, and OAuth state handling.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "csrf-cross-site-request-forgery",
+          "name": "csrf-cross-site-request-forgery",
+          "path": "skills/csrf-cross-site-request-forgery/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csrf-cross-site-request-forgery/SKILL.md",
+          "skillLines": 527,
+          "skillSize": 16781,
+          "tier": "deep",
+          "totalLines": 527
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/clickjacking/SKILL.md",
+          "category": "logic",
+          "description": "Clickjacking playbook. Use when testing whether target pages can be framed, whether X-Frame-Options or CSP frame-ancestors are properly configured, and whether UI redress attacks can trigger sensitive actions.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "clickjacking",
+          "name": "clickjacking",
+          "path": "skills/clickjacking/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/clickjacking/SKILL.md",
+          "skillLines": 164,
+          "skillSize": 5059,
+          "tier": "deep",
+          "totalLines": 164
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/cors-cross-origin-misconfiguration/SKILL.md",
+          "category": "logic",
+          "description": "CORS misconfiguration testing playbook. Use when analyzing cross-origin trust, credentialed browser reads, origin reflection, preflight policy bugs, and browser-based access to authenticated APIs.",
+          "extraDocs": [
+            {
+              "lines": 153,
+              "name": "SCENARIOS.md",
+              "path": "skills/cors-cross-origin-misconfiguration/SCENARIOS.md",
+              "size": 5012
+            }
+          ],
+          "extraLines": 153,
+          "id": "cors-cross-origin-misconfiguration",
+          "name": "cors-cross-origin-misconfiguration",
+          "path": "skills/cors-cross-origin-misconfiguration/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/cors-cross-origin-misconfiguration/SKILL.md",
+          "skillLines": 270,
+          "skillSize": 9629,
+          "tier": "deep",
+          "totalLines": 423
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/open-redirect/SKILL.md",
+          "category": "logic",
+          "description": "Open redirect playbook. Use when URL parameters, form actions, or JavaScript sinks control navigation targets and may redirect users to attacker-controlled destinations.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "open-redirect",
+          "name": "open-redirect",
+          "path": "skills/open-redirect/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/open-redirect/SKILL.md",
+          "skillLines": 381,
+          "skillSize": 11522,
+          "tier": "deep",
+          "totalLines": 381
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/web-cache-deception/SKILL.md",
+          "category": "logic",
+          "description": "Web cache deception and poisoning playbook. Use when CDN, reverse proxy, or application caching may serve sensitive authenticated content to other users due to path confusion or cache key manipulation.",
+          "extraDocs": [
+            {
+              "lines": 638,
+              "name": "CACHE_POISONING_TECHNIQUES.md",
+              "path": "skills/web-cache-deception/CACHE_POISONING_TECHNIQUES.md",
+              "size": 18104
+            }
+          ],
+          "extraLines": 638,
+          "id": "web-cache-deception",
+          "name": "web-cache-deception",
+          "path": "skills/web-cache-deception/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/web-cache-deception/SKILL.md",
+          "skillLines": 223,
+          "skillSize": 6693,
+          "tier": "deep",
+          "totalLines": 861
+        }
+      ]
+    },
+    {
+      "description": "WAF / CSP / 子域接管 / HTTP/2",
+      "id": "advweb",
+      "name": "Advanced Web Security",
+      "order": 7,
+      "skillCount": 10,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/subdomain-takeover/SKILL.md",
+          "category": "advweb",
+          "description": "Subdomain takeover detection and exploitation playbook. Use when targets have dangling CNAME/NS/MX records pointing to deprovisioned cloud resources, expired third-party services, or unclaimed SaaS tenants that an attacker can register to serve content under the victim's domain.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "subdomain-takeover",
+          "name": "subdomain-takeover",
+          "path": "skills/subdomain-takeover/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/subdomain-takeover/SKILL.md",
+          "skillLines": 248,
+          "skillSize": 10857,
+          "tier": "deep",
+          "totalLines": 248
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/waf-bypass-techniques/SKILL.md",
+          "category": "advweb",
+          "description": "WAF bypass methodology and generic evasion techniques. Use when a web application firewall blocks injection payloads (SQLi, XSS, RCE) and you need to craft bypasses using encoding, protocol-level tricks, or WAF-specific weaknesses.",
+          "extraDocs": [
+            {
+              "lines": 203,
+              "name": "WAF_PRODUCT_MATRIX.md",
+              "path": "skills/waf-bypass-techniques/WAF_PRODUCT_MATRIX.md",
+              "size": 9911
+            }
+          ],
+          "extraLines": 203,
+          "id": "waf-bypass-techniques",
+          "name": "waf-bypass-techniques",
+          "path": "skills/waf-bypass-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/waf-bypass-techniques/SKILL.md",
+          "skillLines": 290,
+          "skillSize": 10480,
+          "tier": "deep",
+          "totalLines": 493
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csp-bypass-advanced/SKILL.md",
+          "category": "advweb",
+          "description": "Advanced Content Security Policy bypass techniques. Use when XSS or data exfiltration is blocked by CSP and you need to find policy weaknesses, trusted endpoint abuse, nonce leakage, or exfiltration channels that CSP cannot block.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "csp-bypass-advanced",
+          "name": "csp-bypass-advanced",
+          "path": "skills/csp-bypass-advanced/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csp-bypass-advanced/SKILL.md",
+          "skillLines": 260,
+          "skillSize": 12594,
+          "tier": "deep",
+          "totalLines": 260
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http-host-header-attacks/SKILL.md",
+          "category": "advweb",
+          "description": "HTTP Host header injection and routing abuse playbook. Use when the application trusts the Host header for generating URLs, routing requests, or access control — enabling password reset poisoning, web cache poisoning, SSRF via routing, and virtual host bypass.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "http-host-header-attacks",
+          "name": "http-host-header-attacks",
+          "path": "skills/http-host-header-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http-host-header-attacks/SKILL.md",
+          "skillLines": 324,
+          "skillSize": 11759,
+          "tier": "deep",
+          "totalLines": 324
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dangling-markup-injection/SKILL.md",
+          "category": "advweb",
+          "description": "Dangling markup injection playbook. Use when HTML injection is possible but JavaScript execution is blocked (CSP, sanitizer strips event handlers, WAF blocks script tags) — exfiltrate CSRF tokens, session data, and page content by injecting unclosed HTML tags that capture subsequent page content.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "dangling-markup-injection",
+          "name": "dangling-markup-injection",
+          "path": "skills/dangling-markup-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dangling-markup-injection/SKILL.md",
+          "skillLines": 322,
+          "skillSize": 13582,
+          "tier": "deep",
+          "totalLines": 322
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dns-rebinding-attacks/SKILL.md",
+          "category": "advweb",
+          "description": "DNS rebinding attack playbook. Use when testing applications that trust DNS resolution for origin checks, interact with internal services from browser context, or when SSRF is not possible server-side but the target has client-side fetch/XHR to attacker-controlled domains.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "dns-rebinding-attacks",
+          "name": "dns-rebinding-attacks",
+          "path": "skills/dns-rebinding-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dns-rebinding-attacks/SKILL.md",
+          "skillLines": 338,
+          "skillSize": 12364,
+          "tier": "deep",
+          "totalLines": 338
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/email-header-injection/SKILL.md",
+          "category": "advweb",
+          "description": "Email header injection and spoofing playbook. Use when testing contact forms, email APIs, password reset flows, or any feature that constructs SMTP messages with user-controlled fields. Covers CRLF injection in headers, SPF/DKIM/DMARC bypass, and phishing amplification.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "email-header-injection",
+          "name": "email-header-injection",
+          "path": "skills/email-header-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/email-header-injection/SKILL.md",
+          "skillLines": 350,
+          "skillSize": 10929,
+          "tier": "deep",
+          "totalLines": 350
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http2-specific-attacks/SKILL.md",
+          "category": "advweb",
+          "description": "HTTP/2 protocol-specific attack playbook. Use when the target supports HTTP/2 and you need to exploit binary framing, HPACK compression, h2c upgrade smuggling, pseudo-header injection, stream multiplexing abuse, or H2→H1 downgrade translation flaws.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "http2-specific-attacks",
+          "name": "http2-specific-attacks",
+          "path": "skills/http2-specific-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http2-specific-attacks/SKILL.md",
+          "skillLines": 351,
+          "skillSize": 12049,
+          "tier": "deep",
+          "totalLines": 351
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/prototype-pollution-advanced/SKILL.md",
+          "category": "advweb",
+          "description": "Advanced prototype pollution playbook — server-side RCE, client-side gadgets, filter bypasses, and detection techniques. Companion to ../prototype-pollution/ for basics. Use when you've confirmed pollution and need to escalate to code execution or find framework-specific gadgets.",
+          "extraDocs": [
+            {
+              "lines": 254,
+              "name": "KNOWN_GADGETS.md",
+              "path": "skills/prototype-pollution-advanced/KNOWN_GADGETS.md",
+              "size": 9604
+            }
+          ],
+          "extraLines": 254,
+          "id": "prototype-pollution-advanced",
+          "name": "prototype-pollution-advanced",
+          "path": "skills/prototype-pollution-advanced/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/prototype-pollution-advanced/SKILL.md",
+          "skillLines": 339,
+          "skillSize": 11531,
+          "tier": "deep",
+          "totalLines": 593
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/401-403-bypass-techniques/SKILL.md",
+          "category": "advweb",
+          "description": "401/403 bypass playbook. Use when encountering access-denied responses on admin panels, API endpoints, or restricted paths. Covers path manipulation, HTTP method tampering, header injection, protocol downgrade, and automated bypass tools.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "401-403-bypass-techniques",
+          "name": "401-403-bypass-techniques",
+          "path": "skills/401-403-bypass-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/401-403-bypass-techniques/SKILL.md",
+          "skillLines": 349,
+          "skillSize": 10349,
+          "tier": "deep",
+          "totalLines": 349
+        }
+      ]
+    },
+    {
+      "description": "基础设施 / 网络协议 / 隧道",
+      "id": "infra",
+      "name": "Infrastructure \u0026 Network",
+      "order": 8,
+      "skillCount": 7,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/unauthorized-access-common-services/SKILL.md",
+          "category": "infra",
+          "description": "Unauthorized access playbook for common exposed services. Use when Redis, Rsync, PHP-FPM, AJP/Ghostcat, Hadoop YARN, H2 Console, or similar management interfaces are exposed without authentication.",
+          "extraDocs": [
+            {
+              "lines": 341,
+              "name": "PORT_SERVICE_MATRIX.md",
+              "path": "skills/unauthorized-access-common-services/PORT_SERVICE_MATRIX.md",
+              "size": 8315
+            }
+          ],
+          "extraLines": 341,
+          "id": "unauthorized-access-common-services",
+          "name": "unauthorized-access-common-services",
+          "path": "skills/unauthorized-access-common-services/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/unauthorized-access-common-services/SKILL.md",
+          "skillLines": 390,
+          "skillSize": 10074,
+          "tier": "deep",
+          "totalLines": 731
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/insecure-source-code-management/SKILL.md",
+          "category": "infra",
+          "description": "Source control and artifact exposure (.git, .svn, .hg, backups, .env). Use when recon finds VCS paths, 403 on hidden dirs, or backup/config leaks during authorized testing.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "insecure-source-code-management",
+          "name": "insecure-source-code-management",
+          "path": "skills/insecure-source-code-management/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/insecure-source-code-management/SKILL.md",
+          "skillLines": 162,
+          "skillSize": 5282,
+          "tier": "deep",
+          "totalLines": 162
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dependency-confusion/SKILL.md",
+          "category": "infra",
+          "description": "Supply-chain testing via package-manager dependency confusion: when internal package names resolve to attacker-controlled public registries, leading to malicious install and script execution. Use for npm/pip/gem/Maven/Composer/Docker manifest review and authorized red-team supply-chain exercises.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "dependency-confusion",
+          "name": "dependency-confusion",
+          "path": "skills/dependency-confusion/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dependency-confusion/SKILL.md",
+          "skillLines": 179,
+          "skillSize": 9723,
+          "tier": "deep",
+          "totalLines": 179
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/websocket-security/SKILL.md",
+          "category": "infra",
+          "description": "WebSocket handshake, CSWSH, tooling (wsrepl, ws-harness, Burp), and common flaws. Use when apps use real-time channels, chat, notifications, or WS-backed APIs.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "websocket-security",
+          "name": "websocket-security",
+          "path": "skills/websocket-security/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/websocket-security/SKILL.md",
+          "skillLines": 455,
+          "skillSize": 14098,
+          "tier": "deep",
+          "totalLines": 455
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/network-protocol-attacks/SKILL.md",
+          "category": "infra",
+          "description": "Network protocol attack playbook. Use when exploiting layer 2/3 protocols including ARP spoofing, LLMNR/NBT-NS/mDNS poisoning, WPAD abuse, DHCPv6 attacks, VLAN hopping, STP manipulation, DNS spoofing, IPv6 attacks, and IDS/IPS evasion.",
+          "extraDocs": [
+            {
+              "lines": 227,
+              "name": "NAME_RESOLUTION_POISONING.md",
+              "path": "skills/network-protocol-attacks/NAME_RESOLUTION_POISONING.md",
+              "size": 6431
+            }
+          ],
+          "extraLines": 227,
+          "id": "network-protocol-attacks",
+          "name": "network-protocol-attacks",
+          "path": "skills/network-protocol-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/network-protocol-attacks/SKILL.md",
+          "skillLines": 331,
+          "skillSize": 9705,
+          "tier": "deep",
+          "totalLines": 558
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/tunneling-and-pivoting/SKILL.md",
+          "category": "infra",
+          "description": "Tunneling and pivoting playbook. Use when establishing network tunnels through compromised hosts including SSH tunneling, Chisel, Ligolo-ng, socat, DNS/ICMP/HTTP tunneling, ProxyChains, and multi-layer pivoting strategies.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "tunneling-and-pivoting",
+          "name": "tunneling-and-pivoting",
+          "path": "skills/tunneling-and-pivoting/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/tunneling-and-pivoting/SKILL.md",
+          "skillLines": 344,
+          "skillSize": 9322,
+          "tier": "deep",
+          "totalLines": 344
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/reverse-shell-techniques/SKILL.md",
+          "category": "infra",
+          "description": "Reverse shell techniques playbook. Use when establishing remote shells including language one-liners, encrypted shells (OpenSSL/socat/ncat), web shells, PTY upgrades, file transfer methods, PowerShell shells, and Windows payload generation.",
+          "extraDocs": [
+            {
+              "lines": 197,
+              "name": "SHELL_CHEATSHEET.md",
+              "path": "skills/reverse-shell-techniques/SHELL_CHEATSHEET.md",
+              "size": 6263
+            }
+          ],
+          "extraLines": 197,
+          "id": "reverse-shell-techniques",
+          "name": "reverse-shell-techniques",
+          "path": "skills/reverse-shell-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/reverse-shell-techniques/SKILL.md",
+          "skillLines": 291,
+          "skillSize": 8997,
+          "tier": "deep",
+          "totalLines": 488
+        }
+      ]
+    },
+    {
+      "description": "Linux 提权 / 容器逃逸 / Kubernetes",
+      "id": "linux",
+      "name": "Linux \u0026 Container Security",
+      "order": 9,
+      "skillCount": 5,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-privilege-escalation/SKILL.md",
+          "category": "linux",
+          "description": "Linux privilege escalation playbook. Use when you have low-privilege shell access and need to escalate to root via SUID/SGID binaries, capabilities, cron abuse, kernel exploits, misconfigurations, or credential harvesting on Linux systems.",
+          "extraDocs": [
+            {
+              "lines": 261,
+              "name": "KERNEL_EXPLOITS_CHECKLIST.md",
+              "path": "skills/linux-privilege-escalation/KERNEL_EXPLOITS_CHECKLIST.md",
+              "size": 9596
+            },
+            {
+              "lines": 306,
+              "name": "SUID_CAPABILITIES_TRICKS.md",
+              "path": "skills/linux-privilege-escalation/SUID_CAPABILITIES_TRICKS.md",
+              "size": 9769
+            }
+          ],
+          "extraLines": 567,
+          "id": "linux-privilege-escalation",
+          "name": "linux-privilege-escalation",
+          "path": "skills/linux-privilege-escalation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-privilege-escalation/SKILL.md",
+          "skillLines": 347,
+          "skillSize": 10641,
+          "tier": "deep",
+          "totalLines": 914
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/container-escape-techniques/SKILL.md",
+          "category": "linux",
+          "description": "Container escape playbook. Use when operating inside a Docker container, LXC, or Kubernetes pod and need to escape to the host via privileged mode, capabilities, Docker socket, cgroup abuse, namespace tricks, or runtime vulnerabilities.",
+          "extraDocs": [
+            {
+              "lines": 297,
+              "name": "DOCKER_ESCAPE_CHAINS.md",
+              "path": "skills/container-escape-techniques/DOCKER_ESCAPE_CHAINS.md",
+              "size": 9154
+            }
+          ],
+          "extraLines": 297,
+          "id": "container-escape-techniques",
+          "name": "container-escape-techniques",
+          "path": "skills/container-escape-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/container-escape-techniques/SKILL.md",
+          "skillLines": 340,
+          "skillSize": 9603,
+          "tier": "deep",
+          "totalLines": 637
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-security-bypass/SKILL.md",
+          "category": "linux",
+          "description": "Linux security mechanism bypass playbook. Use when facing restricted bash/rbash, read-only or noexec filesystems, AppArmor, SELinux, seccomp filters, or audit logging that must be evaded during post-exploitation.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "linux-security-bypass",
+          "name": "linux-security-bypass",
+          "path": "skills/linux-security-bypass/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-security-bypass/SKILL.md",
+          "skillLines": 346,
+          "skillSize": 10739,
+          "tier": "deep",
+          "totalLines": 346
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-lateral-movement/SKILL.md",
+          "category": "linux",
+          "description": "Linux lateral movement playbook. Use after gaining initial access to pivot across Linux hosts via SSH hijacking, credential harvesting, internal pivoting, D-Bus exploitation, sudo token reuse, and shared filesystem abuse.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "linux-lateral-movement",
+          "name": "linux-lateral-movement",
+          "path": "skills/linux-lateral-movement/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-lateral-movement/SKILL.md",
+          "skillLines": 349,
+          "skillSize": 11239,
+          "tier": "deep",
+          "totalLines": 349
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/kubernetes-pentesting/SKILL.md",
+          "category": "linux",
+          "description": "Kubernetes penetration testing playbook. Use when targeting Kubernetes clusters via API server, RBAC enumeration, service account abuse, etcd access, Kubelet API, pod escape, cloud-specific metadata, admission webhook bypass, and registry secrets.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "kubernetes-pentesting",
+          "name": "kubernetes-pentesting",
+          "path": "skills/kubernetes-pentesting/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/kubernetes-pentesting/SKILL.md",
+          "skillLines": 349,
+          "skillSize": 12617,
+          "tier": "deep",
+          "totalLines": 349
+        }
+      ]
+    },
+    {
+      "description": "Windows 提权 / AD / Kerberos / NTLM",
+      "id": "windows",
+      "name": "Windows \u0026 Active Directory",
+      "order": 10,
+      "skillCount": 7,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-privilege-escalation/SKILL.md",
+          "category": "windows",
+          "description": "Windows local privilege escalation playbook. Use when you have low-privilege shell access on Windows and need to escalate via token abuse, Potato exploits, service misconfigurations, DLL hijacking, UAC bypass, or registry autoruns.",
+          "extraDocs": [
+            {
+              "lines": 217,
+              "name": "TOKEN_POTATO_TRICKS.md",
+              "path": "skills/windows-privilege-escalation/TOKEN_POTATO_TRICKS.md",
+              "size": 7366
+            },
+            {
+              "lines": 226,
+              "name": "UAC_BYPASS_METHODS.md",
+              "path": "skills/windows-privilege-escalation/UAC_BYPASS_METHODS.md",
+              "size": 8394
+            }
+          ],
+          "extraLines": 443,
+          "id": "windows-privilege-escalation",
+          "name": "windows-privilege-escalation",
+          "path": "skills/windows-privilege-escalation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-privilege-escalation/SKILL.md",
+          "skillLines": 329,
+          "skillSize": 10789,
+          "tier": "deep",
+          "totalLines": 772
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-kerberos-attacks/SKILL.md",
+          "category": "windows",
+          "description": "Kerberos attack playbook for Active Directory. Use when targeting AD authentication via AS-REP roasting, Kerberoasting, golden/silver/diamond tickets, delegation abuse, or pass-the-ticket attacks.",
+          "extraDocs": [
+            {
+              "lines": 227,
+              "name": "KERBEROS_ATTACK_CHAINS.md",
+              "path": "skills/active-directory-kerberos-attacks/KERBEROS_ATTACK_CHAINS.md",
+              "size": 7380
+            }
+          ],
+          "extraLines": 227,
+          "id": "active-directory-kerberos-attacks",
+          "name": "active-directory-kerberos-attacks",
+          "path": "skills/active-directory-kerberos-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-kerberos-attacks/SKILL.md",
+          "skillLines": 312,
+          "skillSize": 10713,
+          "tier": "deep",
+          "totalLines": 539
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-acl-abuse/SKILL.md",
+          "category": "windows",
+          "description": "Active Directory ACL abuse playbook. Use when exploiting misconfigured AD permissions including GenericAll, WriteDACL, DCSync rights, shadow credentials, LAPS reading, GPO abuse, and BloodHound-guided attack paths.",
+          "extraDocs": [
+            {
+              "lines": 282,
+              "name": "BLOODHOUND_PATHS.md",
+              "path": "skills/active-directory-acl-abuse/BLOODHOUND_PATHS.md",
+              "size": 7305
+            }
+          ],
+          "extraLines": 282,
+          "id": "active-directory-acl-abuse",
+          "name": "active-directory-acl-abuse",
+          "path": "skills/active-directory-acl-abuse/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-acl-abuse/SKILL.md",
+          "skillLines": 296,
+          "skillSize": 9622,
+          "tier": "deep",
+          "totalLines": 578
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-certificate-services/SKILL.md",
+          "category": "windows",
+          "description": "AD Certificate Services attack playbook. Use when targeting misconfigured AD CS for privilege escalation via ESC1-ESC13 template abuse, NTLM relay to enrollment, CA officer abuse, and certificate-based persistence.",
+          "extraDocs": [
+            {
+              "lines": 198,
+              "name": "ADCS_ESC_MATRIX.md",
+              "path": "skills/active-directory-certificate-services/ADCS_ESC_MATRIX.md",
+              "size": 7122
+            }
+          ],
+          "extraLines": 198,
+          "id": "active-directory-certificate-services",
+          "name": "active-directory-certificate-services",
+          "path": "skills/active-directory-certificate-services/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-certificate-services/SKILL.md",
+          "skillLines": 304,
+          "skillSize": 10153,
+          "tier": "deep",
+          "totalLines": 502
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ntlm-relay-coercion/SKILL.md",
+          "category": "windows",
+          "description": "NTLM relay and authentication coercion playbook. Use when capturing and relaying NTLM authentication to escalate privileges via SMB, LDAP, HTTP, or MSSQL relay targets, combined with PetitPotam, PrinterBug, and other coercion methods.",
+          "extraDocs": [
+            {
+              "lines": 254,
+              "name": "COERCION_METHODS.md",
+              "path": "skills/ntlm-relay-coercion/COERCION_METHODS.md",
+              "size": 7546
+            }
+          ],
+          "extraLines": 254,
+          "id": "ntlm-relay-coercion",
+          "name": "ntlm-relay-coercion",
+          "path": "skills/ntlm-relay-coercion/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ntlm-relay-coercion/SKILL.md",
+          "skillLines": 268,
+          "skillSize": 8968,
+          "tier": "deep",
+          "totalLines": 522
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-lateral-movement/SKILL.md",
+          "category": "windows",
+          "description": "Windows lateral movement playbook. Use when pivoting between Windows hosts via PsExec, WMI, WinRM, DCOM, RDP, pass-the-hash, overpass-the-hash, or pass-the-ticket techniques.",
+          "extraDocs": [
+            {
+              "lines": 309,
+              "name": "CREDENTIAL_DUMPING.md",
+              "path": "skills/windows-lateral-movement/CREDENTIAL_DUMPING.md",
+              "size": 8751
+            }
+          ],
+          "extraLines": 309,
+          "id": "windows-lateral-movement",
+          "name": "windows-lateral-movement",
+          "path": "skills/windows-lateral-movement/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-lateral-movement/SKILL.md",
+          "skillLines": 336,
+          "skillSize": 10137,
+          "tier": "deep",
+          "totalLines": 645
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-av-evasion/SKILL.md",
+          "category": "windows",
+          "description": "AV/EDR evasion playbook for Windows. Use when bypassing AMSI, ETW, .NET assembly detection, shellcode execution, process injection, API hooking, and signature-based detection on Windows endpoints.",
+          "extraDocs": [
+            {
+              "lines": 290,
+              "name": "AMSI_BYPASS_TECHNIQUES.md",
+              "path": "skills/windows-av-evasion/AMSI_BYPASS_TECHNIQUES.md",
+              "size": 8939
+            }
+          ],
+          "extraLines": 290,
+          "id": "windows-av-evasion",
+          "name": "windows-av-evasion",
+          "path": "skills/windows-av-evasion/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-av-evasion/SKILL.md",
+          "skillLines": 343,
+          "skillSize": 11832,
+          "tier": "deep",
+          "totalLines": 633
+        }
+      ]
+    },
+    {
+      "description": "macOS 安全绕过 / 进程注入",
+      "id": "macos",
+      "name": "macOS Security",
+      "order": 11,
+      "skillCount": 2,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/macos-security-bypass/SKILL.md",
+          "category": "macos",
+          "description": "macOS security bypass playbook. Use when targeting macOS endpoints and need to bypass TCC, Gatekeeper, SIP, sandbox, code signing, or entitlement-based protections during authorized red team or pentest engagements.",
+          "extraDocs": [
+            {
+              "lines": 201,
+              "name": "TCC_BYPASS_MATRIX.md",
+              "path": "skills/macos-security-bypass/TCC_BYPASS_MATRIX.md",
+              "size": 8415
+            }
+          ],
+          "extraLines": 201,
+          "id": "macos-security-bypass",
+          "name": "macos-security-bypass",
+          "path": "skills/macos-security-bypass/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/macos-security-bypass/SKILL.md",
+          "skillLines": 338,
+          "skillSize": 13579,
+          "tier": "deep",
+          "totalLines": 539
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/macos-process-injection/SKILL.md",
+          "category": "macos",
+          "description": "macOS process injection playbook. Use when you need to inject code into running or launching macOS processes via dylib hijacking, DYLD environment variables, XPC exploitation, Mach port manipulation, or Electron/Chromium abuse.",
+          "extraDocs": [
+            {
+              "lines": 374,
+              "name": "DYLIB_XPC_TECHNIQUES.md",
+              "path": "skills/macos-process-injection/DYLIB_XPC_TECHNIQUES.md",
+              "size": 11316
+            }
+          ],
+          "extraLines": 374,
+          "id": "macos-process-injection",
+          "name": "macos-process-injection",
+          "path": "skills/macos-process-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/macos-process-injection/SKILL.md",
+          "skillLines": 385,
+          "skillSize": 13370,
+          "tier": "deep",
+          "totalLines": 759
+        }
+      ]
+    },
+    {
+      "description": "Android / iOS / SSL Pinning",
+      "id": "mobile",
+      "name": "Mobile Security",
+      "order": 12,
+      "skillCount": 3,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/android-pentesting-tricks/SKILL.md",
+          "category": "mobile",
+          "description": "Android pentesting playbook. Use when testing Android applications for SSL pinning bypass, exported component abuse, WebView vulnerabilities, intent redirection, root detection bypass, tapjacking, and backup extraction during authorized mobile security assessments.",
+          "extraDocs": [
+            {
+              "lines": 395,
+              "name": "FRIDA_SCRIPTS.md",
+              "path": "skills/android-pentesting-tricks/FRIDA_SCRIPTS.md",
+              "size": 14101
+            }
+          ],
+          "extraLines": 395,
+          "id": "android-pentesting-tricks",
+          "name": "android-pentesting-tricks",
+          "path": "skills/android-pentesting-tricks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/android-pentesting-tricks/SKILL.md",
+          "skillLines": 370,
+          "skillSize": 12955,
+          "tier": "deep",
+          "totalLines": 765
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ios-pentesting-tricks/SKILL.md",
+          "category": "mobile",
+          "description": "iOS pentesting playbook. Use when testing iOS applications for keychain extraction, URL scheme hijacking, Universal Links exploitation, runtime manipulation, binary protection analysis, data storage issues, and transport security bypass during authorized mobile security assessments.",
+          "extraDocs": [
+            {
+              "lines": 412,
+              "name": "IOS_RUNTIME_TRICKS.md",
+              "path": "skills/ios-pentesting-tricks/IOS_RUNTIME_TRICKS.md",
+              "size": 13035
+            }
+          ],
+          "extraLines": 412,
+          "id": "ios-pentesting-tricks",
+          "name": "ios-pentesting-tricks",
+          "path": "skills/ios-pentesting-tricks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ios-pentesting-tricks/SKILL.md",
+          "skillLines": 419,
+          "skillSize": 14375,
+          "tier": "deep",
+          "totalLines": 831
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/mobile-ssl-pinning-bypass/SKILL.md",
+          "category": "mobile",
+          "description": "Mobile SSL pinning bypass playbook. Use when intercepting HTTPS traffic from mobile applications that implement certificate pinning, public key pinning, or SPKI hash pinning on Android and iOS, including React Native, Flutter, and Xamarin frameworks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "mobile-ssl-pinning-bypass",
+          "name": "mobile-ssl-pinning-bypass",
+          "path": "skills/mobile-ssl-pinning-bypass/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/mobile-ssl-pinning-bypass/SKILL.md",
+          "skillLines": 532,
+          "skillSize": 18859,
+          "tier": "deep",
+          "totalLines": 532
+        }
+      ]
+    },
+    {
+      "description": "栈溢出 / 堆 / 内核 / 浏览器 V8",
+      "id": "pwn",
+      "name": "Binary Exploitation (Pwn)",
+      "order": 13,
+      "skillCount": 8,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/stack-overflow-and-rop/SKILL.md",
+          "category": "pwn",
+          "description": "Stack overflow and ROP playbook. Use when exploiting buffer overflows to hijack control flow via return address overwrite, ROP chains, ret2libc, ret2csu, ret2dlresolve, or SROP on Linux userland binaries.",
+          "extraDocs": [
+            {
+              "lines": 250,
+              "name": "ROP_ADVANCED_TECHNIQUES.md",
+              "path": "skills/stack-overflow-and-rop/ROP_ADVANCED_TECHNIQUES.md",
+              "size": 8963
+            }
+          ],
+          "extraLines": 250,
+          "id": "stack-overflow-and-rop",
+          "name": "stack-overflow-and-rop",
+          "path": "skills/stack-overflow-and-rop/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/stack-overflow-and-rop/SKILL.md",
+          "skillLines": 305,
+          "skillSize": 11185,
+          "tier": "deep",
+          "totalLines": 555
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/heap-exploitation/SKILL.md",
+          "category": "pwn",
+          "description": "Heap exploitation playbook. Use when targeting ptmalloc2/glibc heap vulnerabilities including UAF, double free, overflow, off-by-one/null, and leveraging tcache/fastbin/unsortedbin attacks for arbitrary write or code execution.",
+          "extraDocs": [
+            {
+              "lines": 245,
+              "name": "HOUSE_OF_TECHNIQUES.md",
+              "path": "skills/heap-exploitation/HOUSE_OF_TECHNIQUES.md",
+              "size": 9245
+            },
+            {
+              "lines": 257,
+              "name": "IO_FILE_EXPLOITATION.md",
+              "path": "skills/heap-exploitation/IO_FILE_EXPLOITATION.md",
+              "size": 8858
+            }
+          ],
+          "extraLines": 502,
+          "id": "heap-exploitation",
+          "name": "heap-exploitation",
+          "path": "skills/heap-exploitation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/heap-exploitation/SKILL.md",
+          "skillLines": 218,
+          "skillSize": 9294,
+          "tier": "deep",
+          "totalLines": 720
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/format-string-exploitation/SKILL.md",
+          "category": "pwn",
+          "description": "Format string exploitation playbook. Use when printf-family functions receive user-controlled format strings, enabling arbitrary stack reads (%p/%s), arbitrary memory writes (%n/%hn/%hhn), GOT/hook overwrites, and canary/libc/PIE leaks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "format-string-exploitation",
+          "name": "format-string-exploitation",
+          "path": "skills/format-string-exploitation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/format-string-exploitation/SKILL.md",
+          "skillLines": 313,
+          "skillSize": 11243,
+          "tier": "deep",
+          "totalLines": 313
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/kernel-exploitation/SKILL.md",
+          "category": "pwn",
+          "description": "Linux kernel exploitation playbook. Use when exploiting kernel vulnerabilities (UAF, OOB, race condition, type confusion) for privilege escalation via commit_creds, modprobe_path overwrite, or kernel ROP chains in CTF and real-world scenarios.",
+          "extraDocs": [
+            {
+              "lines": 294,
+              "name": "KERNEL_HEAP_TECHNIQUES.md",
+              "path": "skills/kernel-exploitation/KERNEL_HEAP_TECHNIQUES.md",
+              "size": 10434
+            },
+            {
+              "lines": 225,
+              "name": "KERNEL_MITIGATION_BYPASS.md",
+              "path": "skills/kernel-exploitation/KERNEL_MITIGATION_BYPASS.md",
+              "size": 8583
+            }
+          ],
+          "extraLines": 519,
+          "id": "kernel-exploitation",
+          "name": "kernel-exploitation",
+          "path": "skills/kernel-exploitation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/kernel-exploitation/SKILL.md",
+          "skillLines": 308,
+          "skillSize": 11595,
+          "tier": "deep",
+          "totalLines": 827
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/browser-exploitation-v8/SKILL.md",
+          "category": "pwn",
+          "description": "Browser and V8 exploitation playbook. Use when exploiting JavaScript engine vulnerabilities including JIT type confusion, incorrect bounds elimination, and V8 sandbox bypass to achieve renderer RCE and sandbox escape in Chrome/Chromium.",
+          "extraDocs": [
+            {
+              "lines": 289,
+              "name": "V8_EXPLOITATION_PATTERNS.md",
+              "path": "skills/browser-exploitation-v8/V8_EXPLOITATION_PATTERNS.md",
+              "size": 9198
+            }
+          ],
+          "extraLines": 289,
+          "id": "browser-exploitation-v8",
+          "name": "browser-exploitation-v8",
+          "path": "skills/browser-exploitation-v8/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/browser-exploitation-v8/SKILL.md",
+          "skillLines": 335,
+          "skillSize": 12459,
+          "tier": "deep",
+          "totalLines": 624
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/sandbox-escape-techniques/SKILL.md",
+          "category": "pwn",
+          "description": "Sandbox escape playbook. Use when breaking out of Python sandbox, Lua sandbox, seccomp filter, chroot jail, container/Docker, browser sandbox, or namespace isolation to achieve unrestricted code execution or file access.",
+          "extraDocs": [
+            {
+              "lines": 350,
+              "name": "PYTHON_SANDBOX_ESCAPE.md",
+              "path": "skills/sandbox-escape-techniques/PYTHON_SANDBOX_ESCAPE.md",
+              "size": 9952
+            },
+            {
+              "lines": 333,
+              "name": "SECCOMP_BYPASS.md",
+              "path": "skills/sandbox-escape-techniques/SECCOMP_BYPASS.md",
+              "size": 10036
+            }
+          ],
+          "extraLines": 683,
+          "id": "sandbox-escape-techniques",
+          "name": "sandbox-escape-techniques",
+          "path": "skills/sandbox-escape-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/sandbox-escape-techniques/SKILL.md",
+          "skillLines": 251,
+          "skillSize": 9431,
+          "tier": "deep",
+          "totalLines": 934
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/binary-protection-bypass/SKILL.md",
+          "category": "pwn",
+          "description": "Binary protection bypass playbook. Use when identifying and bypassing ASLR, PIE, NX/DEP, stack canary, RELRO, FORTIFY_SOURCE, CET, and MTE protections in ELF binaries to enable exploitation.",
+          "extraDocs": [
+            {
+              "lines": 169,
+              "name": "PROTECTION_BYPASS_MATRIX.md",
+              "path": "skills/binary-protection-bypass/PROTECTION_BYPASS_MATRIX.md",
+              "size": 7801
+            }
+          ],
+          "extraLines": 169,
+          "id": "binary-protection-bypass",
+          "name": "binary-protection-bypass",
+          "path": "skills/binary-protection-bypass/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/binary-protection-bypass/SKILL.md",
+          "skillLines": 296,
+          "skillSize": 12037,
+          "tier": "deep",
+          "totalLines": 465
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/arbitrary-write-to-rce/SKILL.md",
+          "category": "pwn",
+          "description": "Arbitrary write to RCE playbook. Use when you have an arbitrary write primitive (from heap exploitation, format string, or OOB write) and need to convert it into code execution by targeting GOT, hooks, _IO_FILE vtable, exit_funcs, TLS_dtor_list, modprobe_path, .fini_array, or C++ vtables.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "arbitrary-write-to-rce",
+          "name": "arbitrary-write-to-rce",
+          "path": "skills/arbitrary-write-to-rce/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/arbitrary-write-to-rce/SKILL.md",
+          "skillLines": 362,
+          "skillSize": 13105,
+          "tier": "deep",
+          "totalLines": 362
+        }
+      ]
+    },
+    {
+      "description": "反调试 / 混淆 / 符号执行 / VM 字节码",
+      "id": "re",
+      "name": "Reverse Engineering",
+      "order": 14,
+      "skillCount": 4,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/anti-debugging-techniques/SKILL.md",
+          "category": "re",
+          "description": "Anti-debugging detection and bypass playbook. Use when reversing protected binaries that detect debuggers via ptrace, PEB flags, timing checks, or signal/exception handlers on Linux and Windows.",
+          "extraDocs": [
+            {
+              "lines": 118,
+              "name": "ANTI_DEBUG_MATRIX.md",
+              "path": "skills/anti-debugging-techniques/ANTI_DEBUG_MATRIX.md",
+              "size": 9450
+            }
+          ],
+          "extraLines": 118,
+          "id": "anti-debugging-techniques",
+          "name": "anti-debugging-techniques",
+          "path": "skills/anti-debugging-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/anti-debugging-techniques/SKILL.md",
+          "skillLines": 408,
+          "skillSize": 13911,
+          "tier": "deep",
+          "totalLines": 526
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/code-obfuscation-deobfuscation/SKILL.md",
+          "category": "re",
+          "description": "Code obfuscation analysis and deobfuscation playbook. Use when reversing binaries protected by junk code, opaque predicates, self-modifying code, control flow flattening, VM protection, or string encryption.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "code-obfuscation-deobfuscation",
+          "name": "code-obfuscation-deobfuscation",
+          "path": "skills/code-obfuscation-deobfuscation/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/code-obfuscation-deobfuscation/SKILL.md",
+          "skillLines": 392,
+          "skillSize": 13817,
+          "tier": "deep",
+          "totalLines": 392
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/symbolic-execution-tools/SKILL.md",
+          "category": "re",
+          "description": "Symbolic execution and constraint solving playbook. Use when solving CTF reversing challenges, recovering keys, bypassing checks, or automating binary analysis with angr, Z3, or Unicorn Engine.",
+          "extraDocs": [
+            {
+              "lines": 438,
+              "name": "ANGR_COOKBOOK.md",
+              "path": "skills/symbolic-execution-tools/ANGR_COOKBOOK.md",
+              "size": 11155
+            }
+          ],
+          "extraLines": 438,
+          "id": "symbolic-execution-tools",
+          "name": "symbolic-execution-tools",
+          "path": "skills/symbolic-execution-tools/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/symbolic-execution-tools/SKILL.md",
+          "skillLines": 420,
+          "skillSize": 12398,
+          "tier": "deep",
+          "totalLines": 858
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/vm-and-bytecode-reverse/SKILL.md",
+          "category": "re",
+          "description": "Custom VM and bytecode reverse engineering playbook. Use when CTF challenges or protected software implement custom virtual machines with proprietary bytecode, dispatcher loops, or maze-style challenges.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "vm-and-bytecode-reverse",
+          "name": "vm-and-bytecode-reverse",
+          "path": "skills/vm-and-bytecode-reverse/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/vm-and-bytecode-reverse/SKILL.md",
+          "skillLines": 451,
+          "skillSize": 14951,
+          "tier": "deep",
+          "totalLines": 451
+        }
+      ]
+    },
+    {
+      "description": "RSA / 对称 / 格 / Hash / 古典",
+      "id": "crypto",
+      "name": "Cryptography Attacks",
+      "order": 15,
+      "skillCount": 5,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/rsa-attack-techniques/SKILL.md",
+          "category": "crypto",
+          "description": "RSA attack playbook for CTF and real-world cryptanalysis. Use when given RSA parameters (n, e, c) and need to recover plaintext by exploiting weak keys, small exponents, shared factors, or padding oracles.",
+          "extraDocs": [
+            {
+              "lines": 433,
+              "name": "RSA_ATTACK_CATALOG.md",
+              "path": "skills/rsa-attack-techniques/RSA_ATTACK_CATALOG.md",
+              "size": 10867
+            }
+          ],
+          "extraLines": 433,
+          "id": "rsa-attack-techniques",
+          "name": "rsa-attack-techniques",
+          "path": "skills/rsa-attack-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/rsa-attack-techniques/SKILL.md",
+          "skillLines": 438,
+          "skillSize": 12000,
+          "tier": "deep",
+          "totalLines": 871
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/symmetric-cipher-attacks/SKILL.md",
+          "category": "crypto",
+          "description": "Symmetric cipher attack playbook. Use when exploiting block cipher mode weaknesses (CBC padding oracle, ECB cut-and-paste, bit flipping), stream cipher key reuse, or meet-in-the-middle attacks.",
+          "extraDocs": [
+            {
+              "lines": 365,
+              "name": "BLOCK_CIPHER_ATTACKS.md",
+              "path": "skills/symmetric-cipher-attacks/BLOCK_CIPHER_ATTACKS.md",
+              "size": 10785
+            }
+          ],
+          "extraLines": 365,
+          "id": "symmetric-cipher-attacks",
+          "name": "symmetric-cipher-attacks",
+          "path": "skills/symmetric-cipher-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/symmetric-cipher-attacks/SKILL.md",
+          "skillLines": 463,
+          "skillSize": 14622,
+          "tier": "deep",
+          "totalLines": 828
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/lattice-crypto-attacks/SKILL.md",
+          "category": "crypto",
+          "description": "Lattice-based cryptanalysis playbook. Use when attacking RSA via Coppersmith small roots, recovering DSA/ECDSA nonces from bias, solving knapsack problems, or applying LLL/BKZ reduction to cryptographic constructions.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "lattice-crypto-attacks",
+          "name": "lattice-crypto-attacks",
+          "path": "skills/lattice-crypto-attacks/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/lattice-crypto-attacks/SKILL.md",
+          "skillLines": 498,
+          "skillSize": 14232,
+          "tier": "deep",
+          "totalLines": 498
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/hash-attack-techniques/SKILL.md",
+          "category": "crypto",
+          "description": "Hash attack playbook. Use when exploiting length extension, MD5/SHA1 collisions, HMAC timing leaks, birthday attacks, or hash-based proof of work in CTF and authorized testing scenarios.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "hash-attack-techniques",
+          "name": "hash-attack-techniques",
+          "path": "skills/hash-attack-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hash-attack-techniques/SKILL.md",
+          "skillLines": 492,
+          "skillSize": 14491,
+          "tier": "deep",
+          "totalLines": 492
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/classical-cipher-analysis/SKILL.md",
+          "category": "crypto",
+          "description": "Classical cipher analysis playbook. Use when encountering substitution ciphers, Vigenere, transposition, XOR, or encoded text in CTF challenges that requires frequency analysis, Kasiski examination, or known-plaintext cryptanalysis.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "classical-cipher-analysis",
+          "name": "classical-cipher-analysis",
+          "path": "skills/classical-cipher-analysis/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/classical-cipher-analysis/SKILL.md",
+          "skillLines": 664,
+          "skillSize": 19665,
+          "tier": "deep",
+          "totalLines": 664
+        }
+      ]
+    },
+    {
+      "description": "智能合约 / DeFi / MEV",
+      "id": "blockchain",
+      "name": "Blockchain \u0026 Smart Contract",
+      "order": 16,
+      "skillCount": 2,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/smart-contract-vulnerabilities/SKILL.md",
+          "category": "blockchain",
+          "description": "Smart contract vulnerability playbook. Use when auditing Solidity/EVM contracts for reentrancy, integer overflow, access control, delegatecall, flash loan, signature replay, and MEV-related attack patterns.",
+          "extraDocs": [
+            {
+              "lines": 461,
+              "name": "SOLIDITY_VULN_PATTERNS.md",
+              "path": "skills/smart-contract-vulnerabilities/SOLIDITY_VULN_PATTERNS.md",
+              "size": 11693
+            }
+          ],
+          "extraLines": 461,
+          "id": "smart-contract-vulnerabilities",
+          "name": "smart-contract-vulnerabilities",
+          "path": "skills/smart-contract-vulnerabilities/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/smart-contract-vulnerabilities/SKILL.md",
+          "skillLines": 315,
+          "skillSize": 12436,
+          "tier": "deep",
+          "totalLines": 776
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/defi-attack-patterns/SKILL.md",
+          "category": "blockchain",
+          "description": "DeFi attack pattern playbook. Use when analyzing flash loan attacks, price oracle manipulation, MEV sandwich attacks, governance exploits, bridge vulnerabilities, and token standard edge cases in decentralized finance protocols.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "defi-attack-patterns",
+          "name": "defi-attack-patterns",
+          "path": "skills/defi-attack-patterns/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/defi-attack-patterns/SKILL.md",
+          "skillLines": 356,
+          "skillSize": 13289,
+          "tier": "deep",
+          "totalLines": 356
+        }
+      ]
+    },
+    {
+      "description": "Prompt 注入 / RAG / 模型供应链",
+      "id": "ai",
+      "name": "AI/ML \u0026 LLM Security",
+      "order": 17,
+      "skillCount": 2,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/llm-prompt-injection/SKILL.md",
+          "category": "ai",
+          "description": "LLM prompt injection playbook. Use when testing AI/LLM applications for direct injection, indirect injection via RAG/browsing, tool abuse, data exfiltration, MCP security risks, and defense bypass techniques.",
+          "extraDocs": [
+            {
+              "lines": 307,
+              "name": "JAILBREAK_PATTERNS.md",
+              "path": "skills/llm-prompt-injection/JAILBREAK_PATTERNS.md",
+              "size": 9883
+            }
+          ],
+          "extraLines": 307,
+          "id": "llm-prompt-injection",
+          "name": "llm-prompt-injection",
+          "path": "skills/llm-prompt-injection/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/llm-prompt-injection/SKILL.md",
+          "skillLines": 358,
+          "skillSize": 13054,
+          "tier": "deep",
+          "totalLines": 665
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ai-ml-security/SKILL.md",
+          "category": "ai",
+          "description": "AI/ML security playbook. Use when assessing model supply chain attacks (pickle RCE, poisoned weights), adversarial examples, model poisoning, model stealing, data privacy attacks (membership inference, model inversion), and autonomous agent security risks.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "ai-ml-security",
+          "name": "ai-ml-security",
+          "path": "skills/ai-ml-security/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ai-ml-security/SKILL.md",
+          "skillLines": 426,
+          "skillSize": 16184,
+          "tier": "deep",
+          "totalLines": 426
+        }
+      ]
+    },
+    {
+      "description": "内存取证 / 隐写 / 流量分析",
+      "id": "forensics",
+      "name": "Forensics \u0026 Steganography",
+      "order": 18,
+      "skillCount": 3,
+      "skills": [
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/memory-forensics-volatility/SKILL.md",
+          "category": "forensics",
+          "description": "Memory forensics playbook using Volatility 2/3. Use when analyzing memory dumps for malware analysis, credential extraction, process investigation, code injection detection, and incident response timeline reconstruction.",
+          "extraDocs": [
+            {
+              "lines": 226,
+              "name": "VOLATILITY_CHEATSHEET.md",
+              "path": "skills/memory-forensics-volatility/VOLATILITY_CHEATSHEET.md",
+              "size": 6443
+            }
+          ],
+          "extraLines": 226,
+          "id": "memory-forensics-volatility",
+          "name": "memory-forensics-volatility",
+          "path": "skills/memory-forensics-volatility/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/memory-forensics-volatility/SKILL.md",
+          "skillLines": 324,
+          "skillSize": 10168,
+          "tier": "deep",
+          "totalLines": 550
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/steganography-techniques/SKILL.md",
+          "category": "forensics",
+          "description": "Steganography detection and extraction playbook. Use when analyzing images (LSB, PNG chunks, JPEG DCT, EXIF), audio (spectrogram, DTMF), files (polyglots, appended data, ADS), and text (whitespace, zero-width, homoglyphs) for hidden data.",
+          "extraDocs": [
+            {
+              "lines": 336,
+              "name": "STEGO_TOOLS_GUIDE.md",
+              "path": "skills/steganography-techniques/STEGO_TOOLS_GUIDE.md",
+              "size": 6646
+            }
+          ],
+          "extraLines": 336,
+          "id": "steganography-techniques",
+          "name": "steganography-techniques",
+          "path": "skills/steganography-techniques/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/steganography-techniques/SKILL.md",
+          "skillLines": 349,
+          "skillSize": 11016,
+          "tier": "deep",
+          "totalLines": 685
+        },
+        {
+          "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/traffic-analysis-pcap/SKILL.md",
+          "category": "forensics",
+          "description": "Traffic analysis and PCAP forensics playbook. Use when analyzing network captures including Wireshark filters, protocol analysis (HTTP/DNS/FTP/SMTP/USB/WiFi), data extraction, covert channel detection, PCAP repair, TLS decryption, and tshark command-line analysis.",
+          "extraDocs": [],
+          "extraLines": 0,
+          "id": "traffic-analysis-pcap",
+          "name": "traffic-analysis-pcap",
+          "path": "skills/traffic-analysis-pcap/SKILL.md",
+          "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/traffic-analysis-pcap/SKILL.md",
+          "skillLines": 342,
+          "skillSize": 11821,
+          "tier": "deep",
+          "totalLines": 342
+        }
+      ]
+    }
+  ],
+  "commit": "a3ab667",
+  "githubBranch": "main",
+  "githubRepo": "yaklang/hack-skills",
+  "schema": "hack-skills-index/v1",
+  "skills": [
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/401-403-bypass-techniques/SKILL.md",
+      "category": "advweb",
+      "description": "401/403 bypass playbook. Use when encountering access-denied responses on admin panels, API endpoints, or restricted paths. Covers path manipulation, HTTP method tampering, header injection, protocol downgrade, and automated bypass tools.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "401-403-bypass-techniques",
+      "name": "401-403-bypass-techniques",
+      "path": "skills/401-403-bypass-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/401-403-bypass-techniques/SKILL.md",
+      "skillLines": 349,
+      "skillSize": 10349,
+      "tier": "deep",
+      "totalLines": 349
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-acl-abuse/SKILL.md",
+      "category": "windows",
+      "description": "Active Directory ACL abuse playbook. Use when exploiting misconfigured AD permissions including GenericAll, WriteDACL, DCSync rights, shadow credentials, LAPS reading, GPO abuse, and BloodHound-guided attack paths.",
+      "extraDocs": [
+        {
+          "lines": 282,
+          "name": "BLOODHOUND_PATHS.md",
+          "path": "skills/active-directory-acl-abuse/BLOODHOUND_PATHS.md",
+          "size": 7305
+        }
+      ],
+      "extraLines": 282,
+      "id": "active-directory-acl-abuse",
+      "name": "active-directory-acl-abuse",
+      "path": "skills/active-directory-acl-abuse/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-acl-abuse/SKILL.md",
+      "skillLines": 296,
+      "skillSize": 9622,
+      "tier": "deep",
+      "totalLines": 578
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-certificate-services/SKILL.md",
+      "category": "windows",
+      "description": "AD Certificate Services attack playbook. Use when targeting misconfigured AD CS for privilege escalation via ESC1-ESC13 template abuse, NTLM relay to enrollment, CA officer abuse, and certificate-based persistence.",
+      "extraDocs": [
+        {
+          "lines": 198,
+          "name": "ADCS_ESC_MATRIX.md",
+          "path": "skills/active-directory-certificate-services/ADCS_ESC_MATRIX.md",
+          "size": 7122
+        }
+      ],
+      "extraLines": 198,
+      "id": "active-directory-certificate-services",
+      "name": "active-directory-certificate-services",
+      "path": "skills/active-directory-certificate-services/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-certificate-services/SKILL.md",
+      "skillLines": 304,
+      "skillSize": 10153,
+      "tier": "deep",
+      "totalLines": 502
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/active-directory-kerberos-attacks/SKILL.md",
+      "category": "windows",
+      "description": "Kerberos attack playbook for Active Directory. Use when targeting AD authentication via AS-REP roasting, Kerberoasting, golden/silver/diamond tickets, delegation abuse, or pass-the-ticket attacks.",
+      "extraDocs": [
+        {
+          "lines": 227,
+          "name": "KERBEROS_ATTACK_CHAINS.md",
+          "path": "skills/active-directory-kerberos-attacks/KERBEROS_ATTACK_CHAINS.md",
+          "size": 7380
+        }
+      ],
+      "extraLines": 227,
+      "id": "active-directory-kerberos-attacks",
+      "name": "active-directory-kerberos-attacks",
+      "path": "skills/active-directory-kerberos-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/active-directory-kerberos-attacks/SKILL.md",
+      "skillLines": 312,
+      "skillSize": 10713,
+      "tier": "deep",
+      "totalLines": 539
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ai-ml-security/SKILL.md",
+      "category": "ai",
+      "description": "AI/ML security playbook. Use when assessing model supply chain attacks (pickle RCE, poisoned weights), adversarial examples, model poisoning, model stealing, data privacy attacks (membership inference, model inversion), and autonomous agent security risks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "ai-ml-security",
+      "name": "ai-ml-security",
+      "path": "skills/ai-ml-security/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ai-ml-security/SKILL.md",
+      "skillLines": 426,
+      "skillSize": 16184,
+      "tier": "deep",
+      "totalLines": 426
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/android-pentesting-tricks/SKILL.md",
+      "category": "mobile",
+      "description": "Android pentesting playbook. Use when testing Android applications for SSL pinning bypass, exported component abuse, WebView vulnerabilities, intent redirection, root detection bypass, tapjacking, and backup extraction during authorized mobile security assessments.",
+      "extraDocs": [
+        {
+          "lines": 395,
+          "name": "FRIDA_SCRIPTS.md",
+          "path": "skills/android-pentesting-tricks/FRIDA_SCRIPTS.md",
+          "size": 14101
+        }
+      ],
+      "extraLines": 395,
+      "id": "android-pentesting-tricks",
+      "name": "android-pentesting-tricks",
+      "path": "skills/android-pentesting-tricks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/android-pentesting-tricks/SKILL.md",
+      "skillLines": 370,
+      "skillSize": 12955,
+      "tier": "deep",
+      "totalLines": 765
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/anti-debugging-techniques/SKILL.md",
+      "category": "re",
+      "description": "Anti-debugging detection and bypass playbook. Use when reversing protected binaries that detect debuggers via ptrace, PEB flags, timing checks, or signal/exception handlers on Linux and Windows.",
+      "extraDocs": [
+        {
+          "lines": 118,
+          "name": "ANTI_DEBUG_MATRIX.md",
+          "path": "skills/anti-debugging-techniques/ANTI_DEBUG_MATRIX.md",
+          "size": 9450
+        }
+      ],
+      "extraLines": 118,
+      "id": "anti-debugging-techniques",
+      "name": "anti-debugging-techniques",
+      "path": "skills/anti-debugging-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/anti-debugging-techniques/SKILL.md",
+      "skillLines": 408,
+      "skillSize": 13911,
+      "tier": "deep",
+      "totalLines": 526
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-auth-and-jwt-abuse/SKILL.md",
+      "category": "api",
+      "description": "API authentication and JWT abuse playbook. Use when testing bearer tokens, API keys, claim trust, header spoofing, rate limits, and API auth boundary weaknesses.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "api-auth-and-jwt-abuse",
+      "name": "api-auth-and-jwt-abuse",
+      "path": "skills/api-auth-and-jwt-abuse/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-auth-and-jwt-abuse/SKILL.md",
+      "skillLines": 76,
+      "skillSize": 2267,
+      "tier": "deep",
+      "totalLines": 76
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-authorization-and-bola/SKILL.md",
+      "category": "api",
+      "description": "API authorization and BOLA testing playbook. Use when APIs expose object identifiers, nested resources, hidden writable fields, or weak function-level authorization.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "api-authorization-and-bola",
+      "name": "api-authorization-and-bola",
+      "path": "skills/api-authorization-and-bola/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-authorization-and-bola/SKILL.md",
+      "skillLines": 48,
+      "skillSize": 1795,
+      "tier": "deep",
+      "totalLines": 48
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-recon-and-docs/SKILL.md",
+      "category": "api",
+      "description": "API reconnaissance and documentation review playbook. Use when discovering endpoints, schemas, versions, OpenAPI specs, hidden docs, and surface area for API testing.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "api-recon-and-docs",
+      "name": "api-recon-and-docs",
+      "path": "skills/api-recon-and-docs/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-recon-and-docs/SKILL.md",
+      "skillLines": 61,
+      "skillSize": 1823,
+      "tier": "deep",
+      "totalLines": 61
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/api-sec/SKILL.md",
+      "category": "api",
+      "description": "Entry P1 category router for API security. Use when choosing between API recon, authorization, token abuse, and hidden-parameter workflows before any deeper API topic skill.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "api-sec",
+      "name": "api-sec",
+      "path": "skills/api-sec/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/api-sec/SKILL.md",
+      "skillLines": 49,
+      "skillSize": 2390,
+      "tier": "category",
+      "totalLines": 49
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/arbitrary-write-to-rce/SKILL.md",
+      "category": "pwn",
+      "description": "Arbitrary write to RCE playbook. Use when you have an arbitrary write primitive (from heap exploitation, format string, or OOB write) and need to convert it into code execution by targeting GOT, hooks, _IO_FILE vtable, exit_funcs, TLS_dtor_list, modprobe_path, .fini_array, or C++ vtables.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "arbitrary-write-to-rce",
+      "name": "arbitrary-write-to-rce",
+      "path": "skills/arbitrary-write-to-rce/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/arbitrary-write-to-rce/SKILL.md",
+      "skillLines": 362,
+      "skillSize": 13105,
+      "tier": "deep",
+      "totalLines": 362
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/auth-sec/SKILL.md",
+      "category": "auth",
+      "description": "Entry P1 category router for authentication and authorization. Use when testing login flows, sessions, object authorization, JWT, OAuth, CORS, CSRF, and enterprise SSO weaknesses before any deeper auth topic skill.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "auth-sec",
+      "name": "auth-sec",
+      "path": "skills/auth-sec/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/auth-sec/SKILL.md",
+      "skillLines": 41,
+      "skillSize": 2362,
+      "tier": "category",
+      "totalLines": 41
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/authbypass-authentication-flaws/SKILL.md",
+      "category": "auth",
+      "description": "Authentication bypass testing playbook. Use when assessing login flows, password reset logic, account recovery, MFA bypass, token predictability, brute-force resistance, and session boundary flaws.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "authbypass-authentication-flaws",
+      "name": "authbypass-authentication-flaws",
+      "path": "skills/authbypass-authentication-flaws/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/authbypass-authentication-flaws/SKILL.md",
+      "skillLines": 442,
+      "skillSize": 15177,
+      "tier": "deep",
+      "totalLines": 442
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/binary-protection-bypass/SKILL.md",
+      "category": "pwn",
+      "description": "Binary protection bypass playbook. Use when identifying and bypassing ASLR, PIE, NX/DEP, stack canary, RELRO, FORTIFY_SOURCE, CET, and MTE protections in ELF binaries to enable exploitation.",
+      "extraDocs": [
+        {
+          "lines": 169,
+          "name": "PROTECTION_BYPASS_MATRIX.md",
+          "path": "skills/binary-protection-bypass/PROTECTION_BYPASS_MATRIX.md",
+          "size": 7801
+        }
+      ],
+      "extraLines": 169,
+      "id": "binary-protection-bypass",
+      "name": "binary-protection-bypass",
+      "path": "skills/binary-protection-bypass/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/binary-protection-bypass/SKILL.md",
+      "skillLines": 296,
+      "skillSize": 12037,
+      "tier": "deep",
+      "totalLines": 465
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/browser-exploitation-v8/SKILL.md",
+      "category": "pwn",
+      "description": "Browser and V8 exploitation playbook. Use when exploiting JavaScript engine vulnerabilities including JIT type confusion, incorrect bounds elimination, and V8 sandbox bypass to achieve renderer RCE and sandbox escape in Chrome/Chromium.",
+      "extraDocs": [
+        {
+          "lines": 289,
+          "name": "V8_EXPLOITATION_PATTERNS.md",
+          "path": "skills/browser-exploitation-v8/V8_EXPLOITATION_PATTERNS.md",
+          "size": 9198
+        }
+      ],
+      "extraLines": 289,
+      "id": "browser-exploitation-v8",
+      "name": "browser-exploitation-v8",
+      "path": "skills/browser-exploitation-v8/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/browser-exploitation-v8/SKILL.md",
+      "skillLines": 335,
+      "skillSize": 12459,
+      "tier": "deep",
+      "totalLines": 624
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/business-logic-vuln/SKILL.md",
+      "category": "logic",
+      "description": "Entry P1 category router for business logic testing. Use when workflow abuse, race conditions, pricing flaws, or multi-step state attacks matter more than parser-level input injection.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "business-logic-vuln",
+      "name": "business-logic-vuln",
+      "path": "skills/business-logic-vuln/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/business-logic-vuln/SKILL.md",
+      "skillLines": 33,
+      "skillSize": 1236,
+      "tier": "category",
+      "totalLines": 33
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/business-logic-vulnerabilities/SKILL.md",
+      "category": "logic",
+      "description": "Business logic vulnerability playbook. Use when reasoning about workflows, race conditions, price manipulation, coupon abuse, state machines, and multi-step authorization gaps.",
+      "extraDocs": [
+        {
+          "lines": 299,
+          "name": "SCENARIOS.md",
+          "path": "skills/business-logic-vulnerabilities/SCENARIOS.md",
+          "size": 9260
+        }
+      ],
+      "extraLines": 299,
+      "id": "business-logic-vulnerabilities",
+      "name": "business-logic-vulnerabilities",
+      "path": "skills/business-logic-vulnerabilities/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/business-logic-vulnerabilities/SKILL.md",
+      "skillLines": 340,
+      "skillSize": 10431,
+      "tier": "deep",
+      "totalLines": 639
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/classical-cipher-analysis/SKILL.md",
+      "category": "crypto",
+      "description": "Classical cipher analysis playbook. Use when encountering substitution ciphers, Vigenere, transposition, XOR, or encoded text in CTF challenges that requires frequency analysis, Kasiski examination, or known-plaintext cryptanalysis.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "classical-cipher-analysis",
+      "name": "classical-cipher-analysis",
+      "path": "skills/classical-cipher-analysis/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/classical-cipher-analysis/SKILL.md",
+      "skillLines": 664,
+      "skillSize": 19665,
+      "tier": "deep",
+      "totalLines": 664
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/clickjacking/SKILL.md",
+      "category": "logic",
+      "description": "Clickjacking playbook. Use when testing whether target pages can be framed, whether X-Frame-Options or CSP frame-ancestors are properly configured, and whether UI redress attacks can trigger sensitive actions.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "clickjacking",
+      "name": "clickjacking",
+      "path": "skills/clickjacking/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/clickjacking/SKILL.md",
+      "skillLines": 164,
+      "skillSize": 5059,
+      "tier": "deep",
+      "totalLines": 164
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/cmdi-command-injection/SKILL.md",
+      "category": "injection",
+      "description": "Command injection playbook. Use when user input may reach shell commands, process execution, converters, import pipelines, or blind out-of-band command sinks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "cmdi-command-injection",
+      "name": "cmdi-command-injection",
+      "path": "skills/cmdi-command-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/cmdi-command-injection/SKILL.md",
+      "skillLines": 688,
+      "skillSize": 19898,
+      "tier": "deep",
+      "totalLines": 688
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/code-obfuscation-deobfuscation/SKILL.md",
+      "category": "re",
+      "description": "Code obfuscation analysis and deobfuscation playbook. Use when reversing binaries protected by junk code, opaque predicates, self-modifying code, control flow flattening, VM protection, or string encryption.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "code-obfuscation-deobfuscation",
+      "name": "code-obfuscation-deobfuscation",
+      "path": "skills/code-obfuscation-deobfuscation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/code-obfuscation-deobfuscation/SKILL.md",
+      "skillLines": 392,
+      "skillSize": 13817,
+      "tier": "deep",
+      "totalLines": 392
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/container-escape-techniques/SKILL.md",
+      "category": "linux",
+      "description": "Container escape playbook. Use when operating inside a Docker container, LXC, or Kubernetes pod and need to escape to the host via privileged mode, capabilities, Docker socket, cgroup abuse, namespace tricks, or runtime vulnerabilities.",
+      "extraDocs": [
+        {
+          "lines": 297,
+          "name": "DOCKER_ESCAPE_CHAINS.md",
+          "path": "skills/container-escape-techniques/DOCKER_ESCAPE_CHAINS.md",
+          "size": 9154
+        }
+      ],
+      "extraLines": 297,
+      "id": "container-escape-techniques",
+      "name": "container-escape-techniques",
+      "path": "skills/container-escape-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/container-escape-techniques/SKILL.md",
+      "skillLines": 340,
+      "skillSize": 9603,
+      "tier": "deep",
+      "totalLines": 637
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/cors-cross-origin-misconfiguration/SKILL.md",
+      "category": "logic",
+      "description": "CORS misconfiguration testing playbook. Use when analyzing cross-origin trust, credentialed browser reads, origin reflection, preflight policy bugs, and browser-based access to authenticated APIs.",
+      "extraDocs": [
+        {
+          "lines": 153,
+          "name": "SCENARIOS.md",
+          "path": "skills/cors-cross-origin-misconfiguration/SCENARIOS.md",
+          "size": 5012
+        }
+      ],
+      "extraLines": 153,
+      "id": "cors-cross-origin-misconfiguration",
+      "name": "cors-cross-origin-misconfiguration",
+      "path": "skills/cors-cross-origin-misconfiguration/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/cors-cross-origin-misconfiguration/SKILL.md",
+      "skillLines": 270,
+      "skillSize": 9629,
+      "tier": "deep",
+      "totalLines": 423
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/crlf-injection/SKILL.md",
+      "category": "injection",
+      "description": "CRLF injection playbook. Use when user input reaches HTTP response headers, Location redirects, Set-Cookie values, or log files where carriage-return/line-feed characters can split or inject content.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "crlf-injection",
+      "name": "crlf-injection",
+      "path": "skills/crlf-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/crlf-injection/SKILL.md",
+      "skillLines": 176,
+      "skillSize": 4423,
+      "tier": "deep",
+      "totalLines": 176
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csp-bypass-advanced/SKILL.md",
+      "category": "advweb",
+      "description": "Advanced Content Security Policy bypass techniques. Use when XSS or data exfiltration is blocked by CSP and you need to find policy weaknesses, trusted endpoint abuse, nonce leakage, or exfiltration channels that CSP cannot block.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "csp-bypass-advanced",
+      "name": "csp-bypass-advanced",
+      "path": "skills/csp-bypass-advanced/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csp-bypass-advanced/SKILL.md",
+      "skillLines": 260,
+      "skillSize": 12594,
+      "tier": "deep",
+      "totalLines": 260
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csrf-cross-site-request-forgery/SKILL.md",
+      "category": "logic",
+      "description": "CSRF testing playbook. Use when reviewing state-changing web flows, anti-CSRF defenses, SameSite behavior, JSON CSRF, login CSRF, and OAuth state handling.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "csrf-cross-site-request-forgery",
+      "name": "csrf-cross-site-request-forgery",
+      "path": "skills/csrf-cross-site-request-forgery/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csrf-cross-site-request-forgery/SKILL.md",
+      "skillLines": 527,
+      "skillSize": 16781,
+      "tier": "deep",
+      "totalLines": 527
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/csv-formula-injection/SKILL.md",
+      "category": "injection",
+      "description": "CSV/spreadsheet formula injection (DDE, Excel/LibreOffice, Google Sheets IMPORT*). Use when exports, imports, or user fields feed spreadsheets or reporting tools.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "csv-formula-injection",
+      "name": "csv-formula-injection",
+      "path": "skills/csv-formula-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/csv-formula-injection/SKILL.md",
+      "skillLines": 145,
+      "skillSize": 4539,
+      "tier": "deep",
+      "totalLines": 145
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dangling-markup-injection/SKILL.md",
+      "category": "advweb",
+      "description": "Dangling markup injection playbook. Use when HTML injection is possible but JavaScript execution is blocked (CSP, sanitizer strips event handlers, WAF blocks script tags) — exfiltrate CSRF tokens, session data, and page content by injecting unclosed HTML tags that capture subsequent page content.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "dangling-markup-injection",
+      "name": "dangling-markup-injection",
+      "path": "skills/dangling-markup-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dangling-markup-injection/SKILL.md",
+      "skillLines": 322,
+      "skillSize": 13582,
+      "tier": "deep",
+      "totalLines": 322
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/defi-attack-patterns/SKILL.md",
+      "category": "blockchain",
+      "description": "DeFi attack pattern playbook. Use when analyzing flash loan attacks, price oracle manipulation, MEV sandwich attacks, governance exploits, bridge vulnerabilities, and token standard edge cases in decentralized finance protocols.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "defi-attack-patterns",
+      "name": "defi-attack-patterns",
+      "path": "skills/defi-attack-patterns/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/defi-attack-patterns/SKILL.md",
+      "skillLines": 356,
+      "skillSize": 13289,
+      "tier": "deep",
+      "totalLines": 356
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dependency-confusion/SKILL.md",
+      "category": "infra",
+      "description": "Supply-chain testing via package-manager dependency confusion: when internal package names resolve to attacker-controlled public registries, leading to malicious install and script execution. Use for npm/pip/gem/Maven/Composer/Docker manifest review and authorized red-team supply-chain exercises.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "dependency-confusion",
+      "name": "dependency-confusion",
+      "path": "skills/dependency-confusion/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dependency-confusion/SKILL.md",
+      "skillLines": 179,
+      "skillSize": 9723,
+      "tier": "deep",
+      "totalLines": 179
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/deserialization-insecure/SKILL.md",
+      "category": "injection",
+      "description": "Insecure deserialization playbook. Use when Java, PHP, or Python applications deserialize untrusted data via ObjectInputStream, unserialize, pickle, or similar mechanisms that may lead to RCE, file access, or privilege escalation.",
+      "extraDocs": [
+        {
+          "lines": 512,
+          "name": "JAVA_GADGET_CHAINS.md",
+          "path": "skills/deserialization-insecure/JAVA_GADGET_CHAINS.md",
+          "size": 18010
+        }
+      ],
+      "extraLines": 512,
+      "id": "deserialization-insecure",
+      "name": "deserialization-insecure",
+      "path": "skills/deserialization-insecure/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/deserialization-insecure/SKILL.md",
+      "skillLines": 725,
+      "skillSize": 24376,
+      "tier": "deep",
+      "totalLines": 1237
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/dns-rebinding-attacks/SKILL.md",
+      "category": "advweb",
+      "description": "DNS rebinding attack playbook. Use when testing applications that trust DNS resolution for origin checks, interact with internal services from browser context, or when SSRF is not possible server-side but the target has client-side fetch/XHR to attacker-controlled domains.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "dns-rebinding-attacks",
+      "name": "dns-rebinding-attacks",
+      "path": "skills/dns-rebinding-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/dns-rebinding-attacks/SKILL.md",
+      "skillLines": 338,
+      "skillSize": 12364,
+      "tier": "deep",
+      "totalLines": 338
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/email-header-injection/SKILL.md",
+      "category": "advweb",
+      "description": "Email header injection and spoofing playbook. Use when testing contact forms, email APIs, password reset flows, or any feature that constructs SMTP messages with user-controlled fields. Covers CRLF injection in headers, SPF/DKIM/DMARC bypass, and phishing amplification.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "email-header-injection",
+      "name": "email-header-injection",
+      "path": "skills/email-header-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/email-header-injection/SKILL.md",
+      "skillLines": 350,
+      "skillSize": 10929,
+      "tier": "deep",
+      "totalLines": 350
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/expression-language-injection/SKILL.md",
+      "category": "injection",
+      "description": "Expression Language injection playbook. Use when Java EL, SpEL, OGNL, or MVEL expressions may evaluate attacker-controlled input in Spring, Struts2, Confluence, or similar frameworks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "expression-language-injection",
+      "name": "expression-language-injection",
+      "path": "skills/expression-language-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/expression-language-injection/SKILL.md",
+      "skillLines": 244,
+      "skillSize": 8244,
+      "tier": "deep",
+      "totalLines": 244
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/file-access-vuln/SKILL.md",
+      "category": "file",
+      "description": "Entry P1 category router for file access and upload workflows. Use when testing download endpoints, file paths, local file inclusion, upload flows, preview pipelines, archive extraction, or storage and sharing boundaries.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "file-access-vuln",
+      "name": "file-access-vuln",
+      "path": "skills/file-access-vuln/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/file-access-vuln/SKILL.md",
+      "skillLines": 33,
+      "skillSize": 1472,
+      "tier": "category",
+      "totalLines": 33
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/format-string-exploitation/SKILL.md",
+      "category": "pwn",
+      "description": "Format string exploitation playbook. Use when printf-family functions receive user-controlled format strings, enabling arbitrary stack reads (%p/%s), arbitrary memory writes (%n/%hn/%hhn), GOT/hook overwrites, and canary/libc/PIE leaks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "format-string-exploitation",
+      "name": "format-string-exploitation",
+      "path": "skills/format-string-exploitation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/format-string-exploitation/SKILL.md",
+      "skillLines": 313,
+      "skillSize": 11243,
+      "tier": "deep",
+      "totalLines": 313
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/graphql-and-hidden-parameters/SKILL.md",
+      "category": "api",
+      "description": "GraphQL and hidden parameter testing playbook. Use when exploring introspection, batching, undocumented fields, hidden parameters, schema abuse, and GraphQL authorization gaps.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "graphql-and-hidden-parameters",
+      "name": "graphql-and-hidden-parameters",
+      "path": "skills/graphql-and-hidden-parameters/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/graphql-and-hidden-parameters/SKILL.md",
+      "skillLines": 50,
+      "skillSize": 1763,
+      "tier": "deep",
+      "totalLines": 50
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/hack/SKILL.md",
+      "category": "recon",
+      "description": "Entry P0 primary router for HackSkills. Use when the task involves web application testing, API security assessment, recon, vulnerability triage, exploit path planning, or choosing the right next category skill before any deep topic skill.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "hack",
+      "name": "hack",
+      "path": "skills/hack/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hack/SKILL.md",
+      "skillLines": 162,
+      "skillSize": 8111,
+      "tier": "master",
+      "totalLines": 162
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/hash-attack-techniques/SKILL.md",
+      "category": "crypto",
+      "description": "Hash attack playbook. Use when exploiting length extension, MD5/SHA1 collisions, HMAC timing leaks, birthday attacks, or hash-based proof of work in CTF and authorized testing scenarios.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "hash-attack-techniques",
+      "name": "hash-attack-techniques",
+      "path": "skills/hash-attack-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/hash-attack-techniques/SKILL.md",
+      "skillLines": 492,
+      "skillSize": 14491,
+      "tier": "deep",
+      "totalLines": 492
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/heap-exploitation/SKILL.md",
+      "category": "pwn",
+      "description": "Heap exploitation playbook. Use when targeting ptmalloc2/glibc heap vulnerabilities including UAF, double free, overflow, off-by-one/null, and leveraging tcache/fastbin/unsortedbin attacks for arbitrary write or code execution.",
+      "extraDocs": [
+        {
+          "lines": 245,
+          "name": "HOUSE_OF_TECHNIQUES.md",
+          "path": "skills/heap-exploitation/HOUSE_OF_TECHNIQUES.md",
+          "size": 9245
+        },
+        {
+          "lines": 257,
+          "name": "IO_FILE_EXPLOITATION.md",
+          "path": "skills/heap-exploitation/IO_FILE_EXPLOITATION.md",
+          "size": 8858
+        }
+      ],
+      "extraLines": 502,
+      "id": "heap-exploitation",
+      "name": "heap-exploitation",
+      "path": "skills/heap-exploitation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/heap-exploitation/SKILL.md",
+      "skillLines": 218,
+      "skillSize": 9294,
+      "tier": "deep",
+      "totalLines": 720
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http-host-header-attacks/SKILL.md",
+      "category": "advweb",
+      "description": "HTTP Host header injection and routing abuse playbook. Use when the application trusts the Host header for generating URLs, routing requests, or access control — enabling password reset poisoning, web cache poisoning, SSRF via routing, and virtual host bypass.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "http-host-header-attacks",
+      "name": "http-host-header-attacks",
+      "path": "skills/http-host-header-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http-host-header-attacks/SKILL.md",
+      "skillLines": 324,
+      "skillSize": 11759,
+      "tier": "deep",
+      "totalLines": 324
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http-parameter-pollution/SKILL.md",
+      "category": "injection",
+      "description": "HTTP Parameter Pollution (HPP): duplicate query/body keys parsed differently by servers, proxies, WAFs, and app frameworks. Use when filters and application layers disagree on which value wins, enabling bypass, SSRF second URL, logic abuse, or CSRF token confusion.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "http-parameter-pollution",
+      "name": "http-parameter-pollution",
+      "path": "skills/http-parameter-pollution/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http-parameter-pollution/SKILL.md",
+      "skillLines": 209,
+      "skillSize": 6952,
+      "tier": "deep",
+      "totalLines": 209
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/http2-specific-attacks/SKILL.md",
+      "category": "advweb",
+      "description": "HTTP/2 protocol-specific attack playbook. Use when the target supports HTTP/2 and you need to exploit binary framing, HPACK compression, h2c upgrade smuggling, pseudo-header injection, stream multiplexing abuse, or H2→H1 downgrade translation flaws.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "http2-specific-attacks",
+      "name": "http2-specific-attacks",
+      "path": "skills/http2-specific-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/http2-specific-attacks/SKILL.md",
+      "skillLines": 351,
+      "skillSize": 12049,
+      "tier": "deep",
+      "totalLines": 351
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/idor-broken-object-authorization/SKILL.md",
+      "category": "auth",
+      "description": "IDOR and broken object authorization testing playbook. Use when requests expose object identifiers, tenant boundaries, writable fields, or missing object-level authorization checks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "idor-broken-object-authorization",
+      "name": "idor-broken-object-authorization",
+      "path": "skills/idor-broken-object-authorization/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/idor-broken-object-authorization/SKILL.md",
+      "skillLines": 337,
+      "skillSize": 10671,
+      "tier": "deep",
+      "totalLines": 337
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/injection-checking/SKILL.md",
+      "category": "injection",
+      "description": "Entry P1 category router for injection testing. Use when routing between XSS, SQLi, SSRF, XXE, SSTI, command injection, and NoSQL injection workflows based on how attacker-controlled input is consumed.",
+      "extraDocs": [
+        {
+          "lines": 451,
+          "name": "EXTRA_INJECTION_TYPES.md",
+          "path": "skills/injection-checking/EXTRA_INJECTION_TYPES.md",
+          "size": 11716
+        }
+      ],
+      "extraLines": 451,
+      "id": "injection-checking",
+      "name": "injection-checking",
+      "path": "skills/injection-checking/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/injection-checking/SKILL.md",
+      "skillLines": 50,
+      "skillSize": 2277,
+      "tier": "category",
+      "totalLines": 501
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/insecure-source-code-management/SKILL.md",
+      "category": "infra",
+      "description": "Source control and artifact exposure (.git, .svn, .hg, backups, .env). Use when recon finds VCS paths, 403 on hidden dirs, or backup/config leaks during authorized testing.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "insecure-source-code-management",
+      "name": "insecure-source-code-management",
+      "path": "skills/insecure-source-code-management/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/insecure-source-code-management/SKILL.md",
+      "skillLines": 162,
+      "skillSize": 5282,
+      "tier": "deep",
+      "totalLines": 162
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ios-pentesting-tricks/SKILL.md",
+      "category": "mobile",
+      "description": "iOS pentesting playbook. Use when testing iOS applications for keychain extraction, URL scheme hijacking, Universal Links exploitation, runtime manipulation, binary protection analysis, data storage issues, and transport security bypass during authorized mobile security assessments.",
+      "extraDocs": [
+        {
+          "lines": 412,
+          "name": "IOS_RUNTIME_TRICKS.md",
+          "path": "skills/ios-pentesting-tricks/IOS_RUNTIME_TRICKS.md",
+          "size": 13035
+        }
+      ],
+      "extraLines": 412,
+      "id": "ios-pentesting-tricks",
+      "name": "ios-pentesting-tricks",
+      "path": "skills/ios-pentesting-tricks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ios-pentesting-tricks/SKILL.md",
+      "skillLines": 419,
+      "skillSize": 14375,
+      "tier": "deep",
+      "totalLines": 831
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/jndi-injection/SKILL.md",
+      "category": "injection",
+      "description": "JNDI injection playbook. Use when Java applications perform JNDI lookups with attacker-controlled names, especially via Log4j2, Spring, or any code path reaching InitialContext.lookup().",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "jndi-injection",
+      "name": "jndi-injection",
+      "path": "skills/jndi-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/jndi-injection/SKILL.md",
+      "skillLines": 266,
+      "skillSize": 8195,
+      "tier": "deep",
+      "totalLines": 266
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/jwt-oauth-token-attacks/SKILL.md",
+      "category": "auth",
+      "description": "JWT and OAuth token attack playbook. Use when validating token trust, signing algorithms, key handling, claim abuse, bearer flows, and OAuth account-binding weaknesses.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "jwt-oauth-token-attacks",
+      "name": "jwt-oauth-token-attacks",
+      "path": "skills/jwt-oauth-token-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/jwt-oauth-token-attacks/SKILL.md",
+      "skillLines": 302,
+      "skillSize": 9441,
+      "tier": "deep",
+      "totalLines": 302
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/kernel-exploitation/SKILL.md",
+      "category": "pwn",
+      "description": "Linux kernel exploitation playbook. Use when exploiting kernel vulnerabilities (UAF, OOB, race condition, type confusion) for privilege escalation via commit_creds, modprobe_path overwrite, or kernel ROP chains in CTF and real-world scenarios.",
+      "extraDocs": [
+        {
+          "lines": 294,
+          "name": "KERNEL_HEAP_TECHNIQUES.md",
+          "path": "skills/kernel-exploitation/KERNEL_HEAP_TECHNIQUES.md",
+          "size": 10434
+        },
+        {
+          "lines": 225,
+          "name": "KERNEL_MITIGATION_BYPASS.md",
+          "path": "skills/kernel-exploitation/KERNEL_MITIGATION_BYPASS.md",
+          "size": 8583
+        }
+      ],
+      "extraLines": 519,
+      "id": "kernel-exploitation",
+      "name": "kernel-exploitation",
+      "path": "skills/kernel-exploitation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/kernel-exploitation/SKILL.md",
+      "skillLines": 308,
+      "skillSize": 11595,
+      "tier": "deep",
+      "totalLines": 827
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/kubernetes-pentesting/SKILL.md",
+      "category": "linux",
+      "description": "Kubernetes penetration testing playbook. Use when targeting Kubernetes clusters via API server, RBAC enumeration, service account abuse, etcd access, Kubelet API, pod escape, cloud-specific metadata, admission webhook bypass, and registry secrets.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "kubernetes-pentesting",
+      "name": "kubernetes-pentesting",
+      "path": "skills/kubernetes-pentesting/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/kubernetes-pentesting/SKILL.md",
+      "skillLines": 349,
+      "skillSize": 12617,
+      "tier": "deep",
+      "totalLines": 349
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/lattice-crypto-attacks/SKILL.md",
+      "category": "crypto",
+      "description": "Lattice-based cryptanalysis playbook. Use when attacking RSA via Coppersmith small roots, recovering DSA/ECDSA nonces from bias, solving knapsack problems, or applying LLL/BKZ reduction to cryptographic constructions.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "lattice-crypto-attacks",
+      "name": "lattice-crypto-attacks",
+      "path": "skills/lattice-crypto-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/lattice-crypto-attacks/SKILL.md",
+      "skillLines": 498,
+      "skillSize": 14232,
+      "tier": "deep",
+      "totalLines": 498
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-lateral-movement/SKILL.md",
+      "category": "linux",
+      "description": "Linux lateral movement playbook. Use after gaining initial access to pivot across Linux hosts via SSH hijacking, credential harvesting, internal pivoting, D-Bus exploitation, sudo token reuse, and shared filesystem abuse.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "linux-lateral-movement",
+      "name": "linux-lateral-movement",
+      "path": "skills/linux-lateral-movement/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-lateral-movement/SKILL.md",
+      "skillLines": 349,
+      "skillSize": 11239,
+      "tier": "deep",
+      "totalLines": 349
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-privilege-escalation/SKILL.md",
+      "category": "linux",
+      "description": "Linux privilege escalation playbook. Use when you have low-privilege shell access and need to escalate to root via SUID/SGID binaries, capabilities, cron abuse, kernel exploits, misconfigurations, or credential harvesting on Linux systems.",
+      "extraDocs": [
+        {
+          "lines": 261,
+          "name": "KERNEL_EXPLOITS_CHECKLIST.md",
+          "path": "skills/linux-privilege-escalation/KERNEL_EXPLOITS_CHECKLIST.md",
+          "size": 9596
+        },
+        {
+          "lines": 306,
+          "name": "SUID_CAPABILITIES_TRICKS.md",
+          "path": "skills/linux-privilege-escalation/SUID_CAPABILITIES_TRICKS.md",
+          "size": 9769
+        }
+      ],
+      "extraLines": 567,
+      "id": "linux-privilege-escalation",
+      "name": "linux-privilege-escalation",
+      "path": "skills/linux-privilege-escalation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-privilege-escalation/SKILL.md",
+      "skillLines": 347,
+      "skillSize": 10641,
+      "tier": "deep",
+      "totalLines": 914
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/linux-security-bypass/SKILL.md",
+      "category": "linux",
+      "description": "Linux security mechanism bypass playbook. Use when facing restricted bash/rbash, read-only or noexec filesystems, AppArmor, SELinux, seccomp filters, or audit logging that must be evaded during post-exploitation.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "linux-security-bypass",
+      "name": "linux-security-bypass",
+      "path": "skills/linux-security-bypass/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/linux-security-bypass/SKILL.md",
+      "skillLines": 346,
+      "skillSize": 10739,
+      "tier": "deep",
+      "totalLines": 346
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/llm-prompt-injection/SKILL.md",
+      "category": "ai",
+      "description": "LLM prompt injection playbook. Use when testing AI/LLM applications for direct injection, indirect injection via RAG/browsing, tool abuse, data exfiltration, MCP security risks, and defense bypass techniques.",
+      "extraDocs": [
+        {
+          "lines": 307,
+          "name": "JAILBREAK_PATTERNS.md",
+          "path": "skills/llm-prompt-injection/JAILBREAK_PATTERNS.md",
+          "size": 9883
+        }
+      ],
+      "extraLines": 307,
+      "id": "llm-prompt-injection",
+      "name": "llm-prompt-injection",
+      "path": "skills/llm-prompt-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/llm-prompt-injection/SKILL.md",
+      "skillLines": 358,
+      "skillSize": 13054,
+      "tier": "deep",
+      "totalLines": 665
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/macos-process-injection/SKILL.md",
+      "category": "macos",
+      "description": "macOS process injection playbook. Use when you need to inject code into running or launching macOS processes via dylib hijacking, DYLD environment variables, XPC exploitation, Mach port manipulation, or Electron/Chromium abuse.",
+      "extraDocs": [
+        {
+          "lines": 374,
+          "name": "DYLIB_XPC_TECHNIQUES.md",
+          "path": "skills/macos-process-injection/DYLIB_XPC_TECHNIQUES.md",
+          "size": 11316
+        }
+      ],
+      "extraLines": 374,
+      "id": "macos-process-injection",
+      "name": "macos-process-injection",
+      "path": "skills/macos-process-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/macos-process-injection/SKILL.md",
+      "skillLines": 385,
+      "skillSize": 13370,
+      "tier": "deep",
+      "totalLines": 759
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/macos-security-bypass/SKILL.md",
+      "category": "macos",
+      "description": "macOS security bypass playbook. Use when targeting macOS endpoints and need to bypass TCC, Gatekeeper, SIP, sandbox, code signing, or entitlement-based protections during authorized red team or pentest engagements.",
+      "extraDocs": [
+        {
+          "lines": 201,
+          "name": "TCC_BYPASS_MATRIX.md",
+          "path": "skills/macos-security-bypass/TCC_BYPASS_MATRIX.md",
+          "size": 8415
+        }
+      ],
+      "extraLines": 201,
+      "id": "macos-security-bypass",
+      "name": "macos-security-bypass",
+      "path": "skills/macos-security-bypass/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/macos-security-bypass/SKILL.md",
+      "skillLines": 338,
+      "skillSize": 13579,
+      "tier": "deep",
+      "totalLines": 539
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/memory-forensics-volatility/SKILL.md",
+      "category": "forensics",
+      "description": "Memory forensics playbook using Volatility 2/3. Use when analyzing memory dumps for malware analysis, credential extraction, process investigation, code injection detection, and incident response timeline reconstruction.",
+      "extraDocs": [
+        {
+          "lines": 226,
+          "name": "VOLATILITY_CHEATSHEET.md",
+          "path": "skills/memory-forensics-volatility/VOLATILITY_CHEATSHEET.md",
+          "size": 6443
+        }
+      ],
+      "extraLines": 226,
+      "id": "memory-forensics-volatility",
+      "name": "memory-forensics-volatility",
+      "path": "skills/memory-forensics-volatility/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/memory-forensics-volatility/SKILL.md",
+      "skillLines": 324,
+      "skillSize": 10168,
+      "tier": "deep",
+      "totalLines": 550
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/mobile-ssl-pinning-bypass/SKILL.md",
+      "category": "mobile",
+      "description": "Mobile SSL pinning bypass playbook. Use when intercepting HTTPS traffic from mobile applications that implement certificate pinning, public key pinning, or SPKI hash pinning on Android and iOS, including React Native, Flutter, and Xamarin frameworks.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "mobile-ssl-pinning-bypass",
+      "name": "mobile-ssl-pinning-bypass",
+      "path": "skills/mobile-ssl-pinning-bypass/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/mobile-ssl-pinning-bypass/SKILL.md",
+      "skillLines": 532,
+      "skillSize": 18859,
+      "tier": "deep",
+      "totalLines": 532
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/network-protocol-attacks/SKILL.md",
+      "category": "infra",
+      "description": "Network protocol attack playbook. Use when exploiting layer 2/3 protocols including ARP spoofing, LLMNR/NBT-NS/mDNS poisoning, WPAD abuse, DHCPv6 attacks, VLAN hopping, STP manipulation, DNS spoofing, IPv6 attacks, and IDS/IPS evasion.",
+      "extraDocs": [
+        {
+          "lines": 227,
+          "name": "NAME_RESOLUTION_POISONING.md",
+          "path": "skills/network-protocol-attacks/NAME_RESOLUTION_POISONING.md",
+          "size": 6431
+        }
+      ],
+      "extraLines": 227,
+      "id": "network-protocol-attacks",
+      "name": "network-protocol-attacks",
+      "path": "skills/network-protocol-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/network-protocol-attacks/SKILL.md",
+      "skillLines": 331,
+      "skillSize": 9705,
+      "tier": "deep",
+      "totalLines": 558
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/nosql-injection/SKILL.md",
+      "category": "injection",
+      "description": "NoSQL injection playbook. Use when MongoDB-style operators, JSON query objects, flexible search filters, or backend query DSLs may allow data or logic abuse.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "nosql-injection",
+      "name": "nosql-injection",
+      "path": "skills/nosql-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/nosql-injection/SKILL.md",
+      "skillLines": 342,
+      "skillSize": 9061,
+      "tier": "deep",
+      "totalLines": 342
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ntlm-relay-coercion/SKILL.md",
+      "category": "windows",
+      "description": "NTLM relay and authentication coercion playbook. Use when capturing and relaying NTLM authentication to escalate privileges via SMB, LDAP, HTTP, or MSSQL relay targets, combined with PetitPotam, PrinterBug, and other coercion methods.",
+      "extraDocs": [
+        {
+          "lines": 254,
+          "name": "COERCION_METHODS.md",
+          "path": "skills/ntlm-relay-coercion/COERCION_METHODS.md",
+          "size": 7546
+        }
+      ],
+      "extraLines": 254,
+      "id": "ntlm-relay-coercion",
+      "name": "ntlm-relay-coercion",
+      "path": "skills/ntlm-relay-coercion/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ntlm-relay-coercion/SKILL.md",
+      "skillLines": 268,
+      "skillSize": 8968,
+      "tier": "deep",
+      "totalLines": 522
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/oauth-oidc-misconfiguration/SKILL.md",
+      "category": "auth",
+      "description": "OAuth and OIDC misconfiguration testing playbook. Use when reviewing redirect URI handling, state and nonce validation, PKCE, token audience, callback binding, and identity-provider trust flaws.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "oauth-oidc-misconfiguration",
+      "name": "oauth-oidc-misconfiguration",
+      "path": "skills/oauth-oidc-misconfiguration/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/oauth-oidc-misconfiguration/SKILL.md",
+      "skillLines": 46,
+      "skillSize": 2322,
+      "tier": "deep",
+      "totalLines": 46
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/open-redirect/SKILL.md",
+      "category": "logic",
+      "description": "Open redirect playbook. Use when URL parameters, form actions, or JavaScript sinks control navigation targets and may redirect users to attacker-controlled destinations.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "open-redirect",
+      "name": "open-redirect",
+      "path": "skills/open-redirect/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/open-redirect/SKILL.md",
+      "skillLines": 381,
+      "skillSize": 11522,
+      "tier": "deep",
+      "totalLines": 381
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/path-traversal-lfi/SKILL.md",
+      "category": "file",
+      "description": "Path traversal and LFI playbook. Use when file paths, download endpoints, include operations, archive extraction, or wrapper behavior may expose filesystem control.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "path-traversal-lfi",
+      "name": "path-traversal-lfi",
+      "path": "skills/path-traversal-lfi/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/path-traversal-lfi/SKILL.md",
+      "skillLines": 802,
+      "skillSize": 24206,
+      "tier": "deep",
+      "totalLines": 802
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/prototype-pollution/SKILL.md",
+      "category": "injection",
+      "description": "Prototype pollution testing for JavaScript stacks. Use when user input is merged into objects (query parsers, JSON bodies, deep assign), when configuring libraries via untrusted keys, or when hunting RCE gadgets via polluted Object.prototype in Node or the browser.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "prototype-pollution",
+      "name": "prototype-pollution",
+      "path": "skills/prototype-pollution/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/prototype-pollution/SKILL.md",
+      "skillLines": 191,
+      "skillSize": 8994,
+      "tier": "deep",
+      "totalLines": 191
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/prototype-pollution-advanced/SKILL.md",
+      "category": "advweb",
+      "description": "Advanced prototype pollution playbook — server-side RCE, client-side gadgets, filter bypasses, and detection techniques. Companion to ../prototype-pollution/ for basics. Use when you've confirmed pollution and need to escalate to code execution or find framework-specific gadgets.",
+      "extraDocs": [
+        {
+          "lines": 254,
+          "name": "KNOWN_GADGETS.md",
+          "path": "skills/prototype-pollution-advanced/KNOWN_GADGETS.md",
+          "size": 9604
+        }
+      ],
+      "extraLines": 254,
+      "id": "prototype-pollution-advanced",
+      "name": "prototype-pollution-advanced",
+      "path": "skills/prototype-pollution-advanced/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/prototype-pollution-advanced/SKILL.md",
+      "skillLines": 339,
+      "skillSize": 11531,
+      "tier": "deep",
+      "totalLines": 593
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/race-condition/SKILL.md",
+      "category": "logic",
+      "description": "Race condition and TOCTOU testing for web apps. Use when testing one-time operations, concurrent HTTP abuse, rate-limit bypass, Turbo Intruder gates, HTTP/2 single-packet attacks, and CWE-362-style synchronization gaps.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "race-condition",
+      "name": "race-condition",
+      "path": "skills/race-condition/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/race-condition/SKILL.md",
+      "skillLines": 527,
+      "skillSize": 21618,
+      "tier": "deep",
+      "totalLines": 527
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/recon-and-methodology/SKILL.md",
+      "category": "recon",
+      "description": "Reconnaissance and methodology playbook. Use when mapping assets, discovering endpoints, fingerprinting technology, and building a structured testing plan for a new target.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "recon-and-methodology",
+      "name": "recon-and-methodology",
+      "path": "skills/recon-and-methodology/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/recon-and-methodology/SKILL.md",
+      "skillLines": 390,
+      "skillSize": 12196,
+      "tier": "deep",
+      "totalLines": 390
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/recon-for-sec/SKILL.md",
+      "category": "recon",
+      "description": "Entry P1 category router for reconnaissance and methodology. Use when mapping scope, discovering assets, fingerprinting technology, building endpoint inventory, and choosing the first high-value security testing path.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "recon-for-sec",
+      "name": "recon-for-sec",
+      "path": "skills/recon-for-sec/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/recon-for-sec/SKILL.md",
+      "skillLines": 29,
+      "skillSize": 1385,
+      "tier": "category",
+      "totalLines": 29
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/request-smuggling/SKILL.md",
+      "category": "injection",
+      "description": "HTTP request smuggling and desynchronization testing. Use when front proxies, CDNs, or load balancers disagree with the origin on message framing (Content-Length vs Transfer-Encoding), on HTTP/2→HTTP/1 translation, or when exploring client-side desync via browser fetch pipelines.",
+      "extraDocs": [
+        {
+          "lines": 499,
+          "name": "H2_SMUGGLING_VARIANTS.md",
+          "path": "skills/request-smuggling/H2_SMUGGLING_VARIANTS.md",
+          "size": 15513
+        }
+      ],
+      "extraLines": 499,
+      "id": "request-smuggling",
+      "name": "request-smuggling",
+      "path": "skills/request-smuggling/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/request-smuggling/SKILL.md",
+      "skillLines": 311,
+      "skillSize": 14375,
+      "tier": "deep",
+      "totalLines": 810
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/reverse-shell-techniques/SKILL.md",
+      "category": "infra",
+      "description": "Reverse shell techniques playbook. Use when establishing remote shells including language one-liners, encrypted shells (OpenSSL/socat/ncat), web shells, PTY upgrades, file transfer methods, PowerShell shells, and Windows payload generation.",
+      "extraDocs": [
+        {
+          "lines": 197,
+          "name": "SHELL_CHEATSHEET.md",
+          "path": "skills/reverse-shell-techniques/SHELL_CHEATSHEET.md",
+          "size": 6263
+        }
+      ],
+      "extraLines": 197,
+      "id": "reverse-shell-techniques",
+      "name": "reverse-shell-techniques",
+      "path": "skills/reverse-shell-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/reverse-shell-techniques/SKILL.md",
+      "skillLines": 291,
+      "skillSize": 8997,
+      "tier": "deep",
+      "totalLines": 488
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/rsa-attack-techniques/SKILL.md",
+      "category": "crypto",
+      "description": "RSA attack playbook for CTF and real-world cryptanalysis. Use when given RSA parameters (n, e, c) and need to recover plaintext by exploiting weak keys, small exponents, shared factors, or padding oracles.",
+      "extraDocs": [
+        {
+          "lines": 433,
+          "name": "RSA_ATTACK_CATALOG.md",
+          "path": "skills/rsa-attack-techniques/RSA_ATTACK_CATALOG.md",
+          "size": 10867
+        }
+      ],
+      "extraLines": 433,
+      "id": "rsa-attack-techniques",
+      "name": "rsa-attack-techniques",
+      "path": "skills/rsa-attack-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/rsa-attack-techniques/SKILL.md",
+      "skillLines": 438,
+      "skillSize": 12000,
+      "tier": "deep",
+      "totalLines": 871
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/saml-sso-assertion-attacks/SKILL.md",
+      "category": "auth",
+      "description": "SAML SSO assertion attack playbook. Use when testing signature validation, assertion wrapping, audience restrictions, ACS handling, XML trust boundaries, and enterprise SSO flaws.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "saml-sso-assertion-attacks",
+      "name": "saml-sso-assertion-attacks",
+      "path": "skills/saml-sso-assertion-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/saml-sso-assertion-attacks/SKILL.md",
+      "skillLines": 41,
+      "skillSize": 2000,
+      "tier": "deep",
+      "totalLines": 41
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/sandbox-escape-techniques/SKILL.md",
+      "category": "pwn",
+      "description": "Sandbox escape playbook. Use when breaking out of Python sandbox, Lua sandbox, seccomp filter, chroot jail, container/Docker, browser sandbox, or namespace isolation to achieve unrestricted code execution or file access.",
+      "extraDocs": [
+        {
+          "lines": 350,
+          "name": "PYTHON_SANDBOX_ESCAPE.md",
+          "path": "skills/sandbox-escape-techniques/PYTHON_SANDBOX_ESCAPE.md",
+          "size": 9952
+        },
+        {
+          "lines": 333,
+          "name": "SECCOMP_BYPASS.md",
+          "path": "skills/sandbox-escape-techniques/SECCOMP_BYPASS.md",
+          "size": 10036
+        }
+      ],
+      "extraLines": 683,
+      "id": "sandbox-escape-techniques",
+      "name": "sandbox-escape-techniques",
+      "path": "skills/sandbox-escape-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/sandbox-escape-techniques/SKILL.md",
+      "skillLines": 251,
+      "skillSize": 9431,
+      "tier": "deep",
+      "totalLines": 934
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/smart-contract-vulnerabilities/SKILL.md",
+      "category": "blockchain",
+      "description": "Smart contract vulnerability playbook. Use when auditing Solidity/EVM contracts for reentrancy, integer overflow, access control, delegatecall, flash loan, signature replay, and MEV-related attack patterns.",
+      "extraDocs": [
+        {
+          "lines": 461,
+          "name": "SOLIDITY_VULN_PATTERNS.md",
+          "path": "skills/smart-contract-vulnerabilities/SOLIDITY_VULN_PATTERNS.md",
+          "size": 11693
+        }
+      ],
+      "extraLines": 461,
+      "id": "smart-contract-vulnerabilities",
+      "name": "smart-contract-vulnerabilities",
+      "path": "skills/smart-contract-vulnerabilities/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/smart-contract-vulnerabilities/SKILL.md",
+      "skillLines": 315,
+      "skillSize": 12436,
+      "tier": "deep",
+      "totalLines": 776
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/sqli-sql-injection/SKILL.md",
+      "category": "injection",
+      "description": "SQL injection playbook. Use when input reaches SQL queries, authentication logic, sorting, filtering, reporting, or DB-specific blind and out-of-band execution paths.",
+      "extraDocs": [
+        {
+          "lines": 576,
+          "name": "SCENARIOS.md",
+          "path": "skills/sqli-sql-injection/SCENARIOS.md",
+          "size": 14750
+        },
+        {
+          "lines": 646,
+          "name": "SQLMAP_ADVANCED.md",
+          "path": "skills/sqli-sql-injection/SQLMAP_ADVANCED.md",
+          "size": 17699
+        }
+      ],
+      "extraLines": 1222,
+      "id": "sqli-sql-injection",
+      "name": "sqli-sql-injection",
+      "path": "skills/sqli-sql-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/sqli-sql-injection/SKILL.md",
+      "skillLines": 486,
+      "skillSize": 15043,
+      "tier": "deep",
+      "totalLines": 1708
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ssrf-server-side-request-forgery/SKILL.md",
+      "category": "injection",
+      "description": "SSRF playbook. Use when the server fetches URLs, resolves hostnames, imports remote content, or can be driven toward internal networks, cloud metadata, or secondary protocols.",
+      "extraDocs": [
+        {
+          "lines": 227,
+          "name": "SCENARIOS.md",
+          "path": "skills/ssrf-server-side-request-forgery/SCENARIOS.md",
+          "size": 7458
+        },
+        {
+          "lines": 651,
+          "name": "URL_PARSER_TRICKS.md",
+          "path": "skills/ssrf-server-side-request-forgery/URL_PARSER_TRICKS.md",
+          "size": 20899
+        }
+      ],
+      "extraLines": 878,
+      "id": "ssrf-server-side-request-forgery",
+      "name": "ssrf-server-side-request-forgery",
+      "path": "skills/ssrf-server-side-request-forgery/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ssrf-server-side-request-forgery/SKILL.md",
+      "skillLines": 324,
+      "skillSize": 11353,
+      "tier": "deep",
+      "totalLines": 1202
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/ssti-server-side-template-injection/SKILL.md",
+      "category": "injection",
+      "description": "SSTI playbook. Use when template expressions, server-side rendering, preview features, or templating engines may evaluate attacker-controlled content.",
+      "extraDocs": [
+        {
+          "lines": 457,
+          "name": "ENGINE_PAYLOADS.md",
+          "path": "skills/ssti-server-side-template-injection/ENGINE_PAYLOADS.md",
+          "size": 10457
+        },
+        {
+          "lines": 320,
+          "name": "SCENARIOS.md",
+          "path": "skills/ssti-server-side-template-injection/SCENARIOS.md",
+          "size": 9291
+        }
+      ],
+      "extraLines": 777,
+      "id": "ssti-server-side-template-injection",
+      "name": "ssti-server-side-template-injection",
+      "path": "skills/ssti-server-side-template-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/ssti-server-side-template-injection/SKILL.md",
+      "skillLines": 345,
+      "skillSize": 11672,
+      "tier": "deep",
+      "totalLines": 1122
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/stack-overflow-and-rop/SKILL.md",
+      "category": "pwn",
+      "description": "Stack overflow and ROP playbook. Use when exploiting buffer overflows to hijack control flow via return address overwrite, ROP chains, ret2libc, ret2csu, ret2dlresolve, or SROP on Linux userland binaries.",
+      "extraDocs": [
+        {
+          "lines": 250,
+          "name": "ROP_ADVANCED_TECHNIQUES.md",
+          "path": "skills/stack-overflow-and-rop/ROP_ADVANCED_TECHNIQUES.md",
+          "size": 8963
+        }
+      ],
+      "extraLines": 250,
+      "id": "stack-overflow-and-rop",
+      "name": "stack-overflow-and-rop",
+      "path": "skills/stack-overflow-and-rop/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/stack-overflow-and-rop/SKILL.md",
+      "skillLines": 305,
+      "skillSize": 11185,
+      "tier": "deep",
+      "totalLines": 555
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/steganography-techniques/SKILL.md",
+      "category": "forensics",
+      "description": "Steganography detection and extraction playbook. Use when analyzing images (LSB, PNG chunks, JPEG DCT, EXIF), audio (spectrogram, DTMF), files (polyglots, appended data, ADS), and text (whitespace, zero-width, homoglyphs) for hidden data.",
+      "extraDocs": [
+        {
+          "lines": 336,
+          "name": "STEGO_TOOLS_GUIDE.md",
+          "path": "skills/steganography-techniques/STEGO_TOOLS_GUIDE.md",
+          "size": 6646
+        }
+      ],
+      "extraLines": 336,
+      "id": "steganography-techniques",
+      "name": "steganography-techniques",
+      "path": "skills/steganography-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/steganography-techniques/SKILL.md",
+      "skillLines": 349,
+      "skillSize": 11016,
+      "tier": "deep",
+      "totalLines": 685
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/subdomain-takeover/SKILL.md",
+      "category": "advweb",
+      "description": "Subdomain takeover detection and exploitation playbook. Use when targets have dangling CNAME/NS/MX records pointing to deprovisioned cloud resources, expired third-party services, or unclaimed SaaS tenants that an attacker can register to serve content under the victim's domain.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "subdomain-takeover",
+      "name": "subdomain-takeover",
+      "path": "skills/subdomain-takeover/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/subdomain-takeover/SKILL.md",
+      "skillLines": 248,
+      "skillSize": 10857,
+      "tier": "deep",
+      "totalLines": 248
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/symbolic-execution-tools/SKILL.md",
+      "category": "re",
+      "description": "Symbolic execution and constraint solving playbook. Use when solving CTF reversing challenges, recovering keys, bypassing checks, or automating binary analysis with angr, Z3, or Unicorn Engine.",
+      "extraDocs": [
+        {
+          "lines": 438,
+          "name": "ANGR_COOKBOOK.md",
+          "path": "skills/symbolic-execution-tools/ANGR_COOKBOOK.md",
+          "size": 11155
+        }
+      ],
+      "extraLines": 438,
+      "id": "symbolic-execution-tools",
+      "name": "symbolic-execution-tools",
+      "path": "skills/symbolic-execution-tools/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/symbolic-execution-tools/SKILL.md",
+      "skillLines": 420,
+      "skillSize": 12398,
+      "tier": "deep",
+      "totalLines": 858
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/symmetric-cipher-attacks/SKILL.md",
+      "category": "crypto",
+      "description": "Symmetric cipher attack playbook. Use when exploiting block cipher mode weaknesses (CBC padding oracle, ECB cut-and-paste, bit flipping), stream cipher key reuse, or meet-in-the-middle attacks.",
+      "extraDocs": [
+        {
+          "lines": 365,
+          "name": "BLOCK_CIPHER_ATTACKS.md",
+          "path": "skills/symmetric-cipher-attacks/BLOCK_CIPHER_ATTACKS.md",
+          "size": 10785
+        }
+      ],
+      "extraLines": 365,
+      "id": "symmetric-cipher-attacks",
+      "name": "symmetric-cipher-attacks",
+      "path": "skills/symmetric-cipher-attacks/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/symmetric-cipher-attacks/SKILL.md",
+      "skillLines": 463,
+      "skillSize": 14622,
+      "tier": "deep",
+      "totalLines": 828
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/traffic-analysis-pcap/SKILL.md",
+      "category": "forensics",
+      "description": "Traffic analysis and PCAP forensics playbook. Use when analyzing network captures including Wireshark filters, protocol analysis (HTTP/DNS/FTP/SMTP/USB/WiFi), data extraction, covert channel detection, PCAP repair, TLS decryption, and tshark command-line analysis.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "traffic-analysis-pcap",
+      "name": "traffic-analysis-pcap",
+      "path": "skills/traffic-analysis-pcap/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/traffic-analysis-pcap/SKILL.md",
+      "skillLines": 342,
+      "skillSize": 11821,
+      "tier": "deep",
+      "totalLines": 342
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/tunneling-and-pivoting/SKILL.md",
+      "category": "infra",
+      "description": "Tunneling and pivoting playbook. Use when establishing network tunnels through compromised hosts including SSH tunneling, Chisel, Ligolo-ng, socat, DNS/ICMP/HTTP tunneling, ProxyChains, and multi-layer pivoting strategies.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "tunneling-and-pivoting",
+      "name": "tunneling-and-pivoting",
+      "path": "skills/tunneling-and-pivoting/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/tunneling-and-pivoting/SKILL.md",
+      "skillLines": 344,
+      "skillSize": 9322,
+      "tier": "deep",
+      "totalLines": 344
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/type-juggling/SKILL.md",
+      "category": "injection",
+      "description": "PHP type juggling and weak comparison (`==`) bypass. Use when authentication, HMAC/signature checks, or token validation uses loose equality, numeric coercion, or hash comparisons without strict types — common in legacy PHP and CTF-style code paths.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "type-juggling",
+      "name": "type-juggling",
+      "path": "skills/type-juggling/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/type-juggling/SKILL.md",
+      "skillLines": 292,
+      "skillSize": 11701,
+      "tier": "deep",
+      "totalLines": 292
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/unauthorized-access-common-services/SKILL.md",
+      "category": "infra",
+      "description": "Unauthorized access playbook for common exposed services. Use when Redis, Rsync, PHP-FPM, AJP/Ghostcat, Hadoop YARN, H2 Console, or similar management interfaces are exposed without authentication.",
+      "extraDocs": [
+        {
+          "lines": 341,
+          "name": "PORT_SERVICE_MATRIX.md",
+          "path": "skills/unauthorized-access-common-services/PORT_SERVICE_MATRIX.md",
+          "size": 8315
+        }
+      ],
+      "extraLines": 341,
+      "id": "unauthorized-access-common-services",
+      "name": "unauthorized-access-common-services",
+      "path": "skills/unauthorized-access-common-services/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/unauthorized-access-common-services/SKILL.md",
+      "skillLines": 390,
+      "skillSize": 10074,
+      "tier": "deep",
+      "totalLines": 731
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/upload-insecure-files/SKILL.md",
+      "category": "file",
+      "description": "Insecure file upload playbook. Use when testing upload validation, storage paths, processing pipelines, preview behavior, overwrite risks, and upload-to-RCE chains.",
+      "extraDocs": [
+        {
+          "lines": 159,
+          "name": "SCENARIOS.md",
+          "path": "skills/upload-insecure-files/SCENARIOS.md",
+          "size": 4047
+        }
+      ],
+      "extraLines": 159,
+      "id": "upload-insecure-files",
+      "name": "upload-insecure-files",
+      "path": "skills/upload-insecure-files/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/upload-insecure-files/SKILL.md",
+      "skillLines": 542,
+      "skillSize": 17984,
+      "tier": "deep",
+      "totalLines": 701
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/vm-and-bytecode-reverse/SKILL.md",
+      "category": "re",
+      "description": "Custom VM and bytecode reverse engineering playbook. Use when CTF challenges or protected software implement custom virtual machines with proprietary bytecode, dispatcher loops, or maze-style challenges.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "vm-and-bytecode-reverse",
+      "name": "vm-and-bytecode-reverse",
+      "path": "skills/vm-and-bytecode-reverse/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/vm-and-bytecode-reverse/SKILL.md",
+      "skillLines": 451,
+      "skillSize": 14951,
+      "tier": "deep",
+      "totalLines": 451
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/waf-bypass-techniques/SKILL.md",
+      "category": "advweb",
+      "description": "WAF bypass methodology and generic evasion techniques. Use when a web application firewall blocks injection payloads (SQLi, XSS, RCE) and you need to craft bypasses using encoding, protocol-level tricks, or WAF-specific weaknesses.",
+      "extraDocs": [
+        {
+          "lines": 203,
+          "name": "WAF_PRODUCT_MATRIX.md",
+          "path": "skills/waf-bypass-techniques/WAF_PRODUCT_MATRIX.md",
+          "size": 9911
+        }
+      ],
+      "extraLines": 203,
+      "id": "waf-bypass-techniques",
+      "name": "waf-bypass-techniques",
+      "path": "skills/waf-bypass-techniques/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/waf-bypass-techniques/SKILL.md",
+      "skillLines": 290,
+      "skillSize": 10480,
+      "tier": "deep",
+      "totalLines": 493
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/web-cache-deception/SKILL.md",
+      "category": "logic",
+      "description": "Web cache deception and poisoning playbook. Use when CDN, reverse proxy, or application caching may serve sensitive authenticated content to other users due to path confusion or cache key manipulation.",
+      "extraDocs": [
+        {
+          "lines": 638,
+          "name": "CACHE_POISONING_TECHNIQUES.md",
+          "path": "skills/web-cache-deception/CACHE_POISONING_TECHNIQUES.md",
+          "size": 18104
+        }
+      ],
+      "extraLines": 638,
+      "id": "web-cache-deception",
+      "name": "web-cache-deception",
+      "path": "skills/web-cache-deception/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/web-cache-deception/SKILL.md",
+      "skillLines": 223,
+      "skillSize": 6693,
+      "tier": "deep",
+      "totalLines": 861
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/websocket-security/SKILL.md",
+      "category": "infra",
+      "description": "WebSocket handshake, CSWSH, tooling (wsrepl, ws-harness, Burp), and common flaws. Use when apps use real-time channels, chat, notifications, or WS-backed APIs.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "websocket-security",
+      "name": "websocket-security",
+      "path": "skills/websocket-security/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/websocket-security/SKILL.md",
+      "skillLines": 455,
+      "skillSize": 14098,
+      "tier": "deep",
+      "totalLines": 455
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-av-evasion/SKILL.md",
+      "category": "windows",
+      "description": "AV/EDR evasion playbook for Windows. Use when bypassing AMSI, ETW, .NET assembly detection, shellcode execution, process injection, API hooking, and signature-based detection on Windows endpoints.",
+      "extraDocs": [
+        {
+          "lines": 290,
+          "name": "AMSI_BYPASS_TECHNIQUES.md",
+          "path": "skills/windows-av-evasion/AMSI_BYPASS_TECHNIQUES.md",
+          "size": 8939
+        }
+      ],
+      "extraLines": 290,
+      "id": "windows-av-evasion",
+      "name": "windows-av-evasion",
+      "path": "skills/windows-av-evasion/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-av-evasion/SKILL.md",
+      "skillLines": 343,
+      "skillSize": 11832,
+      "tier": "deep",
+      "totalLines": 633
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-lateral-movement/SKILL.md",
+      "category": "windows",
+      "description": "Windows lateral movement playbook. Use when pivoting between Windows hosts via PsExec, WMI, WinRM, DCOM, RDP, pass-the-hash, overpass-the-hash, or pass-the-ticket techniques.",
+      "extraDocs": [
+        {
+          "lines": 309,
+          "name": "CREDENTIAL_DUMPING.md",
+          "path": "skills/windows-lateral-movement/CREDENTIAL_DUMPING.md",
+          "size": 8751
+        }
+      ],
+      "extraLines": 309,
+      "id": "windows-lateral-movement",
+      "name": "windows-lateral-movement",
+      "path": "skills/windows-lateral-movement/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-lateral-movement/SKILL.md",
+      "skillLines": 336,
+      "skillSize": 10137,
+      "tier": "deep",
+      "totalLines": 645
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/windows-privilege-escalation/SKILL.md",
+      "category": "windows",
+      "description": "Windows local privilege escalation playbook. Use when you have low-privilege shell access on Windows and need to escalate via token abuse, Potato exploits, service misconfigurations, DLL hijacking, UAC bypass, or registry autoruns.",
+      "extraDocs": [
+        {
+          "lines": 217,
+          "name": "TOKEN_POTATO_TRICKS.md",
+          "path": "skills/windows-privilege-escalation/TOKEN_POTATO_TRICKS.md",
+          "size": 7366
+        },
+        {
+          "lines": 226,
+          "name": "UAC_BYPASS_METHODS.md",
+          "path": "skills/windows-privilege-escalation/UAC_BYPASS_METHODS.md",
+          "size": 8394
+        }
+      ],
+      "extraLines": 443,
+      "id": "windows-privilege-escalation",
+      "name": "windows-privilege-escalation",
+      "path": "skills/windows-privilege-escalation/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/windows-privilege-escalation/SKILL.md",
+      "skillLines": 329,
+      "skillSize": 10789,
+      "tier": "deep",
+      "totalLines": 772
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xslt-injection/SKILL.md",
+      "category": "injection",
+      "description": "XSLT injection testing: processor fingerprinting, XXE and document() SSRF, EXSLT write primitives, PHP/Java/.NET extension RCE surfaces. Use when user-controlled XSLT/stylesheet input or transform endpoints are in scope.",
+      "extraDocs": [],
+      "extraLines": 0,
+      "id": "xslt-injection",
+      "name": "xslt-injection",
+      "path": "skills/xslt-injection/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xslt-injection/SKILL.md",
+      "skillLines": 282,
+      "skillSize": 10407,
+      "tier": "deep",
+      "totalLines": 282
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xss-cross-site-scripting/SKILL.md",
+      "category": "injection",
+      "description": "XSS playbook. Use when user-controlled content reaches HTML, attributes, JavaScript, DOM sinks, uploads, or multi-context rendering paths.",
+      "extraDocs": [
+        {
+          "lines": 277,
+          "name": "ADVANCED_XSS_TRICKS.md",
+          "path": "skills/xss-cross-site-scripting/ADVANCED_XSS_TRICKS.md",
+          "size": 8959
+        },
+        {
+          "lines": 279,
+          "name": "SCENARIOS.md",
+          "path": "skills/xss-cross-site-scripting/SCENARIOS.md",
+          "size": 8736
+        }
+      ],
+      "extraLines": 556,
+      "id": "xss-cross-site-scripting",
+      "name": "xss-cross-site-scripting",
+      "path": "skills/xss-cross-site-scripting/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xss-cross-site-scripting/SKILL.md",
+      "skillLines": 380,
+      "skillSize": 13420,
+      "tier": "deep",
+      "totalLines": 936
+    },
+    {
+      "blobUrl": "https://github.com/yaklang/hack-skills/blob/main/skills/xxe-xml-external-entity/SKILL.md",
+      "category": "injection",
+      "description": "XXE playbook. Use when XML, SVG, OOXML, SOAP, or parser-driven imports may resolve external entities, files, or internal network resources.",
+      "extraDocs": [
+        {
+          "lines": 113,
+          "name": "SCENARIOS.md",
+          "path": "skills/xxe-xml-external-entity/SCENARIOS.md",
+          "size": 3046
+        }
+      ],
+      "extraLines": 113,
+      "id": "xxe-xml-external-entity",
+      "name": "xxe-xml-external-entity",
+      "path": "skills/xxe-xml-external-entity/SKILL.md",
+      "rawUrl": "https://raw.githubusercontent.com/yaklang/hack-skills/main/skills/xxe-xml-external-entity/SKILL.md",
+      "skillLines": 555,
+      "skillSize": 16250,
+      "tier": "deep",
+      "totalLines": 668
+    }
+  ],
+  "tierCounts": {
+    "category": 6,
+    "deep": 94,
+    "master": 1
+  },
+  "totalCategories": 18,
+  "totalLines": 49121,
+  "totalSize": 1093804,
+  "totalSkills": 101,
+  "version": "dev-local"
+}

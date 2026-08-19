@@ -1,0 +1,237 @@
+# HackSkills 分类映射 - 单一真相源
+# 关键词: categories, single source of truth, skill grouping
+#
+# 维护规则:
+# 1. skills/ 下新增目录后, 必须在这里登记到合适分类, 否则 build-skills-index.yak 会报错
+# 2. id 用于 URL hash 锚点和过滤参数, 必须 ASCII 短横线
+# 3. order 决定分类在主页的展示顺序
+# 4. tier 三档:
+#    - master:   顶层路由 (只有 hack)
+#    - category: 分类入口 (xxx-sec / 检索类路由)
+#    - deep:     具体攻击主题
+# 5. 分类内的 skills 顺序与 README.md 中各表保持一致, 便于 grep 对照
+
+categories:
+  - id: recon
+    name: Reconnaissance & Methodology
+    order: 1
+    description: 信息收集 / 方法论 / 全局路由
+    skills:
+      - hack
+      - recon-for-sec
+      - recon-and-methodology
+
+  - id: api
+    name: API Security
+    order: 2
+    description: REST / GraphQL / 移动后端
+    skills:
+      - api-sec
+      - api-recon-and-docs
+      - api-authorization-and-bola
+      - api-auth-and-jwt-abuse
+      - graphql-and-hidden-parameters
+
+  - id: auth
+    name: Authentication & Authorization
+    order: 3
+    description: 认证 / 会话 / 授权 / 令牌
+    skills:
+      - auth-sec
+      - authbypass-authentication-flaws
+      - jwt-oauth-token-attacks
+      - oauth-oidc-misconfiguration
+      - saml-sso-assertion-attacks
+      - idor-broken-object-authorization
+
+  - id: injection
+    name: Injection Attacks
+    order: 4
+    description: XSS / SQLi / SSRF / SSTI / 反序列化等
+    skills:
+      - injection-checking
+      - xss-cross-site-scripting
+      - sqli-sql-injection
+      - ssrf-server-side-request-forgery
+      - ssti-server-side-template-injection
+      - cmdi-command-injection
+      - nosql-injection
+      - xxe-xml-external-entity
+      - deserialization-insecure
+      - ghost-bits-cast-attack
+      - expression-language-injection
+      - jndi-injection
+      - crlf-injection
+      - request-smuggling
+      - prototype-pollution
+      - type-juggling
+      - http-parameter-pollution
+      - xslt-injection
+      - csv-formula-injection
+
+  - id: file
+    name: File & Path Attacks
+    order: 5
+    description: 上传 / 下载 / LFI / 路径穿越
+    skills:
+      - file-access-vuln
+      - path-traversal-lfi
+      - upload-insecure-files
+
+  - id: logic
+    name: Business Logic & Session
+    order: 6
+    description: 业务逻辑 / 竞争 / 会话攻击
+    skills:
+      - business-logic-vuln
+      - business-logic-vulnerabilities
+      - race-condition
+      - csrf-cross-site-request-forgery
+      - clickjacking
+      - cors-cross-origin-misconfiguration
+      - open-redirect
+      - web-cache-deception
+
+  - id: advweb
+    name: Advanced Web Security
+    order: 7
+    description: WAF / CSP / 子域接管 / HTTP/2
+    skills:
+      - subdomain-takeover
+      - waf-bypass-techniques
+      - csp-bypass-advanced
+      - http-host-header-attacks
+      - dangling-markup-injection
+      - dns-rebinding-attacks
+      - email-header-injection
+      - http2-specific-attacks
+      - prototype-pollution-advanced
+      - 401-403-bypass-techniques
+
+  - id: infra
+    name: Infrastructure & Network
+    order: 8
+    description: 基础设施 / 网络协议 / 隧道
+    skills:
+      - unauthorized-access-common-services
+      - insecure-source-code-management
+      - dependency-confusion
+      - websocket-security
+      - network-protocol-attacks
+      - tunneling-and-pivoting
+      - reverse-shell-techniques
+
+  - id: linux
+    name: Linux & Container Security
+    order: 9
+    description: Linux 提权 / 容器逃逸 / Kubernetes
+    skills:
+      - linux-privilege-escalation
+      - container-escape-techniques
+      - linux-security-bypass
+      - linux-lateral-movement
+      - kubernetes-pentesting
+
+  - id: windows
+    name: Windows & Active Directory
+    order: 10
+    description: Windows 提权 / AD / Kerberos / NTLM
+    skills:
+      - windows-privilege-escalation
+      - active-directory-kerberos-attacks
+      - active-directory-acl-abuse
+      - active-directory-certificate-services
+      - ntlm-relay-coercion
+      - windows-lateral-movement
+      - windows-av-evasion
+
+  - id: macos
+    name: macOS Security
+    order: 11
+    description: macOS 安全绕过 / 进程注入
+    skills:
+      - macos-security-bypass
+      - macos-process-injection
+
+  - id: mobile
+    name: Mobile Security
+    order: 12
+    description: Android / iOS / SSL Pinning
+    skills:
+      - android-pentesting-tricks
+      - ios-pentesting-tricks
+      - mobile-ssl-pinning-bypass
+
+  - id: pwn
+    name: Binary Exploitation (Pwn)
+    order: 13
+    description: 栈溢出 / 堆 / 内核 / 浏览器 V8
+    skills:
+      - stack-overflow-and-rop
+      - heap-exploitation
+      - format-string-exploitation
+      - kernel-exploitation
+      - browser-exploitation-v8
+      - sandbox-escape-techniques
+      - binary-protection-bypass
+      - arbitrary-write-to-rce
+
+  - id: re
+    name: Reverse Engineering
+    order: 14
+    description: 反调试 / 混淆 / 符号执行 / VM 字节码
+    skills:
+      - anti-debugging-techniques
+      - code-obfuscation-deobfuscation
+      - symbolic-execution-tools
+      - vm-and-bytecode-reverse
+
+  - id: crypto
+    name: Cryptography Attacks
+    order: 15
+    description: RSA / 对称 / 格 / Hash / 古典
+    skills:
+      - rsa-attack-techniques
+      - symmetric-cipher-attacks
+      - lattice-crypto-attacks
+      - hash-attack-techniques
+      - classical-cipher-analysis
+
+  - id: blockchain
+    name: Blockchain & Smart Contract
+    order: 16
+    description: 智能合约 / DeFi / MEV
+    skills:
+      - smart-contract-vulnerabilities
+      - defi-attack-patterns
+
+  - id: ai
+    name: AI/ML & LLM Security
+    order: 17
+    description: Prompt 注入 / RAG / 模型供应链
+    skills:
+      - llm-prompt-injection
+      - ai-ml-security
+
+  - id: forensics
+    name: Forensics & Steganography
+    order: 18
+    description: 内存取证 / 隐写 / 流量分析
+    skills:
+      - memory-forensics-volatility
+      - steganography-techniques
+      - traffic-analysis-pcap
+
+# 关键词: tier override - 用于覆盖默认推断 (如果 SKILL 名字不符合规则)
+# 规则:
+#   - hack -> master
+#   - 名字以 -sec 结尾, 或在白名单中 -> category
+#   - 其他 -> deep
+tier_overrides:
+  hack: master
+  recon-for-sec: category
+  api-sec: category
+  auth-sec: category
+  injection-checking: category
+  file-access-vuln: category
+  business-logic-vuln: category

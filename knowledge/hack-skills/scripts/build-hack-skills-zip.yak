@@ -1,0 +1,251 @@
+// =============================================================================
+// hack-skills 加密打包脚本
+// 功能: 递归收集 skills/ 目录下的 SKILL 内容（仅 .md 文件），
+//       使用 AES-256 加密压缩为单个 zip 文件
+// 用途: GitHub Actions CI 中的打包步骤，发布到 OSS 供下游消费
+//
+// =============================================================================
+// 关于"加密"的目的（重要说明，请先读完再修改）
+// -----------------------------------------------------------------------------
+// 此处所谓"加密"并非用于安全保密。本仓库的内容（攻防/红队相关 SKILL 文档）
+// 在打包后通过公网 OSS 分发，部分杀软 / EDR / 浏览器安全引擎会基于关键词或
+// 启发式特征对 zip 内容进行扫描，从而把整包标记为可疑文件，导致：
+//   1. 终端杀软误删用户已下载的 zip
+//   2. 公司代理 / 出网网关在传输过程中拦截
+//   3. 企业 EDR 对解压目录内的 .md 文件持续告警
+// 因此我们使用 AES-256 加密 + 一个 *固定的、对所有用户公开的* 密码，把 zip
+// 包变成 "不可被简单扫描内容" 的密文，从而让杀软不会在传输/落盘时直接命中。
+// 设计原则:
+//   - 密码是一个公开常量（DEFAULT_PASSWORD）
+//   - 文档 / README / 调用方都需要明示密码 = "hack-skills"
+//   - 这不是访问控制，目的只是绕开内容启发式扫描
+// 关键词: 反杀软误报, 内容启发式扫描绕过, 公开密码, AES256, 非安全加密
+// =============================================================================
+
+// 公开的固定打包密码
+// 关键词: DEFAULT_PASSWORD, 公开密码常量
+DEFAULT_PASSWORD = "hack-skills"
+
+// CLI 参数定义
+// 关键词: cli.String, 命令行参数解析
+output_zip = cli.String("output", cli.setDefault("hack-skills.zip"), cli.setHelp("output zip file path"))
+// password 默认使用公开常量 hack-skills，仅在极特殊情况下才覆盖
+// 关键词: 默认密码, hack-skills 常量
+password = cli.String("password", cli.setDefault(DEFAULT_PASSWORD), cli.setHelp("zip encryption password (default: hack-skills, public constant for AV-evasion only)"))
+src_dir = cli.String("src", cli.setDefault("skills"), cli.setHelp("source directory to pack"))
+// version 字符串将被写入 zip 根级 version.txt，作为 yaklang thirdparty_bin 的 IsInstalled 锚点
+// 关键词: --version 参数, version.txt manifest, IsInstalled anchor, thirdparty_bin
+version_str = cli.String("version", cli.setDefault("dev"), cli.setHelp("version string written into zip-internal version.txt manifest, also acts as yaklang thirdparty_bin IsInstalled anchor"))
+cli.check()
+
+assert password != "", "password must not be empty"
+assert version_str != "", "version string must not be empty"
+
+// 解析项目根目录与源目录
+// 关键词: os.Getwd, file.Join, 路径计算
+project_root = os.Getwd()~
+log.info("project root: %s", project_root)
+
+src_path = src_dir
+if !file.IsAbs(src_dir) {
+    src_path = file.Join(project_root, src_dir)
+}
+assert file.IsDir(src_path), f"source directory not found: ${src_path}"
+log.info("source directory: %s", src_path)
+log.info("output zip: %s", output_zip)
+
+// 文件类型过滤规则
+// 关键词: 文件过滤, 仅保留 markdown
+allowed_extensions = [".md"]
+
+// 路径黑名单（排除隐藏文件、系统文件）
+// 关键词: 黑名单, 排除规则, .DS_Store
+excluded_basenames = [".DS_Store", "Thumbs.db", ".gitkeep"]
+
+func isExcludedBasename(name) {
+    for bad in excluded_basenames {
+        if name == bad {
+            return true
+        }
+    }
+    return false
+}
+
+func isAllowedExtension(ext) {
+    for target in allowed_extensions {
+        if ext == target {
+            return true
+        }
+    }
+    return false
+}
+
+// 收集文件到内存映射，key 为 zip 内的相对路径
+// 关键词: filesys.Recursive, file.ReadFile, zip 内部路径
+collected_files = {}
+total_files = 0
+total_size = 0
+skipped_count = 0
+
+err = filesys.Recursive(src_path,
+    filesys.onFileStat((file_path, info) => {
+        basename = file.GetBase(file_path)
+        if isExcludedBasename(basename) {
+            skipped_count++
+            return nil
+        }
+        ext = file.GetExt(file_path)
+        if !isAllowedExtension(ext) {
+            skipped_count++
+            return nil
+        }
+
+        content, read_err = file.ReadFile(file_path)
+        if read_err != nil {
+            log.error("failed to read file %s: %v", file_path, read_err)
+            return nil
+        }
+
+        // 在 zip 中保留 skills/ 前缀，使用相对项目根的路径
+        rel_path = str.TrimPrefix(file_path, project_root + "/")
+        // 强制使用正斜杠，兼容 windows 出现的反斜杠
+        rel_path = str.ReplaceAll(rel_path, "\\", "/")
+
+        collected_files[rel_path] = string(content)
+        total_files++
+        total_size += len(content)
+        log.info("collected: %s (%d bytes)", rel_path, len(content))
+        return nil
+    })
+)
+
+if err != nil {
+    log.error("recursive scan failed: %v", err)
+    assert false, f"scan failed: ${err}"
+}
+
+log.info("collected %d files, skipped %d non-skill entries", total_files, skipped_count)
+assert total_files > 0, "no skill markdown collected, refuse to build empty zip"
+assert total_size > 0, "total content size must be greater than zero"
+
+// 注入根级 version.txt manifest
+// 这个文件 *不是* 普通业务内容，而是 yaklang thirdparty_bin 的 IsInstalled 锚点：
+// 解压后位于 ~/yakit-projects/ai-skills/hack-skills/version.txt，bin_cfg.yml 把它作为
+// bin_path 探测目标（GetFirstExistedFile 会跳过目录，必须是真实文件）。
+// 同时也方便用户/CI 在本地直接 cat 出当前安装版本号。
+// 关键词: version.txt manifest, IsInstalled anchor, thirdparty_bin bin_path, 根级 manifest
+manifest_payload = version_str + "\n"
+collected_files["version.txt"] = manifest_payload
+total_size += len(manifest_payload)
+log.info("injected manifest: version.txt (%d bytes, version=%s)", len(manifest_payload), version_str)
+
+// AES-256 加密压缩
+// 关键词: zip.CompressRawWithPassword, AES256, 加密压缩
+log.info("compressing with AES-256 encryption")
+start_time = time.Now()
+encrypted_data, compress_err = zip.CompressRawWithPassword(collected_files, password, zip.AES256)
+if compress_err != nil {
+    log.error("encrypted compression failed: %v", compress_err)
+    assert false, f"compression failed: ${compress_err}"
+}
+duration = time.Now().Sub(start_time)
+
+compressed_size = len(encrypted_data)
+log.info("compression completed in %v", duration)
+log.info("original size: %d bytes", total_size)
+log.info("compressed size: %d bytes", compressed_size)
+
+assert compressed_size > 0, "encrypted data must not be empty"
+
+// 写出 zip 文件
+// 关键词: file.Save, zip 输出
+save_err = file.Save(output_zip, encrypted_data)
+if save_err != nil {
+    log.error("failed to save zip file: %v", save_err)
+    assert false, f"save failed: ${save_err}"
+}
+assert file.IsFile(output_zip), f"output file should exist: ${output_zip}"
+
+saved_size = len(file.ReadFile(output_zip)~)
+assert saved_size == compressed_size, f"saved size mismatch: expected ${compressed_size} got ${saved_size}"
+log.info("zip file saved: %s (%d bytes)", output_zip, saved_size)
+
+// 回环验证：使用同一密码尝试解压一个文件，校验加密是否生效
+// 关键词: zip.ExtractFileFromRawWithOptions, 加密回环验证
+log.info("verifying encryption by extracting one entry with password")
+sample_key = ""
+for k, _ in collected_files {
+    sample_key = k
+    break
+}
+assert sample_key != "", "sample entry must be selected for verification"
+
+extracted_bytes, extract_err = zip.ExtractFileFromRawWithOptions(encrypted_data, sample_key,
+    zip.extractPassword(password),
+)
+if extract_err != nil {
+    log.error("verification extract failed: %v", extract_err)
+    assert false, f"verification extract failed: ${extract_err}"
+}
+assert string(extracted_bytes) == collected_files[sample_key], "extracted content must match original"
+log.info("verification ok: %s extracted with correct password", sample_key)
+
+// 额外验证：根级 version.txt 必须能用同密码解出，且内容等于 --version 入参
+// 关键词: version.txt 锚点验证, IsInstalled anchor 自检
+manifest_bytes, manifest_err = zip.ExtractFileFromRawWithOptions(encrypted_data, "version.txt",
+    zip.extractPassword(password),
+)
+if manifest_err != nil {
+    log.error("manifest version.txt verification failed: %v", manifest_err)
+    assert false, f"manifest extract failed: ${manifest_err}"
+}
+assert string(manifest_bytes) == manifest_payload, "version.txt content must equal --version argument plus newline"
+log.info("manifest ok: version.txt content == %q", string(manifest_bytes))
+
+// 反向验证：错误密码应当失败（任意一个：解压报错，或返回内容不一致）
+// 关键词: 反向验证, 错误密码失败检查
+wrong_password = password + "_wrong"
+defer func {
+    err = recover()
+    if err != nil {
+        log.info("expected failure when using wrong password: %v", err)
+    }
+}
+wrong_bytes, wrong_err = zip.ExtractFileFromRawWithOptions(encrypted_data, sample_key,
+    zip.extractPassword(wrong_password),
+)
+if wrong_err == nil && string(wrong_bytes) == collected_files[sample_key] {
+    assert false, "wrong password should not decrypt content correctly"
+} else {
+    log.info("wrong password rejected as expected (err=%v, contentMatched=%v)", wrong_err, string(wrong_bytes) == collected_files[sample_key])
+}
+
+// 输出统计摘要
+// 关键词: 摘要统计, 文件数量, 文件夹分布
+folder_stats = {}
+for file_path, _ in collected_files {
+    parts = str.Split(file_path, "/")
+    if len(parts) >= 2 {
+        bucket = parts[0] + "/" + parts[1]
+        if folder_stats[bucket] == nil {
+            folder_stats[bucket] = 0
+        }
+        folder_stats[bucket] = folder_stats[bucket] + 1
+    }
+}
+
+log.info("=== build summary ===")
+log.info("total files: %d (incl. version.txt manifest)", total_files+1)
+log.info("skill files: %d", total_files)
+log.info("manifest version: %s", version_str)
+log.info("original size: %d bytes", total_size)
+log.info("compressed size: %d bytes", compressed_size)
+log.info("output: %s", output_zip)
+// 密码本身是公开常量，直接打印明文以便下游验证
+// 关键词: 公开密码打印, 非保密
+log.info("encryption: AES-256 (public password=%q, purpose=anti-AV-false-positive)", password)
+log.info("=== folder distribution (top buckets) ===")
+for bucket, count in folder_stats {
+    log.info("  %s: %d files", bucket, count)
+}
+log.info("hack-skills zip build completed successfully")

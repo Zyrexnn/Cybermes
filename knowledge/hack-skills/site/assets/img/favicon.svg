@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- HackSkills favicon: hacker hexagon shield + ox horns + terminal prompt (Yaklang ecosystem) -->
+  <rect width="32" height="32" rx="6.5" fill="#0a0a0a"/>
+  <g fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- hexagon shield -->
+    <path d="M16 4.5 L26 10 L26 21 L16 26.5 L6 21 L6 10 Z"/>
+    <!-- horns growing up from the top of the hexagon -->
+    <path d="M11.5 10.5 C 9 9, 8 6.5, 8.8 4"/>
+    <path d="M20.5 10.5 C 23 9, 24 6.5, 23.2 4"/>
+    <!-- command prompt: chevron + underscore -->
+    <polyline points="12.5,14.5 15,16.5 12.5,18.5"/>
+    <line x1="17" y1="18.7" x2="21" y2="18.7"/>
+  </g>
+</svg>

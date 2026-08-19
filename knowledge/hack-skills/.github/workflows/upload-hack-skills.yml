@@ -1,0 +1,374 @@
+name: Upload Hack Skills to OSS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/**'
+      - 'scripts/build-hack-skills-zip.yak'
+      - '.github/workflows/upload-hack-skills.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: upload-hack-skills
+  cancel-in-progress: false
+
+# =============================================================================
+# 关于 ZIP_PASSWORD 是公开常量的说明（务必先读再改）
+# -----------------------------------------------------------------------------
+# 本仓库分发的是攻防/红队相关 SKILL 文档。直接以明文 zip 走公网 CDN 时，
+# 经常被杀软 / EDR / 浏览器安全引擎按关键词命中并拦截、删除或告警。
+# 我们用 AES-256 + 一个对外公开的固定密码 hack-skills 把 zip 包变成
+# 不可被简单扫描的密文，仅用于绕过内容启发式特征扫描，不用作访问控制。
+# 因此:
+#   - 密码必须是公开常量, 任何使用方都被告知密码 = hack-skills
+#   - 不要使用 ::add-mask:: 隐藏密码
+#   - 文档/README/调用方都要明示这一点
+# 关键词: anti-AV false positive, public password, AES256, no access control
+# =============================================================================
+env:
+  YAK_VERSION: 1.4.7-alpha0428-1
+  OSS_BUCKET: yaklang
+  OSS_ENDPOINT: oss-accelerate.aliyuncs.com
+  OSS_ROOT: hack-skills
+  ZIP_BASENAME: hack-skills.zip
+  # 公开打包密码 - 仅用于反杀软误报, 非保密用途
+  # 关键词: ZIP_PASSWORD 公开常量, hack-skills
+  ZIP_PASSWORD: hack-skills
+  # 下游消费用的 CDN 域名（验证步骤会逐一回源 HEAD 检查）
+  # 关键词: CDN 域名, 多域名验证, oss-qn, aliyun-oss
+  CDN_DOMAINS: "oss-qn.yaklang.com aliyun-oss.yaklang.com"
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Compute version metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          # 版本号：YYYYMMDD(Asia/Shanghai)-shortSha
+          # 注意: 这里仅用于 OSS 路径分版本归档, 与 zip 加密密码无关
+          # 关键词: 版本号格式, 日期+短SHA, 路径归档
+          BUILD_DATE=$(TZ=Asia/Shanghai date +%Y%m%d)
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          VERSION="${BUILD_DATE}-${SHORT_SHA}"
+          BUILD_TIME_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BUILD_TIME_SH=$(TZ=Asia/Shanghai date +"%Y-%m-%d %H:%M:%S %Z")
+
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "build_time_utc=${BUILD_TIME_UTC}" >> "${GITHUB_OUTPUT}"
+          echo "build_time_sh=${BUILD_TIME_SH}" >> "${GITHUB_OUTPUT}"
+
+          echo "============================================"
+          echo "Trigger:         ${{ github.event_name }}"
+          echo "Branch:          ${{ github.ref }}"
+          echo "Commit:          ${GITHUB_SHA}"
+          echo "Short SHA:       ${SHORT_SHA}"
+          echo "Version:         ${VERSION}"
+          echo "Build time UTC:  ${BUILD_TIME_UTC}"
+          echo "Build time SH:   ${BUILD_TIME_SH}"
+          echo "ZIP password:    ${ZIP_PASSWORD}  (PUBLIC constant, anti-AV-false-positive only)"
+          echo "============================================"
+
+      - name: Download Yak engine v${{ env.YAK_VERSION }}
+        run: |
+          set -euo pipefail
+          YAK_URL="https://yaklang.oss-accelerate.aliyuncs.com/yak/${YAK_VERSION}/yak_linux_amd64"
+          echo "Downloading yak engine: ${YAK_URL}"
+          # 重试三次防止网络抖动
+          ATTEMPT=0
+          MAX_ATTEMPTS=3
+          while [ "${ATTEMPT}" -lt "${MAX_ATTEMPTS}" ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if curl -fL --retry 3 --retry-delay 5 -o ./yak "${YAK_URL}"; then
+              break
+            fi
+            echo "attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed, retrying..."
+            sleep 5
+          done
+          test -f ./yak
+          chmod +x ./yak
+          ls -lh ./yak
+          file ./yak
+          ./yak version || echo "Note: 'yak version' is not critical to the build."
+
+      - name: Build hack-skills zip (AES-256 with public password for AV-evasion)
+        run: |
+          set -euo pipefail
+          echo "=== Building hack-skills zip ==="
+          # 加密目的: 仅为绕过杀软对明文 .md 的内容启发式扫描
+          # 密码 hack-skills 是公开常量, 详见 workflow 顶部 env 注释
+          # --version 写入 zip 内 version.txt manifest, 同时也是 yaklang
+          # thirdparty_bin install 的 IsInstalled anchor (bin_path)
+          # 关键词: AES256 打包, 公开密码, anti-AV, version.txt manifest, IsInstalled anchor
+          ./yak scripts/build-hack-skills-zip.yak \
+            --src skills \
+            --output "${ZIP_BASENAME}" \
+            --password "${ZIP_PASSWORD}" \
+            --version "${{ steps.meta.outputs.version }}"
+
+          test -f "${ZIP_BASENAME}"
+          ls -lh "${ZIP_BASENAME}"
+
+          # 必须确认是 AES 加密的 zip
+          file "${ZIP_BASENAME}"
+          if ! file "${ZIP_BASENAME}" | grep -qi "AES"; then
+            echo "ERROR: zip is not AES encrypted"
+            exit 1
+          fi
+
+      - name: Compute SHA-256 checksum
+        id: hash
+        run: |
+          set -euo pipefail
+          SHA256=$(sha256sum "${ZIP_BASENAME}" | awk '{print $1}')
+          # 写为标准 sha256sum 格式：<hash>  <filename>
+          echo "${SHA256}  ${ZIP_BASENAME}" > "${ZIP_BASENAME}.sha256"
+          echo "sha256=${SHA256}" >> "${GITHUB_OUTPUT}"
+          echo "SHA-256: ${SHA256}"
+          cat "${ZIP_BASENAME}.sha256"
+
+      - name: Generate version.txt
+        run: |
+          set -euo pipefail
+          # 用户选择 version_only：仅一行版本号字符串
+          printf '%s\n' "${{ steps.meta.outputs.version }}" > version.txt
+          echo "=== version.txt ==="
+          cat version.txt
+
+      - name: Self-test decryption with correct and wrong passwords
+        run: |
+          set -euo pipefail
+          # 用公开常量密码 ${ZIP_PASSWORD} 做正向解压验证
+          # 关键词: 自检解压, 公开密码自检
+          echo "=== Self-test: decrypt with public password '${ZIP_PASSWORD}' ==="
+          rm -rf /tmp/hack-skills-self-test
+          mkdir -p /tmp/hack-skills-self-test
+          ./yak -c "
+          err = zip.DecompressWithPassword(\"${ZIP_BASENAME}\", \"/tmp/hack-skills-self-test\", \"${ZIP_PASSWORD}\")
+          if err != nil {
+            log.error(\"public password failed to decrypt: %v\", err)
+            os.Exit(1)
+          }
+          log.info(\"public password decryption ok\")
+          "
+
+          EXTRACTED_COUNT=$(find /tmp/hack-skills-self-test -type f -name '*.md' | wc -l | tr -d ' ')
+          echo "extracted markdown file count: ${EXTRACTED_COUNT}"
+          if [ "${EXTRACTED_COUNT}" -lt 1 ]; then
+            echo "ERROR: no files extracted"
+            exit 1
+          fi
+
+          echo ""
+          # 反向验证: 错误密码必须失败, 否则说明加密未生效
+          # 关键词: 反向验证, 错误密码失败
+          echo "=== Self-test: wrong password must fail ==="
+          rm -rf /tmp/hack-skills-self-test-bad
+          ./yak -c "
+          err = zip.DecompressWithPassword(\"${ZIP_BASENAME}\", \"/tmp/hack-skills-self-test-bad\", \"definitely-wrong-password\")
+          if err == nil {
+            log.error(\"CRITICAL: wrong password should have failed\")
+            os.Exit(1)
+          }
+          log.info(\"wrong password rejected as expected: %v\", err)
+          "
+
+      - name: Upload to OSS
+        env:
+          OSS_KEY_ID: ${{ secrets.OSS_KEY_ID }}
+          OSS_KEY_SECRET: ${{ secrets.OSS_KEY_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OSS_KEY_ID}" ] || [ -z "${OSS_KEY_SECRET}" ]; then
+            echo "ERROR: OSS_KEY_ID or OSS_KEY_SECRET secret is not set."
+            echo "Please configure them in repository Settings -> Secrets."
+            exit 1
+          fi
+
+          VERSION="${{ steps.meta.outputs.version }}"
+          # OSS 远程路径
+          REMOTE_LATEST_ZIP="${OSS_ROOT}/latest/${ZIP_BASENAME}"
+          REMOTE_LATEST_VERSION="${OSS_ROOT}/latest/version.txt"
+          REMOTE_VERSIONED_ZIP="${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}"
+          REMOTE_VERSIONED_SHA="${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}.sha256"
+
+          echo "=== Upload plan ==="
+          echo "  ${ZIP_BASENAME}                -> ${REMOTE_LATEST_ZIP}"
+          echo "  version.txt                    -> ${REMOTE_LATEST_VERSION}"
+          echo "  ${ZIP_BASENAME}                -> ${REMOTE_VERSIONED_ZIP}"
+          echo "  ${ZIP_BASENAME}.sha256         -> ${REMOTE_VERSIONED_SHA}"
+
+          # 拼成单次调用的 file 参数（;分隔多个 local:remote）
+          FILE_ARG="${ZIP_BASENAME}:/${REMOTE_LATEST_ZIP};version.txt:/${REMOTE_LATEST_VERSION};${ZIP_BASENAME}:/${REMOTE_VERSIONED_ZIP};${ZIP_BASENAME}.sha256:/${REMOTE_VERSIONED_SHA}"
+
+          ./yak upload-oss \
+            -b "${OSS_BUCKET}" \
+            --endpoint "${OSS_ENDPOINT}" \
+            -ak "${OSS_KEY_ID}" \
+            -sk "${OSS_KEY_SECRET}" \
+            -t 10 \
+            -f "${FILE_ARG}"
+
+          echo "All four files uploaded to OSS bucket '${OSS_BUCKET}' under '${OSS_ROOT}/'"
+
+      - name: Verify OSS uploads via HEAD (origin + CDN domains)
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.meta.outputs.version }}"
+          LOCAL_SHA256="${{ steps.hash.outputs.sha256 }}"
+          LOCAL_VERSION_TXT=$(cat version.txt | tr -d '\r\n')
+
+          # 验证目标域名集合: OSS 直连 + 用户指定的 CDN 域名
+          # 关键词: 多域名验证, OSS 直连, CDN
+          DOMAINS=("${OSS_BUCKET}.${OSS_ENDPOINT}")
+          for d in ${CDN_DOMAINS}; do
+            DOMAINS+=("${d}")
+          done
+
+          # 4 个对象路径
+          PATHS=(
+            "${OSS_ROOT}/latest/${ZIP_BASENAME}"
+            "${OSS_ROOT}/latest/version.txt"
+            "${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}"
+            "${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}.sha256"
+          )
+
+          # CDN 可能存在缓存延迟, 给一点重试窗口（最多 60 秒）
+          # 关键词: CDN 缓存预热, HEAD 重试
+          FAILED=0
+          for domain in "${DOMAINS[@]}"; do
+            echo ""
+            echo "----- domain: ${domain} -----"
+            for p in "${PATHS[@]}"; do
+              url="https://${domain}/${p}"
+              CODE=""
+              LEN=""
+              for attempt in 1 2 3 4 5 6; do
+                CODE=$(curl -I -s -o /dev/null -w "%{http_code}" "${url}" || echo "000")
+                LEN=$(curl -I -s "${url}" | awk -v IGNORECASE=1 '/^content-length:/i {print $2}' | tr -d '\r' || echo "")
+                if [ "${CODE}" = "200" ]; then
+                  break
+                fi
+                echo "    attempt ${attempt}: HTTP ${CODE} for ${url}, retrying in 10s..."
+                sleep 10
+              done
+              echo "  HTTP ${CODE}  size=${LEN:-?}  ${url}"
+              if [ "${CODE}" != "200" ]; then
+                FAILED=$((FAILED + 1))
+              fi
+            done
+          done
+
+          if [ "${FAILED}" -gt 0 ]; then
+            echo "ERROR: ${FAILED} object/domain combinations failed HEAD verification"
+            exit 1
+          fi
+
+          # 跨域名内容一致性: version.txt + sha256 必须三处对得上
+          # 关键词: 跨 CDN 内容一致, 内容校验
+          for domain in "${DOMAINS[@]}"; do
+            echo ""
+            echo "----- content check on ${domain} -----"
+            REMOTE_VERSION_TXT=$(curl -fsS "https://${domain}/${OSS_ROOT}/latest/version.txt" | tr -d '\r\n')
+            if [ "${REMOTE_VERSION_TXT}" != "${LOCAL_VERSION_TXT}" ]; then
+              echo "ERROR: version.txt mismatch on ${domain} (remote='${REMOTE_VERSION_TXT}' local='${LOCAL_VERSION_TXT}')"
+              exit 1
+            fi
+            echo "  version.txt OK: ${REMOTE_VERSION_TXT}"
+
+            REMOTE_SHA256=$(curl -fsS "https://${domain}/${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}.sha256" | awk '{print $1}')
+            if [ "${REMOTE_SHA256}" != "${LOCAL_SHA256}" ]; then
+              echo "ERROR: sha256 file mismatch on ${domain} (remote='${REMOTE_SHA256}' local='${LOCAL_SHA256}')"
+              exit 1
+            fi
+            echo "  sha256 file OK: ${REMOTE_SHA256}"
+          done
+
+          # 实下载: 选第一个 CDN 域名拉 latest zip 校验字节级 sha256, 再用公开密码解压
+          # 关键词: 端到端实下载, 公开密码解压验证
+          PRIMARY_CDN=$(echo "${CDN_DOMAINS}" | awk '{print $1}')
+          echo ""
+          echo "----- end-to-end download via ${PRIMARY_CDN} -----"
+          curl -fsS -o /tmp/cdn-download.zip "https://${PRIMARY_CDN}/${OSS_ROOT}/latest/${ZIP_BASENAME}"
+          DOWNLOAD_SHA=$(sha256sum /tmp/cdn-download.zip | awk '{print $1}')
+          if [ "${DOWNLOAD_SHA}" != "${LOCAL_SHA256}" ]; then
+            echo "ERROR: downloaded zip sha256 mismatch (got ${DOWNLOAD_SHA}, expected ${LOCAL_SHA256})"
+            exit 1
+          fi
+          echo "  downloaded zip sha256 OK: ${DOWNLOAD_SHA}"
+
+          rm -rf /tmp/cdn-extract
+          ./yak -c "
+          err = zip.DecompressWithPassword(\"/tmp/cdn-download.zip\", \"/tmp/cdn-extract\", \"${ZIP_PASSWORD}\")
+          if err != nil { log.error(\"cdn download decryption failed: %v\", err); os.Exit(1) }
+          log.info(\"cdn download decryption ok\")
+          "
+          CDN_FILE_COUNT=$(find /tmp/cdn-extract -type f -name '*.md' | wc -l | tr -d ' ')
+          echo "  files in cdn-downloaded zip: ${CDN_FILE_COUNT}"
+          if [ "${CDN_FILE_COUNT}" -lt 1 ]; then
+            echo "ERROR: cdn-downloaded zip is empty"
+            exit 1
+          fi
+
+      - name: Upload zip as build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hack-skills-${{ steps.meta.outputs.version }}
+          path: |
+            hack-skills.zip
+            hack-skills.zip.sha256
+            version.txt
+          retention-days: 14
+
+      - name: Job summary
+        if: success()
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          BASE_URL="https://${OSS_BUCKET}.${OSS_ENDPOINT}"
+          PRIMARY_CDN=$(echo "${CDN_DOMAINS}" | awk '{print $1}')
+          {
+            echo "## Hack Skills Upload Successful"
+            echo ""
+            echo "### Build Info"
+            echo "- Version: \`${VERSION}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Actor: @${{ github.actor }}"
+            echo "- Build time (Asia/Shanghai): ${{ steps.meta.outputs.build_time_sh }}"
+            echo "- Yak engine: \`${YAK_VERSION}\`"
+            echo ""
+            echo "### Encryption"
+            echo "- Algorithm: AES-256"
+            echo "- Password: \`${ZIP_PASSWORD}\` (PUBLIC constant)"
+            echo "- Purpose: bypass AV / EDR content heuristics on plain-text .md, NOT access control"
+            echo ""
+            echo "### Files (OSS bucket: \`${OSS_BUCKET}\`)"
+            echo "- [hack-skills/latest/${ZIP_BASENAME}](${BASE_URL}/${OSS_ROOT}/latest/${ZIP_BASENAME})"
+            echo "- [hack-skills/latest/version.txt](${BASE_URL}/${OSS_ROOT}/latest/version.txt)"
+            echo "- [hack-skills/${VERSION}/${ZIP_BASENAME}](${BASE_URL}/${OSS_ROOT}/${VERSION}/${ZIP_BASENAME})"
+            echo "- [hack-skills/${VERSION}/${ZIP_BASENAME}.sha256](${BASE_URL}/${OSS_ROOT}/${VERSION}/${ZIP_BASENAME}.sha256)"
+            echo ""
+            echo "### CDN Mirrors"
+            for d in ${CDN_DOMAINS}; do
+              echo "- https://${d}/${OSS_ROOT}/latest/${ZIP_BASENAME}"
+            done
+            echo ""
+            echo "### Integrity"
+            echo "- SHA-256: \`${{ steps.hash.outputs.sha256 }}\`"
+            echo ""
+            echo "### Quick consumer hint"
+            echo '```bash'
+            echo "curl -fsSLO https://${PRIMARY_CDN}/${OSS_ROOT}/latest/${ZIP_BASENAME}"
+            echo "# unzip with public password (anti-AV-only):"
+            echo "7z x -p${ZIP_PASSWORD} ${ZIP_BASENAME}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"

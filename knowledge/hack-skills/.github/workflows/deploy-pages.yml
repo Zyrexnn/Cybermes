@@ -1,0 +1,171 @@
+name: Deploy GitHub Pages
+
+# =============================================================================
+# 静态主页构建与部署 (区别于 upload-hack-skills.yml 的 OSS 加密分发)
+# 关键词: github pages, deploy-pages, skills index, static site
+#
+# 流程:
+#   1. checkout
+#   2. 下载 yak engine
+#   3. 跑 scripts/build-skills-index.yak 生成 site/data/skills.json
+#   4. 把 site/ 整个上传为 Pages artifact
+#   5. deploy-pages 推送到 github-pages 环境
+# =============================================================================
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/**'
+      - 'site/**'
+      - 'scripts/build-skills-index.yak'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+# Pages 部署需要这些权限, deploy-pages action 才能拿到 OIDC token
+# 关键词: required permissions, OIDC token
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一组内最多一个并发, 但保留进行中的部署 (避免半部署状态)
+# 关键词: concurrency control, pages deployment
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  YAK_VERSION: 1.4.7-alpha0428-1
+
+jobs:
+  build:
+    name: Build skills.json + site artifact
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Compute build metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          # 与 upload-hack-skills.yml 风格保持一致: YYYYMMDD-shortSha
+          # 关键词: build version format, asia/shanghai date
+          BUILD_DATE=$(TZ=Asia/Shanghai date +%Y%m%d)
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          VERSION="${BUILD_DATE}-${SHORT_SHA}"
+          BUILD_TIME_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "version=${VERSION}"        >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${SHORT_SHA}"    >> "${GITHUB_OUTPUT}"
+          echo "build_time_utc=${BUILD_TIME_UTC}" >> "${GITHUB_OUTPUT}"
+
+          echo "============================================"
+          echo "Trigger:        ${{ github.event_name }}"
+          echo "Branch:         ${{ github.ref }}"
+          echo "Commit:         ${GITHUB_SHA}"
+          echo "Short SHA:      ${SHORT_SHA}"
+          echo "Version:        ${VERSION}"
+          echo "Build time UTC: ${BUILD_TIME_UTC}"
+          echo "============================================"
+
+      - name: Download Yak engine v${{ env.YAK_VERSION }}
+        run: |
+          set -euo pipefail
+          YAK_URL="https://yaklang.oss-accelerate.aliyuncs.com/yak/${YAK_VERSION}/yak_linux_amd64"
+          echo "Downloading yak engine: ${YAK_URL}"
+          ATTEMPT=0
+          MAX_ATTEMPTS=3
+          while [ "${ATTEMPT}" -lt "${MAX_ATTEMPTS}" ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if curl -fL --retry 3 --retry-delay 5 -o ./yak "${YAK_URL}"; then
+              break
+            fi
+            echo "attempt ${ATTEMPT}/${MAX_ATTEMPTS} failed, retrying..."
+            sleep 5
+          done
+          test -f ./yak
+          chmod +x ./yak
+          ls -lh ./yak
+          file ./yak
+          ./yak version || echo "Note: 'yak version' is not critical."
+
+      - name: Build skills.json
+        run: |
+          set -euo pipefail
+          echo "=== Building skills.json ==="
+          ./yak scripts/build-skills-index.yak \
+            --skills-dir skills \
+            --categories site/data/categories.yaml \
+            --output site/data/skills.json \
+            --version "${{ steps.meta.outputs.version }}" \
+            --commit "${{ steps.meta.outputs.short_sha }}" \
+            --github-repo "${{ github.repository }}" \
+            --github-branch "main" \
+            --strict
+
+          test -f site/data/skills.json
+          ls -lh site/data/skills.json
+          # 简单 sanity check: schema 字段必须存在
+          # 关键词: skills.json sanity, schema check
+          grep -q '"schema"' site/data/skills.json
+          grep -q '"hack-skills-index/v1"' site/data/skills.json
+          grep -q '"totalSkills"' site/data/skills.json
+
+      - name: Sanity check site directory
+        run: |
+          set -euo pipefail
+          test -f site/index.html
+          test -f site/assets/css/style.css
+          test -f site/assets/js/app.js
+          test -f site/assets/js/search.js
+          test -f site/assets/js/matrix.js
+          test -f site/assets/js/effects.js
+          test -f site/data/skills.json
+          test -f site/data/categories.yaml
+          echo "=== site directory listing ==="
+          find site -type f | sort
+          echo "=== file sizes ==="
+          du -ah site | sort -h | tail -20
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Job summary
+        if: success()
+        run: |
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          {
+            echo "## HACK.SKILLS Pages Deployed"
+            echo ""
+            echo "- URL: ${PAGE_URL}"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Actor: @${{ github.actor }}"
+            echo ""
+            echo "### Skills index"
+            echo "- index.html: ${PAGE_URL}index.html"
+            echo "- skills.json: ${PAGE_URL}data/skills.json"
+            echo ""
+            echo "### Tips"
+            echo "- Press \`/\` to focus search"
+            echo "- Try \`category:auth\` or \`tier:deep\` or \`lines:>200\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

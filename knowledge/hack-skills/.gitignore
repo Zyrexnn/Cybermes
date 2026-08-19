@@ -1,0 +1,74 @@
+*.yakc
+*.test
+# yak
+./gen/*
+*~
+yakmisc-*
+.idea/
+.idea/*
+.DS_Store
+*.db
+*.sock
+*.exe
+*.out
+*.exe~
+./yak
+build/
+releases/*
+releases/
+release-node/
+*.sqlite3
+data.yml
+vendor/
+node_modules/
+server/cmd/server
+hidsnode/cmd/hids-agent
+# config for palm
+# palm.yaml
+# palm.yml
+hids.yaml
+logagent.yaml
+logagent.yml
+www
+cve-data/
+*.log
+*.log.*
+pgdata/
+materials/
+materials/*
+xray-temp/
+server_darwin_amd64
+ca.crt
+ca.key
+yak-mitm-ca.key
+yak-mitm-ca.crt
+./xray/
+deploy/palm-base/awdtools/
+wizard/palm-server/
+wizard/dist/
+tmp_build/
+*.mmdb
+.vscode/*
+gen
+.antlr/
+common/xlic/*.gzip
+.go-version
+.gocache
+.ace-tool/
+*.a
+
+# gzip_embed generated archives (built by scripts/workflows, do not commit)
+common/ai/aid/aitool/buildinaitools/yakscripttools/*.tar.gz
+common/aiforge/*.tar.gz
+common/coreplugin/*.tar.gz
+common/syntaxflow/sfbuildin/*.tar.gz
+common/yso/resources/*.tar.gz
+common/yak/ssa2llvm/runtime/embed/*.tar.gz
+common/yak/ssa2llvm/runtime/embed/ssa2llvm-runtime/
+
+# local build artifacts
+/ssa2llvm
+
+# distillation pipeline cache (videos / PDFs / model raw outputs)
+distill-output/
+.distill-cache/

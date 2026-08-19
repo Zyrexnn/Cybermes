@@ -1,0 +1,293 @@
+# Kernel Heap Techniques — SLUB, Cross-Cache, msg_msg, pipe_buffer, sk_buff
+
+> **AI LOAD INSTRUCTION**: Load this when exploiting kernel heap vulnerabilities. Covers SLUB allocator internals, object lifecycle, cross-cache attack methodology, and exploitation of specific kernel structures (msg_msg, pipe_buffer, sk_buff, setxattr). Assumes [SKILL.md](./SKILL.md) is loaded for kernel exploitation model and [KERNEL_MITIGATION_BYPASS.md](./KERNEL_MITIGATION_BYPASS.md) for mitigation context.
+
+---
+
+## 1. SLUB ALLOCATOR OVERVIEW
+
+Linux kernel uses SLUB (Unqueued Slab Allocator) for small kernel object allocation.
+
+### Key Concepts
+
+| Concept | Description |
+|---|---|
+| Slab | Contiguous pages holding objects of the same size |
+| Cache | Named pool for specific object types (e.g., `kmalloc-64`, `task_struct`) |
+| Freelist | Per-CPU linked list of free objects within a slab |
+| Partial list | Per-node list of slabs with some free objects |
+| Generic caches | `kmalloc-{32,64,96,128,192,256,512,...}` for generic allocations |
+
+### Object Layout in Slab
+
+```
+┌─────────┬─────────┬─────────┬─────────┐
+│ Object0 │ Object1 │ Object2 │ Object3 │  ← one slab page
+└─────────┴─────────┴─────────┴─────────┘
+  FP→Obj2   FP→Obj3   FP→NULL   (allocated)
+
+FP = freelist pointer (stored at object start or random offset)
+```
+
+### Freelist Randomization (SLAB_FREELIST_RANDOM)
+
+Object allocation order within a slab is randomized. Affects heap spray reliability.
+
+### Freelist Hardening (SLAB_FREELIST_HARDENED)
+
+```c
+// Freelist pointer is XOR'd with a random value and the address
+// Similar to glibc safe-linking
+stored_fp = ptr ^ random_value ^ &stored_fp
+```
+
+---
+
+## 2. SLAB OBJECT LIFECYCLE
+
+```
+kmalloc(size, GFP_KERNEL)
+  → Check per-CPU freelist (fastest)
+  → Check per-CPU partial list
+  → Check per-node partial list
+  → Allocate new slab pages
+
+kfree(ptr)
+  → Return to per-CPU freelist (if same CPU and slab)
+  → Return to per-node partial list
+  → Free slab pages (if all objects freed)
+```
+
+### Heap Spray Strategy
+
+1. Identify target slab cache (based on object size)
+2. Drain existing free objects (spray dummy allocations)
+3. Trigger vulnerability (UAF/OOB on target object)
+4. Spray replacement objects (same size → land in freed slot)
+
+---
+
+## 3. CROSS-CACHE ATTACK
+
+**Exploit UAF across different slab caches by forcing page-level reuse.**
+
+### Why Cross-Cache?
+
+Many kernel objects have dedicated caches (e.g., `struct cred` in `cred_jar`, not `kmalloc-192`). Cannot spray `kmalloc-192` to replace a freed `cred` object. Cross-cache forces the slab pages to be returned to the page allocator and reallocated to a different cache.
+
+### Methodology
+
+```
+1. Spray target objects to fill slabs        [Target slab: all allocated]
+2. Free target objects (leave one page worth) [Target slab: one partial page]
+3. Free ALL objects in that page              [Page returned to page allocator]
+4. Spray attacker objects (different cache)   [Page reallocated to attacker cache]
+5. UAF on target object now aliases attacker object on same physical page
+```
+
+### Page-Level UAF Steps
+
+```c
+// Phase 1: Fill target cache so new slabs are allocated
+for (int i = 0; i < SPRAY_COUNT; i++)
+    target_alloc();  // allocate target objects
+
+// Phase 2: Create hole pattern (free specific objects to isolate one slab page)
+// Free all objects in one specific slab page
+for (int i = PAGE_START; i < PAGE_START + OBJS_PER_PAGE; i++)
+    target_free(i);
+
+// Phase 3: Victim object freed (UAF) — was on the now-freed page
+trigger_uaf();
+
+// Phase 4: Page is returned to buddy allocator
+// Phase 5: Reallocate page into attacker's cache
+for (int i = 0; i < SPRAY_COUNT; i++)
+    attacker_alloc();  // e.g., msgsnd() for msg_msg
+```
+
+---
+
+## 4. msg_msg EXPLOITATION
+
+`struct msg_msg` is allocated via `msgsnd()` and freed via `msgrcv()`. Highly flexible size (48-byte header + arbitrary data).
+
+### Structure Layout
+
+```c
+struct msg_msg {
+    struct list_head m_list;  // 0x00: prev/next pointers
+    long m_type;              // 0x10: message type
+    size_t m_ts;              // 0x18: total message size
+    struct msg_msgseg *next;  // 0x20: pointer to continuation segment
+    void *security;           // 0x28: SELinux label
+    // user data starts at offset 0x30
+};
+```
+
+### Exploitation Patterns
+
+| Technique | Method |
+|---|---|
+| Arbitrary read | UAF/OOB: corrupt `m_ts` to large value → `msgrcv()` reads past message boundary |
+| Arbitrary read (chained) | Corrupt `next` pointer to target address → `msgrcv()` follows chain, reads target data |
+| Heap spray | `msgsnd()` with controlled size → lands in target kmalloc cache |
+| Flexible size | Data size → allocates from `kmalloc-{64,96,128,...,4096}` or `kmalloc-cg-*` |
+
+```python
+# msg_msg for heap spray (pseudo)
+import ctypes
+# msg_msg header = 0x30 bytes
+# To hit kmalloc-64: send 64 - 0x30 = 0x30 bytes of data
+# To hit kmalloc-96: send 96 - 0x30 = 0x60 bytes of data
+
+# For reading: after corrupting m_ts or next:
+msgrcv(qid, buf, large_size, type, IPC_NOWAIT | MSG_COPY)
+# MSG_COPY: read without removing → allows repeated reads
+```
+
+---
+
+## 5. pipe_buffer EXPLOITATION
+
+`struct pipe_buffer` is allocated when using `pipe()` and `splice()`. 
+
+### Structure Layout
+
+```c
+struct pipe_buffer {
+    struct page *page;              // 0x00
+    unsigned int offset, len;       // 0x08
+    const struct pipe_buf_operations *ops;  // 0x10 ← function pointer table
+    unsigned int flags;             // 0x18
+    unsigned long private;          // 0x20
+};
+// Size: 0x28 per buffer, 16 buffers per pipe → one allocation = 0x280
+```
+
+### Exploitation
+
+| Technique | Method |
+|---|---|
+| RIP control | UAF overwrite `ops` pointer → `pipe_release()` calls `ops->release` |
+| KASLR leak | Read `ops` pointer → `anon_pipe_buf_ops` at known kernel offset |
+| Page reference | Corrupt `page` pointer → reference arbitrary physical page |
+
+```c
+// To allocate pipe_buffers:
+int fd[2];
+pipe(fd);
+// Write > PIPE_BUF to allocate pipe_buffer array
+write(fd[1], buf, PIPE_BUF + 1);  // or use splice() + F_SETPIPE_SZ
+
+// Trigger: close(fd[0]) or close(fd[1]) → calls ops->release
+```
+
+### DirtyPipe (CVE-2022-0847)
+
+Abused `pipe_buffer` flags: `PIPE_BUF_FLAG_CAN_MERGE` set on a page from `splice()` → subsequent `write()` to pipe overwrites the page cache of any file, including read-only files.
+
+---
+
+## 6. sk_buff EXPLOITATION
+
+`struct sk_buff` (socket buffer) is used for network packet handling. Flexible size, controllable data.
+
+### Key Properties
+
+| Property | Value |
+|---|---|
+| Allocation | `kmalloc-*` or dedicated slab depending on size |
+| Data control | Full control over packet payload |
+| Spray | Send UDP/TCP packets → allocates sk_buff with controlled data |
+| Read back | Receive packets → reads sk_buff data |
+| Timing | Network operations can be timed for race conditions |
+
+### Spray Technique
+
+```c
+// Create socket
+int sock = socket(AF_INET, SOCK_DGRAM, 0);
+// Spray: send many UDP packets (each allocates sk_buff + data)
+for (int i = 0; i < SPRAY_N; i++) {
+    sendto(sock, payload, size, MSG_DONTWAIT, &addr, sizeof(addr));
+}
+// Payload data appears in kmalloc-* slab
+// Reclaim by recvfrom() or let socket close
+```
+
+---
+
+## 7. setxattr / userfaultfd / FUSE PRIMITIVES
+
+### setxattr (Universal Heap Write)
+
+```c
+// setxattr allocates a temporary kernel buffer with arbitrary size and content
+// then copies user data → kernel buffer → frees buffer
+// Useful for: spraying any kmalloc cache, timing attacks
+setxattr("/tmp/x", "user.attr", payload, size, XATTR_CREATE);
+// Buffer is kmalloc'd with controlled size and content, then freed
+// Race: userfaultfd on payload page to pause between alloc and free
+```
+
+### userfaultfd (Race Condition Stabilizer)
+
+Register a user-mode handler for page faults. When kernel accesses a userfaultfd-registered page, execution pauses until userspace handler responds → deterministic race window.
+
+```c
+// 1. Register userfaultfd on a mapped page
+// 2. Trigger kernel operation that accesses this page
+// 3. Kernel blocks in page fault → do heap manipulation in another thread
+// 4. Resolve page fault → kernel continues with manipulated heap
+```
+
+**Restriction**: `userfaultfd` may require `CAP_SYS_PTRACE` on newer kernels (≥ 5.11 with sysctl `vm.unprivileged_userfaultfd=0`).
+
+### FUSE (Alternative to userfaultfd)
+
+Mount a FUSE filesystem. Kernel reads from FUSE file → blocks until userspace FUSE handler responds. Same race window effect as userfaultfd.
+
+---
+
+## 8. COMMON KERNEL OBJECT SIZE TABLE
+
+| Object | Size (x86-64) | Slab Cache |
+|---|---|---|
+| `seq_operations` | 0x20 | kmalloc-32 |
+| `msg_msg` (header only) | 0x30 + data | kmalloc-64 to kmalloc-4096 |
+| `subprocess_info` | 0x60 | kmalloc-96 |
+| `shm_file_data` | 0x20 | kmalloc-32 |
+| `pipe_buffer` × 16 | 0x280 | kmalloc-1024 |
+| `sk_buff` (head) | ~0xE0 | skbuff_head_cache |
+| `cred` | 0xA8 | cred_jar (dedicated) |
+| `file` | 0x100 | filp (dedicated) |
+| `inode` | varies | inode_cache (dedicated) |
+| `tty_struct` | 0x2B8 | kmalloc-1024 |
+| `timerfd_ctx` | 0x68 | kmalloc-128 |
+| `poll_list` | 0x10 + variable | kmalloc-32 to kmalloc-4096 |
+
+---
+
+## 9. TECHNIQUE SELECTION
+
+```
+Kernel UAF/OOB in which cache?
+├── Same as generic kmalloc-{N}?
+│   └── Direct spray: msg_msg, sk_buff, setxattr, add_key
+├── Dedicated cache (cred_jar, filp, etc.)?
+│   └── Cross-cache attack needed:
+│       1. Drain target cache → force new slab pages
+│       2. Free all objects in target slab page
+│       3. Page returns to buddy allocator
+│       4. Spray generic objects → page reallocated to attacker cache
+├── What primitive do you need?
+│   ├── Controlled RIP → spray pipe_buffer (ops pointer) or seq_operations
+│   ├── Arbitrary read → spray msg_msg (corrupt m_ts or next)
+│   ├── Arbitrary write → spray msg_msg + modify → msgrcv for reclaim
+│   └── KASLR leak → spray pipe_buffer → read ops (kernel .text pointer)
+└── Race condition stabilization?
+    ├── userfaultfd available → register on target page
+    ├── FUSE available → mount FUSE filesystem
+    └── Neither → timing-based (less reliable)
+```
