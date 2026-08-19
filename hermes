@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+CYBERMES_DIR="/home/ikhsan/Documents/Cybermes"
+export HERMES_HOME="$CYBERMES_DIR/.hermes"
+export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
+export GOPATH="/home/ikhsan/go"
+source "$CYBERMES_DIR/venv/bin/activate"
+exec "$CYBERMES_DIR/venv/bin/hermes" "$@"

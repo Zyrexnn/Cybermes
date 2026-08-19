@@ -1,0 +1,8 @@
+export CYBERMES_DIR="/home/ikhsan/Documents/Cybermes"
+export HERMES_HOME="$CYBERMES_DIR/.hermes"
+export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
+export GOPATH="/home/ikhsan/go"
+source "$CYBERMES_DIR/venv/bin/activate"
+echo "✓ Cybermes Hermes Environment Activated"
+echo "  Hermes: $(hermes --version 2>&1 | head -n 1)"
+echo "  Tools: nmap, subfinder, amass, httpx, katana, gau, ffuf, feroxbuster, nuclei, dalfox, sqlmap, rg"
