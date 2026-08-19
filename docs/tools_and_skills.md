@@ -1,50 +1,50 @@
-# 🧰 Panduan Tools, Skills & MCP Server Cybermes
+# 🧰 Tools, Skills & MCP Architecture Reference
 
-Cybermes menggabungkan ratusan modul offensive skills, toolchain eksternal, dan Model Context Protocol (MCP) untuk otomasi pengujian keamanan.
+Cybermes combines a curated offensive security toolchain, deep skill playbooks, and Model Context Protocol (MCP) servers to automate end-to-end vulnerability research and verification.
 
 ---
 
-## 🛠️ 1. Daftar Security Toolchain
+## 🛠️ 1. Integrated Security Toolchain
 
-Semua binary security tools diletakkan di `/workspace/tools/bin` dan otomatis masuk ke `$PATH` container:
+All native binary security tools reside in `/workspace/tools/bin` and are automatically registered on the container `$PATH`:
 
-| Kategori | Nama Tool | Kegunaan Utama |
+| Category | Binary Tool | Core Purpose |
 | :--- | :--- | :--- |
-| **Reconnaissance** | `subfinder` | Passive subdomain enumeration kecepatan tinggi |
+| **Reconnaissance & DNS** | `subfinder` | Fast passive subdomain enumeration |
 | | `amass` | In-depth network mapping & asset OSINT |
-| | `assetfinder` | Pencarian domain & subdomain cepat |
-| | `httpx` | HTTP probing, technology detection, & status check |
-| | `nmap` | Port scanner & service version detector |
-| **Crawling & Mining** | `katana` | Next-gen web crawler & SPA parser |
-| | `gau` | Mengambil historical URLs dari Wayback, AlienVault, CommonCrawl |
-| | `waybackurls` | Fetch endpoint historis dari web archive |
-| **Fuzzing & Content Discovery** | `ffuf` | Web fuzzer berkecepatan tinggi untuk endpoint/direktori |
-| | `feroxbuster` | Recursive content discovery engine |
-| **Exploitation & Scanning** | `nuclei` | Template-based vulnerability scanner |
-| | `sqlmap` | Database takeover & SQL injection testing |
-| | `dalfox` | XSS scanner & parameter analysis engine |
-| **Utilities** | `rg` (ripgrep) | Pencarian pola regex cepat pada source/JS dump |
+| | `assetfinder` | Rapid domain and subdomain discovery |
+| | `httpx` | Fast multi-purpose HTTP probing & technology detection |
+| | `nmap` | Network exploration, port probing, and service fingerprinting |
+| **Crawling & Mining** | `katana` | Next-generation web crawler with SPA rendering capabilities |
+| | `gau` | Fetch historical URLs from Wayback Machine, AlienVault, CommonCrawl |
+| | `waybackurls` | Fetch endpoint archives from web historical indexes |
+| **Fuzzing & Discovery** | `ffuf` | High-performance web fuzzer for virtual hosts and paths |
+| | `feroxbuster` | Fast, recursive content and directory discovery |
+| **Exploitation & Scanning** | `nuclei` | Fast, community-driven template vulnerability scanner |
+| | `sqlmap` | Automated SQL injection detection and database takeover |
+| | `dalfox` | High-performance parameter analysis and XSS scanner |
+| **Utilities** | `rg` (ripgrep) | Ultra-fast regex searching through source dumps and JS bundles |
 
 ---
 
 ## 🔌 2. Model Context Protocol (MCP) Servers
 
-Cybermes mengintegrasikan MCP Servers untuk interaksi runtime yang lebih fleksibel:
+Cybermes natively integrates MCP servers for client-side evaluation and structured system access:
 
 1. **Browser MCP (`@modelcontextprotocol/server-puppeteer`)**:
-   * Menjalankan browser Chromium headless di dalam container.
-   * Mendukung DOM evaluation, automated button clicks, form filling, dan screenshot PoC.
+   * Launches headless Chromium in container isolation.
+   * Performs DOM tree inspection, automated button clicks, form submissions, and screenshot PoC generation.
 2. **Filesystem MCP (`@modelcontextprotocol/server-filesystem`)**:
-   * Akses terisolasi dan terstruktur ke direktori kerja `/workspace`.
+   * Provides structured read/write access to `/workspace` targets, logs, and reporting artifacts.
 
 ---
 
-## 🎯 3. Offensive Skills (200+ Modul)
+## 🎯 3. Offensive Skills (200+ Modules)
 
-Skills terletak di direktori `skills/` dan dimuat otomatis oleh runtime Hermes.
+Skills reside in `skills/` and are automatically loaded into Hermes runtime context.
 
-### Cara Memanggil Skill Tertentu:
-Di terminal atau chat Telegram, Anda dapat langsung meminta agent menggunakan teknik tertentu:
-* *"Gunakan teknik 401-403 bypass untuk mengakses /admin"*
-* *"Audit parameter pada /api/user dengan metodologi IDOR & BOLA"*
-* *"Lakukan race condition testing pada endpoint transfer saldo"*
+### Invoking Specific Playbooks:
+Operators can prompt the agent to utilize specific methodologies:
+* *"Apply 401-403 bypass techniques against /admin"*
+* *"Audit parameters on /api/user following IDOR & BOLA methodology"*
+* *"Execute race condition testing on the coupon redemption endpoint"*

@@ -1,51 +1,50 @@
-# 🛠️ Panduan Pemecahan Masalah (Troubleshooting Guide)
+# 🛠️ Troubleshooting & Diagnostic Guide
 
-Dokumen ini berisi panduan penanganan masalah umum saat menjalankan Cybermes.
-
----
-
-## 1. Bot Telegram Tidak Merespons Perintah
-
-### Gejala:
-Perintah seperti `/new`, `/status`, atau pesan biasa terkirim di Telegram (centang dua), tetapi bot tidak membalas.
-
-### Penyebab & Solusi:
-1. **Container tidak berjalan dalam mode gateway:**
-   * Pastikan `docker-compose.yml` memiliki `command: hermes gateway run`.
-   * Cek status: `docker compose logs --tail 30` dan pastikan muncul `✓ telegram connected`.
-2. **User ID Anda belum diizinkan (Whitelist):**
-   * Periksa `.hermes/.env`.
-   * Jika `GATEWAY_ALLOW_ALL_USERS=false`, pastikan `TELEGRAM_ALLOWED_USERS` sudah berisi Telegram User ID Anda.
-3. **Session tersangkut atau model hang:**
-   * Kirim perintah `/reset` atau `/new` di chat Telegram.
-   * Atau restart container: `docker compose restart`.
+This document covers common diagnostic workflows, error patterns, and resolutions when operating Cybermes.
 
 ---
 
-## 2. Model Menolak Perintah (Refusal / Safety Error)
+## 1. Telegram Bot Does Not Respond
 
-### Gejala:
-Bot menjawab: *"Saya menolak melakukan pengujian... Anda belum menunjukkan bukti otorisasi..."*.
+### Symptoms:
+Messages and slash commands (`/new`, `/status`) are sent in Telegram (delivered with double checkmarks), but the bot produces no reply.
 
-### Solusi:
-1. **Gunakan Framing Otorisasi Jelas**:
-   Format instruksi dengan menyertakan referensi `scope.yaml`:
-   > *"Sesuai dengan scope.yaml untuk lingkungan lab lokal http://127.0.0.1:8888, lakukan audit otorisasi pada endpoint registration."*
-2. **Reset Konteks**:
-   Ketik `/reset` di Telegram agar histori percakapan yang terpicu safety refusal dibersihkan.
+### Resolutions:
+1. **Container running in interactive CLI mode instead of Gateway mode:**
+   * Verify that `docker-compose.yml` specifies `command: hermes gateway run`.
+   * Check container logs: `docker compose logs --tail 30` and verify the presence of `✓ telegram connected`.
+2. **Access Control Whitelist Mismatch:**
+   * Inspect `.hermes/.env` or `.env`.
+   * When `GATEWAY_ALLOW_ALL_USERS=false`, ensure `TELEGRAM_ALLOWED_USERS` includes your exact numeric Telegram ID.
+3. **Session Deadlock or Process Stalling:**
+   * Send `/reset` or `/new` in the Telegram chat to initialize a fresh session context.
+   * Or restart the container service: `docker compose restart`.
 
 ---
 
-## 3. OmniRoute / LLM Connection Error (`Connection Refused`)
+## 2. LLM Provider Safety Refusal
 
-### Gejala:
-Log container menampilkan `ConnectionRefusedError: http://localhost:20128/v1`.
+### Symptoms:
+The agent returns an ethical or safety refusal (e.g., *"I cannot perform testing on this target without authorization"*).
 
-### Solusi:
-* Karena `docker-compose.yml` menggunakan `network_mode: host`, endpoint `http://localhost:20128/v1` mengarah langsung ke port OmniRoute di host.
-* Pastikan instance OmniRoute / LM Studio / Local LLM provider sudah aktif di port yang sesuai.
-* Jika menggunakan remote OpenRouter langsung:
-  Ubah di `.hermes/.env`:
+### Resolutions:
+1. **Explicit Scope Framing**:
+   Explicitly specify the authorized test environment in your prompt:
+   > *"Under authorized scope rules in scope.yaml for the local test harness http://127.0.0.1:8888, evaluate authorization controls on the registration endpoint."*
+2. **Context Reset**:
+   Execute `/reset` in Telegram to purge conversational memory that triggered the refusal pattern.
+
+---
+
+## 3. OmniRoute / Local LLM Connection Refused
+
+### Symptoms:
+Container logs output `ConnectionRefusedError: http://localhost:20128/v1`.
+
+### Resolutions:
+* Because `docker-compose.yml` runs in `network_mode: host`, `http://localhost:20128/v1` routes directly to the host loopback adapter.
+* Ensure OmniRoute, LM Studio, or your local inference backend is active on the configured port.
+* When routing to remote OpenRouter endpoints directly, configure `.hermes/.env`:
   ```ini
   OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
   OPENROUTER_API_KEY=sk-or-v1-...
@@ -53,13 +52,13 @@ Log container menampilkan `ConnectionRefusedError: http://localhost:20128/v1`.
 
 ---
 
-## 4. Izin File & Permissions pada Output
+## 4. File Ownership & Permissions on Artifacts
 
-### Gejala:
-File di folder `recon/`, `output/`, atau `reports/` dibuat dengan user `root` sehingga sulit diedit di host.
+### Symptoms:
+Generated reports or recon files in `recon/`, `output/`, or `reports/` are owned by `root`, preventing unprivileged host edits.
 
-### Solusi:
-Jalankan di terminal host:
+### Resolutions:
+Reclaim workspace directory ownership on the host:
 ```bash
 sudo chown -R $USER:$USER recon/ output/ reports/ logs/
 ```

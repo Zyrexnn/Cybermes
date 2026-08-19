@@ -1,86 +1,87 @@
-# 🤖 Panduan Integrasi & Penggunaan Telegram Bot Cybermes
+# 🤖 Telegram Bot Integration & Usage Guide
 
-Cybermes dilengkapi dengan gateway perpesanan otonom berbasis **Hermes Agent Gateway**, yang memungkinkan Anda mengontrol proses asesmen keamanan, menjalankan recon, hingga menerima laporan temuan secara real-time langsung melalui Telegram.
-
----
-
-## 📋 1. Persiapan Kredensial
-
-### A. Buat Bot Telegram via @BotFather
-1. Buka aplikasi Telegram dan cari **[@BotFather](https://t.me/BotFather)**.
-2. Kirim perintah `/newbot`.
-3. Masukkan nama tampilan bot (misal: `Cybermes Security Agent`).
-4. Masukkan username bot (harus berakhiran `bot`, misal: `my_cybermes_sec_bot`).
-5. Simpan **HTTP API Token** yang diberikan (format: `1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
-
-### B. Dapatkan Telegram User ID Anda (Keamanan & Whitelist)
-Agar bot hanya merespons perintah dari Anda dan tidak bisa diakses orang lain:
-1. Buka Telegram dan cari **[@userinfobot](https://t.me/userinfobot)**.
-2. Kirim `/start`.
-3. Catat angka `Id` Anda (misal: `123456789`).
+Cybermes features an autonomous messaging gateway powered by the **Hermes Agent Gateway**, allowing operators to initiate security assessments, execute reconnaissance pipelines, query status, and receive real-time vulnerability alerts directly via Telegram.
 
 ---
 
-## ⚙️ 2. Konfigurasi Environment (`.env` & `.hermes/.env`)
+## 📋 1. Prerequisites & Bot Creation
 
-Edit file `.env` atau `.hermes/.env`:
+### A. Create a Telegram Bot via @BotFather
+1. Open Telegram and search for **[@BotFather](https://t.me/BotFather)**.
+2. Send `/newbot`.
+3. Enter a display name (e.g., `Cybermes Security Agent`).
+4. Choose a unique bot username ending in `bot` (e.g., `my_cybermes_sec_bot`).
+5. Securely save the generated **HTTP API Token** (format: `1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
 
-```bash
+### B. Retrieve Your Telegram Numeric User ID (Access Control)
+To restrict bot access strictly to authorized operators:
+1. Open Telegram and message **[@userinfobot](https://t.me/userinfobot)**.
+2. Send `/start`.
+3. Copy your numeric `Id` (e.g., `123456789`).
+
+---
+
+## ⚙️ 2. Environment Configuration (`.env` / `.hermes/.env`)
+
+Configure your credentials in `.env` or `.hermes/.env`:
+
+```ini
 # ─────────────────────────────────────────────────────────────────────────────
-# TELEGRAM BOT INTEGRATION (Gateway)
+# TELEGRAM BOT INTEGRATION (Hermes Gateway)
 # ─────────────────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN=1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ
-TELEGRAM_ALLOWED_USERS=123456789 # Masukkan User ID Anda (pisahkan dengan koma jika multi-user)
-GATEWAY_ALLOW_ALL_USERS=false    # Set false agar aman dari akses tidak dikenal
-HERMES_YOLO_MODE=1              # Mengizinkan eksekusi tool otomatis tanpa konfirmasi manual
+TELEGRAM_ALLOWED_USERS=123456789    # Comma-separated numeric IDs for authorization whitelist
+GATEWAY_ALLOW_ALL_USERS=false       # Keep false to restrict access strictly to whitelisted users
+HERMES_YOLO_MODE=1                 # Enables autonomous execution of security toolchains
 ```
 
 ---
 
-## 🚀 3. Menjalankan Bot di Docker
+## 🚀 3. Running the Gateway in Docker
 
-### Start Bot (Background Gateway)
+### Start Gateway Container
 ```bash
 docker compose up -d
 ```
 
-### Memeriksa Status Log Bot
+### Inspect Connection Logs
 ```bash
 docker compose logs -f
 ```
-Jika berhasil terhubung, Anda akan melihat output:
+
+Upon successful connection, the log stream will indicate:
 ```text
 ✓ telegram connected
 [Telegram] Connected to Telegram (polling mode)
 [Telegram] 60 commands registered
 ```
 
-### Restart Bot
+### Restart Gateway
 ```bash
 docker compose restart
 ```
 
 ---
 
-## 📱 4. Perintah & Command Penting di Telegram
+## 📱 4. Essential Telegram Commands
 
-| Command | Fungsi | Keterangan |
+| Command | Function | Description |
 | :--- | :--- | :--- |
-| `/new` atau `/reset` | **Mereset sesi / Memory baru** | Bersihkan riwayat chat dan mulai konteks baru |
-| `/status` | **Cek Status Agent** | Melihat model aktif, penggunaan konteks, dan uptime |
-| `/skills` | **Daftar Skills Aktif** | Menampilkan skill keamanan yang tersedia (200+ skills) |
-| `/help` | **Panduan Perintah** | Menampilkan semua command yang didukung |
-| `/model` | **Ganti Model LLM** | Menampilkan / mengganti model inference aktif |
-| `/stop` | **Hentikan Eksekusi** | Membatalkan eksekusi task/tool yang sedang berjalan |
+| `/new` or `/reset` | **New Session** | Clears conversation context and initializes a fresh engagement memory |
+| `/status` | **Agent Status** | Inspects active inference model, token consumption, and uptime |
+| `/skills` | **Available Skills** | Lists 200+ offensive security modules and specialized playbooks |
+| `/help` | **Command Reference** | Displays full listing of interactive bot commands |
+| `/model` | **Model Selector** | Views or switches active LLM provider and inference model |
+| `/stop` | **Interrupt Execution** | Halts currently running security scan or tool execution |
 
 ---
 
-## 💡 5. Tips & Best Practice Berinteraksi
+## 💡 5. Operational Best Practices
 
-1. **Gunakan Perintah Target yang Jelas**:
+1. **Explicit Target Scope Definition**:
    ```text
-   Lakukan pasif recon pada http://localhost:8888 sesuai cakupan scope.yaml dan identifikasi endpoint yang aktif.
+   Perform passive reconnaissance against http://localhost:8888 in accordance with scope.yaml and enumerate live endpoints.
    ```
-2. **Jika Bot Merespons dengan Refusal (Menolak)**:
-   * Ketik `/reset` untuk membersihkan context percakapan sebelumnya.
-   * Tekankan bahwa target berada di dalam ruang lingkup audit resmi (`scope.yaml`) atau lingkungan lab terisolasi.
+2. **Context Recovery on Safety Refusal**:
+   * If an LLM safety filter misclassifies authorized security testing, invoke `/reset` to flush the conversational history.
+   * Frame instructions explicitly referencing the authorized engagement parameters defined in `scope.yaml`.
