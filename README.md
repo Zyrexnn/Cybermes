@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/banner.jpg" alt="Cybermes Autonomous Security Agent Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
+
 # 🛡️ Cybermes
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
@@ -15,6 +17,7 @@
 </p>
 
 </div>
+
 
 ---
 
@@ -177,7 +180,10 @@ Cybermes/
 │   ├── hack-skills/                  # Specialized attack playbooks
 │   ├── hacktricks/                   # Pentesting wiki & escalation guides
 │   └── strix-skills/                 # Multi-agent coordination knowledge
+├── assets/                           # Project visual assets & social preview banner
+│   └── banner.jpg                    # High-resolution project banner
 ├── logs/                             # Execution logs (.gitkeep)
+
 ├── mock_vulnerable_app.py            # Local vulnerable test harness for validation
 ├── output/                           # Scan dumps and dynamic artifacts (.gitkeep)
 ├── recon/                            # Reconnaissance output directory (.gitkeep)
