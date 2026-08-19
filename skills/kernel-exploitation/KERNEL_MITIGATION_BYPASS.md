@@ -1,0 +1,224 @@
+# Kernel Mitigation Bypass — KASLR, SMEP, SMAP, KPTI, FG-KASLR, CFI
+
+> **AI LOAD INSTRUCTION**: Load this when you need specific kernel mitigation bypass techniques. Covers KASLR leak methods, SMEP bypass via kernel ROP/CR4 flip, SMAP bypass, KPTI trampoline, FG-KASLR limitations, and Clang CFI bypass. Assumes [SKILL.md](./SKILL.md) is loaded for kernel exploitation fundamentals.
+
+---
+
+## 1. KASLR (Kernel Address Space Layout Randomization)
+
+Randomizes kernel .text base address at boot. Typical entropy: 9 bits (512 possible positions) on x86-64.
+
+### Leak Methods
+
+| Method | Condition | Detail |
+|---|---|---|
+| `/proc/kallsyms` | Root or `kptr_restrict=0` | Direct symbol addresses (not available in CTF usually) |
+| Kernel OOB read | Exploitable OOB | Read kernel pointers from adjacent memory |
+| Uninitialized memory | Kernel stack/heap leak | Leaked pointer reveals kernel base |
+| dmesg / printk | Kernel prints addresses | `dmesg_restrict=0` or exploitable read |
+| CPU side channel | Spectre/Meltdown variants | Timing-based KASLR bypass (mostly patched) |
+| `/proc/self/stat` | `wait_channel` field | May expose kernel addresses (kernel-dependent) |
+| eBPF JIT spray | eBPF available | JIT code at predictable offsets from base |
+| Module base | Known module loaded | Module base leaks relative to kernel base |
+| Entropy brute-force | 9 bits | 512 attempts (feasible for persistent service) |
+
+### KASLR Base Calculation
+
+```python
+# Leaked address from kernel: 0xffffffff81234567 (example)
+# Known symbol offset from vmlinux: commit_creds = 0xffffffff81095c30 (no KASLR base)
+# Actual offset: 0x95c30
+# KASLR base = leaked_addr - symbol_offset_in_vmlinux
+kaslr_base = (leaked_addr & ~0xfffff) - (known_symbol & ~0xfffff)
+```
+
+---
+
+## 2. SMEP (Supervisor Mode Execution Prevention)
+
+**Prevents kernel from executing code in user-mapped pages.** Set via CR4 bit 20.
+
+### Bypass Methods
+
+| Method | Detail |
+|---|---|
+| Kernel ROP | Use only kernel .text gadgets for ROP chain (standard approach) |
+| CR4 bit flip | `mov cr4, rax` gadget with bit 20 cleared (blocked on modern kernels with CR4 pinning) |
+| JIT code | Execute JIT-compiled code (eBPF, kprobes) which lives in kernel memory |
+| Copy shellcode to kernel | Write shellcode to kernel-mapped page, then execute |
+
+### CR4 Flip (Legacy, < 4.15)
+
+```python
+# CR4 value with SMEP: 0x1006f0 (bit 20 set)
+# CR4 value without SMEP: 0x0006f0 (bit 20 clear)
+# ROP gadget: pop rcx; ret → mov cr4, rcx; ret
+rop = p64(pop_rcx) + p64(0x6f0) + p64(mov_cr4_rcx)
+# After CR4 flip, can jump to user-mapped shellcode
+```
+
+**Modern kernels** (≥ 4.15): CR4 pinning via `native_write_cr4()` checks prevent clearing SMEP/SMAP bits. Must use pure kernel ROP.
+
+---
+
+## 3. SMAP (Supervisor Mode Access Prevention)
+
+**Prevents kernel from reading/writing user-mapped pages.** Set via CR4 bit 21.
+
+### Impact
+
+```c
+// Without SMAP: kernel exploit can read fake structures from user mmap
+char *fake = mmap(0x10000, ...);  // user page
+// Copy fake data setup
+// Kernel dereferences pointer to 0x10000 → reads user data ✓
+
+// With SMAP: above access faults
+// Must use kernel-mapped memory for all fake structures
+```
+
+### Bypass Methods
+
+| Method | Detail |
+|---|---|
+| Kernel heap spray | Place fake structures in kernel heap (not user memory) |
+| `copy_from_user` gadget | Legitimate kernel function that copies from user to kernel buffer |
+| `stac`/`clac` gadgets | Temporarily enable user access (rare in ROP chains) |
+| CR4 bit flip | Clear bit 21 (same caveats as SMEP) |
+| Pipe/userfaultfd | Stage controlled data in kernel memory via legitimate interfaces |
+
+---
+
+## 4. KPTI (Kernel Page Table Isolation)
+
+**Separates kernel and user page tables.** When running in userspace, kernel pages are unmapped (except trampoline). Blocks Meltdown and complicates kernel→user return.
+
+### Impact on Exploitation
+
+```
+Without KPTI: swapgs; iretq → works directly
+With KPTI: swapgs; iretq → crashes (user page table doesn't map kernel)
+          Must switch page tables before returning to userspace
+```
+
+### Bypass: KPTI Trampoline
+
+The kernel provides `swapgs_restore_regs_and_return_to_usermode` (or equivalent) that:
+1. Switches from kernel to user page tables (writes CR3)
+2. Executes `swapgs`
+3. Executes `iretq`
+
+```python
+# Find trampoline address
+# In vmlinux: search for "swapgs_restore_regs_and_return_to_usermode"
+kpti_tramp = kaslr_base + KPTI_TRAMP_OFFSET
+
+# ROP chain ending:
+# ... commit_creds(prepare_kernel_cred(0)) ...
+rop += p64(kpti_tramp)
+rop += p64(0)              # padding (popped by trampoline)
+rop += p64(0)              # padding
+rop += p64(user_rip)       # return RIP (e.g., get_shell function)
+rop += p64(user_cs)        # CS = 0x33
+rop += p64(user_rflags)    # saved RFLAGS
+rop += p64(user_rsp)       # saved RSP
+rop += p64(user_ss)        # SS = 0x2b
+```
+
+### Signal Handler Technique
+
+Alternative: set up a signal handler before the exploit. After `commit_creds` in kernel, cause a fault → signal delivered to userspace → handler runs as root.
+
+---
+
+## 5. FG-KASLR (Function Granularity KASLR)
+
+**Randomizes individual function addresses**, not just the base. Each function gets an independent random offset within the .text section.
+
+### Impact
+
+- `prepare_kernel_cred` and `commit_creds` are at unknown offsets (not base+fixed_offset)
+- ROP gadgets within .text have unknown addresses
+- Standard KASLR leak (base address) is insufficient
+
+### What's NOT Randomized
+
+| Section | Randomized? | Exploit Relevance |
+|---|---|---|
+| `.text` functions | YES | Cannot use for ROP or direct call |
+| `.data` section | NO (base+offset fixed) | `modprobe_path`, `core_pattern` still at known offset from base |
+| `.rodata` section | NO | Read-only data at known offset |
+| Percpu variables | NO | |
+| Exception tables | NO | |
+| Kernel modules | Separate randomization | Module function offsets change independently |
+
+### Bypass Strategies
+
+| Strategy | Detail |
+|---|---|
+| Data-only attack | Overwrite `modprobe_path` (in .data, fixed offset from KASLR base) |
+| Leak function pointers | Read function pointer from kernel object → derandomize specific functions |
+| Use non-.text gadgets | Gadgets in modules, `.init.text` (if still mapped), or JIT code |
+| Large-scale info leak | Leak many function pointers to reconstruct .text layout |
+
+---
+
+## 6. CLANG CFI (Control Flow Integrity)
+
+**Validates indirect call/jump targets match expected function signature.** Enabled in Android kernels (GKI) and some hardened builds.
+
+### How CFI Works
+
+```c
+// Before indirect call:
+// Check: is target address a valid function with matching prototype?
+// If not → __cfi_check fails → kernel panic
+void (*fptr)(int) = ...;
+// CFI check inserted here
+fptr(42);
+```
+
+### Bypass Approaches
+
+| Method | Detail |
+|---|---|
+| Same-type function | Redirect to a different function with the same signature |
+| CFI shadow manipulation | Corrupt the CFI shadow map to whitelist arbitrary targets |
+| Data-only attack | Avoid indirect calls entirely (overwrite data like modprobe_path) |
+| JIT/BPF code | JIT-compiled code may not have CFI checks |
+| kCFI bypass (specific) | kCFI uses type hash comparison — find hash collision or valid type match |
+
+---
+
+## 7. ADDITIONAL MITIGATIONS
+
+### Stack Canary (Kernel)
+
+Kernel functions have stack canaries (from `gs:[0x28]` on x86-64). Bypass same as userspace: info leak or avoid stack overflow.
+
+### STATIC_USERMODEHELPER
+
+Hardcodes the usermode helper path, preventing `modprobe_path` overwrite. Bypass: use alternative targets (`core_pattern`, direct cred overwrite).
+
+### Lockdown LSM
+
+Restricts certain operations even for root (prevents loading unsigned modules, accessing /dev/mem). Bypass requires kernel code execution first.
+
+### RANDSTRUCT
+
+Randomizes kernel structure layout at compile time. Offset of fields in `task_struct`, `cred`, etc. are unknown.
+
+**Bypass**: Leak structure contents to determine field offsets, or target structures not covered by RANDSTRUCT.
+
+---
+
+## 8. MITIGATION INTERACTION MATRIX
+
+| Attack | KASLR | SMEP | SMAP | KPTI | FG-KASLR |
+|---|---|---|---|---|---|
+| ret2usr | Need base | **Blocked** | Need kernel buf | — | Need func addr |
+| Kernel ROP | Need base | OK (kernel gadgets) | Need kernel buf | Need trampoline | Need gadget addrs |
+| modprobe_path | Need base | — | — | — | OK (data section) |
+| commit_creds | Need base | — | — | Need trampoline | Need func addr |
+| Direct cred overwrite | Need cred addr | — | — | — | OK (data) |
+| Cross-cache overwrite | — | — | — | — | — |
