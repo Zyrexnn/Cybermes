@@ -1,0 +1,23 @@
+services:
+  hermes-cybermes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cybermes-hermes:latest
+    container_name: cybermes-hermes-agent
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./targets:/workspace/targets
+      - ./recon:/workspace/recon
+      - ./output:/workspace/output
+      - ./reports:/workspace/reports
+      - ./logs:/workspace/logs
+      - ./scope.yaml:/workspace/scope.yaml
+      - ./.hermes/auth.json:/root/.hermes/auth.json:ro
+      - ./.hermes/config.yaml:/root/.hermes/config.yaml:ro
+      - ./.hermes/.env:/root/.hermes/.env:ro
+    environment:
+      - PUPPETEER_HEADLESS=true
+      - NODE_OPTIONS=--no-warnings
+    network_mode: host
