@@ -29,7 +29,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# 3. Environment Variables & Secret Credentials
+# 3. Environment Variables, Secret Credentials & Private Prompts
 .env
 .env.*
 !.env.example
@@ -38,6 +38,8 @@ auth.json*
 *.key
 *.p12
 *.pfx
+*Setup Prompt*.md
+*Prompt*.md
 
 # 4. Compiled Binary Security Tools (Download via setup/docker)
 tools/bin/*
