@@ -57,6 +57,11 @@ recon/*
 !recon/.gitkeep
 targets/*
 !targets/.gitkeep
+skills/.usage.json
+reports/*
+!reports/.gitkeep
+!reports/127_0_0_1_8888/
+!reports/127_0_0_1_8888/**
 *.log
 
 # 6. IDE, Editor & OS Artifacts

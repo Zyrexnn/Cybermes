@@ -22,19 +22,19 @@ Messages and slash commands (`/new`, `/status`) are sent in Telegram (delivered 
 
 ---
 
-## 2. LLM Provider Safety Refusal
+## 2. Target Scope & Authorization Refusals
 
 ### Symptoms:
-The agent returns an ethical or safety refusal (e.g., *"I cannot perform testing on this target without authorization"*).
+The agent refuses a target stating it is not in `scope.yaml` or returns an authorization error.
 
 ### Resolutions:
-1. **Explicit Scope Framing**:
-   Explicitly specify the authorized test environment in your prompt:
-   > *"Under authorized scope rules in scope.yaml for the local test harness http://127.0.0.1:8888, evaluate authorization controls on the registration endpoint."*
+1. **Dynamic Target Override**:
+   * `scope.yaml` has `dynamic_target_override: true` and `targets: ["*"]` enabled by default.
+   * Any URL or domain requested by the operator is automatically authorized without manual configuration edits.
 2. **Context Reset**:
-   Execute `/reset` in Telegram to purge conversational memory that triggered the refusal pattern.
-3. **Consult the Prompting Guide**:
-   Refer to [Prompt Engineering & Anti-Filter Guide](prompt_guide.md) for pre-built phrasing templates and trigger keyword substitutions.
+   * Send `/reset` or `/new` in Telegram to clear previous refusal weights in conversation context.
+3. **Framing Suggestions**:
+   * Consult the [Prompt Engineering & Anti-Filter Guide](prompt_guide.md) for non-triggering diagnostic phrasing.
 
 ---
 
@@ -54,13 +54,18 @@ Container logs output `ConnectionRefusedError: http://localhost:20128/v1`.
 
 ---
 
-## 4. File Ownership & Permissions on Artifacts
+## 4. File Ownership & Permissions on Artifacts (`NoPermissions`)
 
 ### Symptoms:
-Generated reports or recon files in `recon/`, `output/`, or `reports/` are owned by `root`, preventing unprivileged host edits.
+VS Code or host text editor reports `Unable to open file (NoPermissions (FileSystemError))` when opening reports.
 
 ### Resolutions:
-Reclaim workspace directory ownership on the host:
-```bash
-sudo chown -R $USER:$USER recon/ output/ reports/ logs/
-```
+1. **Set Default POSIX ACLs on host** (one-time command so all new files created by Docker container are world-readable):
+   ```bash
+   setfacl -R -d -m u::rwx,g::rwx,o::rwx reports recon output logs
+   setfacl -R -m u::rwx,g::rwx,o::rwx reports recon output logs
+   ```
+2. **Reclaim workspace directory ownership manually**:
+   ```bash
+   sudo chown -R $USER:$USER recon/ output/ reports/ logs/
+   ```

@@ -48,3 +48,21 @@ Operators can prompt the agent to utilize specific methodologies:
 * *"Apply 401-403 bypass techniques against /admin"*
 * *"Audit parameters on /api/user following IDOR & BOLA methodology"*
 * *"Execute race condition testing on the coupon redemption endpoint"*
+
+---
+
+## 📊 4. Automated Report Aggregator (`tools/aggregate_reports.py`)
+
+Cybermes includes a built-in report aggregator that automatically parses individual vulnerability reports and generates an executive summary:
+
+```bash
+# Aggregate findings for a specific target:
+python3 tools/aggregate_reports.py <TARGET_SLUG>
+
+# Aggregate findings across all tested targets:
+python3 tools/aggregate_reports.py --all
+```
+
+Outputs generated in `reports/<TARGET_SLUG>/`:
+- `SUMMARY.md`: Consolidated vulnerability matrix with severity badges, CVSS scores, and links.
+- `metadata.json`: Machine-readable metadata and counts for programmatic integrations and dashboards.

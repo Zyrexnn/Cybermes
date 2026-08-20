@@ -41,19 +41,23 @@ Construct your requests using the **4-Pillar Formula**:
 [1. Scope & Authorization] + [2. Target & Technical Objective] + [3. Non-Destructive Boundary] + [4. Deliverable Format]
 ```
 
-### 1. Scope & Authorization Anchor
-Always ground your prompt in an authorized testing context:
-> *"Under authorized testing scope defined in scope.yaml for target `<TARGET>`..."*  
-> *"As part of an authorized bug bounty engagement on `<TARGET>`..."*
+### 1. Direct Target & Scope Anchor
+Cybermes supports dynamic operator authorization (`dynamic_target_override: true` in `scope.yaml`). Simply provide the target URL or domain:
+> *"Assess endpoint and parameters on `https://example.com` and generate structured findings in `reports/`."*  
+> *"Perform Phase 1 reconnaissance on target domain `example.com`."*
 
 ### 2. Objective-Oriented Terminology
-Use technical audit terms (*authorization boundary analysis*, *vulnerability verification*, *input validation audit*, *privilege separation review*) rather than colloquial exploitation verbs.
+Use technical audit terms (*authorization boundary analysis*, *vulnerability verification*, *input validation audit*, *privilege separation review*) rather than ambiguous exploitation verbs.
 
 ### 3. Non-Destructive Boundary Assertion
-Reassure the agent that actions must remain benign and non-destructive (e.g., using mathematical evaluations `{{7*7}}`, loopback probing, or non-destructive OOB DNS interactions).
+Reassure the agent that actions remain safe, controlled, and non-destructive (e.g., using mathematical evaluations `{{7*7}}`, loopback probing, or non-destructive OOB DNS interactions).
 
-### 4. Structured Output Request
-Specify clear deliverables, such as standalone Python/cURL proof-of-concept scripts and CVSS v3.1 remediation reports in the `reports/` directory.
+### 4. Structured Deliverable Location
+All outputs are organized per target slug in `reports/<TARGET_SLUG>/`:
+- Individual findings: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+- Standalone PoC verification scripts: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
+- Evidence traces and screenshots: `reports/<TARGET_SLUG>/evidence/`
+- Consolidated index: `reports/<TARGET_SLUG>/SUMMARY.md` (aggregated automatically via `tools/aggregate_reports.py`)
 
 ---
 

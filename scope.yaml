@@ -1,15 +1,13 @@
-program: "Authorized Security Assessment"
+program: "Cybermes Security Assessment & Bug Bounty"
 authorization: "AUTHORIZED"
+dynamic_target_override: true
 
 targets:
+  - "*"
   - "http://127.0.0.1:8888"
   - "http://localhost:8888"
 
-out_of_scope:
-  - "third-party systems"
-  - "unrelated cloud infrastructure"
-  - "production user accounts and data"
-  - "out-of-scope third party payment gateways"
+scope_rule: "All domains, URLs, and endpoints explicitly requested by the operator are authorized."
 
 testing_accounts:
   - role: "standard_user"

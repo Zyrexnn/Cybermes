@@ -192,15 +192,20 @@ Cybermes/
 ├── mock_vulnerable_app.py            # Local vulnerable test harness for validation
 ├── output/                           # Scan dumps and dynamic artifacts (.gitkeep)
 ├── recon/                            # Reconnaissance output directory (.gitkeep)
-├── reports/                          # Generated vulnerability reports and PoC scripts
-│   ├── idor_finding.md               # Example validated finding report
-│   └── poc_idor.py                   # Example PoC execution script
+├── reports/                          # Target-scoped vulnerability reports & PoCs
+│   └── <target_slug>/                # Isolated assessment output (e.g. 127_0_0_1_8888)
+│       ├── SUMMARY.md                # Consolidated executive finding summary
+│       ├── metadata.json             # Machine-readable scan metadata & counts
+│       ├── findings/                 # Per-vulnerability markdown reports
+│       ├── pocs/                     # Executable verification scripts (.py, .sh)
+│       └── evidence/                 # Raw HTTP response traces & screenshots
 ├── scope.yaml                        # Scope definition and rules of engagement
 ├── skills/                           # 50+ Hermes bug bounty skill modules
 ├── targets/                          # Target asset queue (.gitkeep)
 ├── templates/
 │   └── report_template.md            # Standardized CVSS v3.1 report template
 ├── tools/                            # Security tools and wordlists
+│   ├── aggregate_reports.py          # Automated report parser & summary generator
 │   ├── bin/                          # Binary tool directory (.gitkeep, wrappers)
 │   ├── sqlmap/                       # SQL injection testing engine
 │   ├── strix/                        # Autonomous penetration testing framework

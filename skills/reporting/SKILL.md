@@ -79,5 +79,20 @@ Concrete actionable guidance for engineers:
 - [Relevant RFC or vendor documentation]
 ```
 
-## Output Location
-Save all generated reports to `/workspace/reports/<target>/<date>_<vuln_name>.md`.
+## Strict Output Location & Organization Rules
+1. **Target Slugification**: Replace dots, colons, slashes with underscores (e.g., `http://127.0.0.1:8888` -> `127_0_0_1_8888`, `api.target.com` -> `api_target_com`).
+2. **Directory Structure Setup**:
+   ```bash
+   mkdir -p reports/<TARGET_SLUG>/findings reports/<TARGET_SLUG>/pocs reports/<TARGET_SLUG>/evidence
+   ```
+3. **File Path Conventions**:
+   - **Finding Report**: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+   - **Executable PoC**: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
+   - **Raw Evidence / Screenshots**: `reports/<TARGET_SLUG>/evidence/<filename>`
+4. **Summary Aggregation**:
+   After writing findings, always trigger the report aggregator to refresh `SUMMARY.md` and `metadata.json`:
+   ```bash
+   python3 tools/aggregate_reports.py <TARGET_SLUG>
+   ```
+5. **Anti-Hallucination Gate**:
+   Only generate a finding report if a real HTTP request/response or command execution log successfully confirmed the vulnerability. Never create speculative reports.

@@ -13,7 +13,10 @@ services:
       - ./output:/workspace/output
       - ./reports:/workspace/reports
       - ./logs:/workspace/logs
+      - ./skills:/root/.hermes/skills
+      - ./tools:/workspace/tools
       - ./scope.yaml:/workspace/scope.yaml
+      - ./entrypoint.sh:/workspace/entrypoint.sh
       - ./.hermes/auth.json:/root/.hermes/auth.json:ro
       - ./.hermes/config.yaml:/root/.hermes/config.yaml:ro
       - ./.hermes/.env:/root/.hermes/.env:ro

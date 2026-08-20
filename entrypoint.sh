@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+umask 000
 export PATH="/workspace/tools/bin:/usr/local/bin:$PATH"
 
 if [ "$#" -eq 0 ]; then

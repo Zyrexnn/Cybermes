@@ -1,0 +1,28 @@
+{
+  "target": "127_0_0_1_8888",
+  "scan_time": "2026-08-20 15:16:01",
+  "total_findings": 1,
+  "severity_summary": {
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFORMATIONAL": 0
+  },
+  "findings": [
+    {
+      "file_name": "[HIGH]_idor_documents_api.md",
+      "relative_path": "findings/[HIGH]_idor_documents_api.md",
+      "title": "IDOR Vulnerability Report",
+      "severity": "HIGH",
+      "cvss": "N/A",
+      "cwe": "N/A",
+      "endpoint": "N/A",
+      "last_modified": "2026-08-20 15:05:39"
+    }
+  ],
+  "pocs": [
+    "poc_idor.py"
+  ],
+  "evidence_files": []
+}

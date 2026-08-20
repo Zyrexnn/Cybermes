@@ -67,6 +67,10 @@ description: Autonomous end-to-end security research and full-surface bug huntin
 | **XSS / DOM Flaw** | Script execution context or DOM sink manipulation | Browser MCP console logs / DOM snapshot |
 | **SSRF** | Server-side request callback or internal metadata fetch | Raw response headers and body |
 
-## 5. Deliverables Generated
-- Minimal Impact PoC: `/home/ikhsan/Documents/Cybermes/reports/poc_<vuln_name>.py`
-- Markdown Finding Report: `/home/ikhsan/Documents/Cybermes/reports/<vuln_name>_report.md`
+## 5. Target-Scoped Output Hierarchy & Deliverables
+Always create target-scoped directories before saving outputs (`TARGET_SLUG` e.g. `example_com` or `127_0_0_1_8888`):
+- Directory Setup: `mkdir -p reports/<TARGET_SLUG>/findings reports/<TARGET_SLUG>/pocs reports/<TARGET_SLUG>/evidence`
+- Finding Report: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+- Standalone PoC: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
+- Visual / HTTP Evidence: `reports/<TARGET_SLUG>/evidence/<filename>`
+- Consolidated Summary: Run `python3 tools/aggregate_reports.py <TARGET_SLUG>` to index findings into `reports/<TARGET_SLUG>/SUMMARY.md`.
