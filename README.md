@@ -7,7 +7,7 @@
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
 [![Release: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
-[![License: Strict Source-Available](https://img.shields.io/badge/License-Source--Available%20Non--Commercial%20%26%20No--Derivatives-red.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
@@ -40,7 +40,7 @@
 - [Configuration & Scope Rules](#-configuration--scope-rules)
 - [Local Validation with Mock Target](#-local-validation-with-mock-target)
 - [📦 Release & Version History](#-release--version-history)
-- [⚖️ License & Strict Usage Terms](#️-license--strict-usage-terms)
+- [⚖️ License](#️-license)
 - [⚠️ Legal & Ethical Disclaimer](#️-legal--ethical-disclaimer)
 - [👥 Contributors](#-contributors)
 
@@ -207,7 +207,7 @@ Cybermes/
 │   └── wordlists/                    # Curated fuzzing and discovery wordlists
 ├── ATTRIBUTION.md                    # Third-party notices and upstream attributions
 ├── CONTRIBUTORS.md                   # Project contributors and AI co-authors
-├── LICENSE                           # Strict Source-Available License terms
+├── LICENSE                           # MIT License
 └── README.md                         # Project documentation
 
 ```
@@ -397,22 +397,11 @@ To safely verify Cybermes capabilities locally:
 
 ---
 
-## ⚖️ License & Strict Usage Terms
+## ⚖️ License
 
-This project is licensed under the **Cybermes Source-Available Non-Commercial & No-Derivatives License (CS-NC-ND)**.
+This project is open-source and licensed under the **[MIT License](LICENSE)**.
 
-### Summary of Terms:
-
-| Action | Allowed? | Details |
-| :--- | :---: | :--- |
-| **Clone & Download** | ✅ **YES** | You may freely clone and download the repository. |
-| **Read & Inspect Code** | ✅ **YES** | You may view and study the code for educational and research purposes. |
-| **Private Non-Commercial Execution** | ✅ **YES** | You may run Cybermes for authorized personal bug bounty and testing. |
-| **Modify or Create Derivatives** | ❌ **NO** | You may **NOT** alter, adapt, or create derivative works for redistribution. |
-| **Commercial Use / Monetization** | ❌ **NO** | You may **NOT** sell, license, offer as a paid SaaS/service, or commercialize. |
-| **Rebranding or Relicensing** | ❌ **NO** | Original authorship, copyright notices, and license terms must remain intact. |
-
-For the full legal text, refer to the [LICENSE](LICENSE) file.
+Third-party research materials, datasets, and upstream tools incorporated or referenced within this repository retain their respective original licenses (see [ATTRIBUTION.md](ATTRIBUTION.md) for full details).
 
 ---
 
