@@ -1,3 +1,12 @@
 #!/usr/bin/env bash
-source /home/ikhsan/Documents/Cybermes/venv/bin/activate
-exec /home/ikhsan/Documents/Cybermes/venv/bin/hermes "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export CYBERMES_DIR="$SCRIPT_DIR"
+export HERMES_HOME="$CYBERMES_DIR/.hermes"
+export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
+
+if [ -f "$CYBERMES_DIR/venv/bin/hermes" ]; then
+    source "$CYBERMES_DIR/venv/bin/activate"
+    exec "$CYBERMES_DIR/venv/bin/hermes" "$@"
+else
+    exec hermes "$@"
+fi

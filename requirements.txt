@@ -1,0 +1,7 @@
+hermes-agent>=0.1.0
+pyyaml>=6.0
+requests>=2.31.0
+python-telegram-bot>=21.0
+playwright>=1.40.0
+arjun>=2.2.0
+rich>=13.0.0

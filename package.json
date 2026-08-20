@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@modelcontextprotocol/server-filesystem": "^2026.7.10",
+    "@modelcontextprotocol/server-puppeteer": "^2025.5.12"
+  }
+}

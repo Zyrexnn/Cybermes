@@ -6,7 +6,7 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
+[![Release: v1.2.0](https://img.shields.io/badge/Release-v1.2.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
@@ -249,18 +249,32 @@ Docker provides an isolated, fully pre-configured environment including Chromium
 
 ---
 
-### Method 2: Native Host Setup
+### Method 2: Native Host Setup (Linux / macOS)
 
-For Linux hosts with Python 3.11+:
+For local development and running natively without Docker:
 
-1. **Activate the environment:**
+1. **Clone the repository and run the automated installer:**
+   ```bash
+   git clone https://github.com/Zyrexnn/Cybermes.git
+   cd Cybermes
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+   *The installer automatically configures the Python virtual environment (`venv`), installs dependencies from `requirements.txt`, sets up Playwright Chromium, and registers MCP servers.*
+
+2. **Activate the environment & configure API keys:**
    ```bash
    source env.sh
+   # Edit .env and configure your LLM Provider API keys
    ```
 
-2. **Verify Hermes and toolchain status:**
+3. **Verify status & start assessment:**
    ```bash
    ./hermes --help
+   ./hermes "Assess http://127.0.0.1:8888"
+
+   # Or run in Telegram Gateway daemon mode:
+   ./hermes gateway run
    ```
 
 ---
@@ -387,6 +401,13 @@ To safely verify Cybermes capabilities locally:
 ---
 
 ## 📦 Release & Version History
+
+### **[v1.2.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.2.0)** — *Target-Scoped Reporting, Automated Setup & Multi-Environment Support*
+* **Target-Scoped Directory Hierarchy**: Organized finding reports, PoCs, and evidence per target slug (`reports/<target>/findings/`, `pocs/`, `evidence/`).
+* **Automated Report Aggregator**: Built-in `tools/aggregate_reports.py` to compile consolidated `SUMMARY.md` matrices and `metadata.json`.
+* **Zero-Docker Native Host Installer**: Added automated 1-click installer `setup.sh` and dynamic path resolution in `env.sh` and `hermes`.
+* **Anti-Hallucination & Anti-Refusal System Prompt**: Grounded prompt architecture preventing hallucinations and model safety false-positives.
+* **Dynamic Scope Authorization**: Wildcard scope and operator-driven target overrides without manual configuration edits.
 
 ### **[v1.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.1.0)** — *Cybermes Identity & Prompt Architecture Update*
 * **Cybermes Persona & Identity**: Full migration to unified Cybermes system prompt and SOUL persona with automatic target authorization handling.
