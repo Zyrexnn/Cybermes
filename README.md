@@ -6,7 +6,7 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v1.0.0](https://img.shields.io/badge/Release-v1.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
+[![Release: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![License: Strict Source-Available](https://img.shields.io/badge/License-Source--Available%20Non--Commercial%20%26%20No--Derivatives-red.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
@@ -383,14 +383,17 @@ To safely verify Cybermes capabilities locally:
 
 ## 📦 Release & Version History
 
+### **[v1.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.1.0)** — *Cybermes Identity & Prompt Architecture Update*
+* **Cybermes Persona & Identity**: Full migration to unified Cybermes system prompt and SOUL persona with automatic target authorization handling.
+* **Anti-Filter Prompt Architecture**: Added comprehensive English [Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md) to prevent model refusals during authorized testing.
+* **Telegram Messaging Gateway**: Added full remote bot integration guide, session reset workflows (`/new`, `/reset`), and troubleshooting guides.
+* **Toolchain & Wordlist Expansion**: Extended tools reference and wordlist mapping.
+
 ### **[v1.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.0.0)** — *Initial Production Release*
 * **Autonomous Core Architecture**: Integrated multi-step offensive security reasoning loop built upon the Hermes Agent runtime.
-* **Cybermes Persona & System Prompt**: Custom-engineered identity system with automatic target authorization acceptance and multi-phase execution SOP.
 * **50+ Offensive Security Skills**: Bundled playbooks for IDOR/BOLA, SQLi, SSRF, SSTI, SAML, OAuth, Cloud/K8s, and Prompt Injection.
 * **Offline Knowledge Aggregation**: Embedded knowledge bases from *HackTricks*, *PayloadsAllTheThings*, *Claude-BugHunter*, and *Strix*.
 * **Playwright / Headless Browser MCP**: Automated DOM interaction, client-side XSS auditing, and visual screenshot evidence capture.
-* **Telegram Messaging Gateway**: Remote bot interface for mobile/headless operation with instant alerts and session controls (`/new`, `/reset`, `/status`).
-* **Anti-Filter Prompt Architecture**: Formalized prompt engineering guide to prevent LLM guardrail refusals during authorized testing.
 
 ---
 
