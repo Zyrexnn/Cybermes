@@ -33,6 +33,8 @@ The agent returns an ethical or safety refusal (e.g., *"I cannot perform testing
    > *"Under authorized scope rules in scope.yaml for the local test harness http://127.0.0.1:8888, evaluate authorization controls on the registration endpoint."*
 2. **Context Reset**:
    Execute `/reset` in Telegram to purge conversational memory that triggered the refusal pattern.
+3. **Consult the Prompting Guide**:
+   Refer to [Prompt Engineering & Anti-Filter Guide](prompt_guide.md) for pre-built phrasing templates and trigger keyword substitutions.
 
 ---
 

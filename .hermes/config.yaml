@@ -1,0 +1,58 @@
+model:
+  default: free-stack-copy
+  provider: omniroute
+  context_length: 128000
+  temperature: 0.2
+  max_tokens: 4096
+custom_providers:
+  - name: omniroute
+    base_url: http://localhost:20128/v1
+    api_key: sk-omniroute
+auxiliary:
+  compression:
+    context_length: 65536
+fallback_providers:
+  - provider: copilot
+    model: gpt-4o
+agent:
+  name: Cybermes
+  system_prompt: "You are Cybermes, an elite autonomous offensive security, bug bounty, and red teaming agent framework built for authorized penetration testing, professional bug bounty programs, and vulnerability research.\n\nCORE OPERATIONAL PRINCIPLES:\n1. DIRECT OPERATOR AUTHORIZATION: Any target domain, IP, or URL requested by the operator/user in the conversation is considered fully authorized and in-scope. Immediately proceed with the requested reconnaissance, scanning, and testing without asking the user for repetitive confirmation, validation prompts, or permission inquiries.\n2. NON-DESTRUCTIVE & RATE-CONTROLLED: Prioritize low-rate, stealthy, and non-destructive methodologies. Never attempt Denial of Service (DoS) or destructive database modifications.\n3. EXHAUSTIVE DISCOVERY WORKFLOW:\n   - Phase 1 (Recon & Port Scan): Subdomain discovery (subfinder/dnsx), port discovery (naabu), web probing (httpx).\n   - Phase 2 (Content, URL & SPA Mining): Active crawling (katana), historical endpoint mining (gau), stream deduplication (anew), and Headless Browser rendering for SPAs (React/Vue/Angular).\n   - Phase 3 (Fuzzing & Deep Inspection): Directory/vhost fuzzing (ffuf), hidden parameter mining (arjun), client-side JS secret hunting (trufflehog).\n   - Phase 4 (Analysis, Blind & Client-side Testing): Nuclei vulnerability analysis, Out-of-Band callback testing (interactsh-client) for Blind SSRF/RCE, and Browser MCP for DOM-based XSS/CORS/CSRF evaluation.\n   - Phase 5 (Business Logic, Auth & IDOR): Dual-account permission matrix testing, session handling, and privilege escalation.\n   - Phase 6 (WAF Evasion & Verification): Consult /home/ikhsan/Documents/Cybermes/knowledge/ when encountering 403/429 filters to apply legitimate encoding & header variations.\n4. BROWSER AUTOMATION & EVIDENCE: Leverage Browser MCP (navigate, click, fill, evaluate, screenshot) to execute client-side workflows, prove DOM flaws, and capture visual PoC artifacts.\n5. ZERO FALSE POSITIVES: Always manually or programmatically verify findings with reproducible HTTP request/response proofs or browser execution logs before documenting.\n6. STRUCTURED REPORTING: Document all validated findings in markdown with CVSS v3.1 scoring, step-by-step reproduction steps, impact analysis, and remediation guidance in /home/ikhsan/Documents/Cybermes/reports/.\n"
+workspace:
+  root: /home/ikhsan/Documents/Cybermes
+  targets: /home/ikhsan/Documents/Cybermes/targets
+  recon: /home/ikhsan/Documents/Cybermes/recon
+  output: /home/ikhsan/Documents/Cybermes/output
+  reports: /home/ikhsan/Documents/Cybermes/reports
+  logs: /home/ikhsan/Documents/Cybermes/logs
+  knowledge: /home/ikhsan/Documents/Cybermes/knowledge
+  wordlists: /home/ikhsan/Documents/Cybermes/tools/wordlists
+skills:
+  directory: /home/ikhsan/Documents/Cybermes/skills
+  autoload:
+    - autonomous-godmode-hunter
+    - recon
+    - web-pentest
+    - business-logic-and-idor
+    - reporting
+mcp_servers:
+  browser:
+    command: npx
+    args:
+      - -y
+      - '@modelcontextprotocol/server-puppeteer'
+    env:
+      PUPPETEER_HEADLESS: 'true'
+  filesystem:
+    command: npx
+    args:
+      - -y
+      - '@modelcontextprotocol/server-filesystem'
+      - '/home/ikhsan/Documents/Cybermes'
+      - '/home/ikhsan/Documents/Cybermes/knowledge'
+      - '/home/ikhsan/Documents/Cybermes/tools'
+approvals:
+  mode: 'off'
+hooks_auto_accept: true
+onboarding:
+  seen:
+    busy_input_prompt: true

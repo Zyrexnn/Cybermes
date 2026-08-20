@@ -3,7 +3,9 @@
 # =============================================================================
 
 # 1. Hermes Agent Local State, Data & Sessions
-.hermes/
+.hermes/*
+!.hermes/config.yaml
+!.hermes/SOUL.md
 *.db
 *.sqlite*
 *.lock

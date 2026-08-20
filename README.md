@@ -285,6 +285,7 @@ Cybermes runs autonomously with messaging support for Telegram via Hermes Gatewa
 
 Detailed documentation guides are available in the [`docs/`](docs/) directory:
 
+* **[Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md)**: Recommended prompt framing, bypass refusal patterns, and phase-by-phase templates.
 * **[Telegram Setup Guide](docs/telegram_setup.md)**: Step-by-step bot creation, whitelist configuration, and usage.
 * **[Tools & Skills Reference](docs/tools_and_skills.md)**: Overview of integrated toolchain, MCP servers, and offensive skills.
 * **[Troubleshooting Guide](docs/troubleshooting.md)**: Common fixes for connectivity, model refusal, and permissions.
