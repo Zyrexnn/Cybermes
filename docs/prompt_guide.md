@@ -54,7 +54,8 @@ Reassure the agent that actions remain safe, controlled, and non-destructive (e.
 
 ### 4. Structured Deliverable Location
 All outputs are organized per target slug in `reports/<TARGET_SLUG>/`:
-- Individual findings: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+- Confirmed findings: `reports/<TARGET_SLUG>/findings/<severity>_<vuln_name>.md` (`low`, `medium`, `high`, `critical` only)
+- Informational & recon observations: `reports/<TARGET_SLUG>/evidence/recon_notes.md`
 - Standalone PoC verification scripts: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
 - Evidence traces and screenshots: `reports/<TARGET_SLUG>/evidence/`
 - Consolidated index: `reports/<TARGET_SLUG>/SUMMARY.md` (aggregated automatically via `tools/aggregate_reports.py`)

@@ -1,0 +1,28 @@
+# =============================================================================
+# Cybermes Coding Standards & Operational Rules (.cursorrules)
+# =============================================================================
+
+# 1. PYTHON POC SCRIPTING CONVENTIONS
+- Always write clean, self-contained Python 3 scripts for Proof-of-Concept verification.
+- Use `requests` or `httpx` with explicit `timeout=10` on all network requests.
+- Set a realistic User-Agent header (e.g., `User-Agent: Cybermes-Security-Auditor/1.0`).
+- Ensure all scripts accept a target URL as a CLI argument (`sys.argv[1]`) with fallback to the tested default.
+- Include proper error handling (`try/except requests.exceptions.RequestException`) and colorized status prints.
+- PoC scripts MUST demonstrate minimal-impact reproduction (e.g. read non-sensitive test fields or trigger benign diffs). NEVER script destructive actions.
+
+# 2. FILE & PATH NAMING STANDARDS
+- Vulnerability reports MUST be placed in `reports/<TARGET_SLUG>/findings/<severity>_<vuln_name>.md`.
+- Use lowercase snake_case for all filenames (e.g., `high_idor_documents.md`, `poc_login_bypass.py`).
+- NEVER use square brackets `[...]` or special shell characters in file names.
+- Informational observations, missing security headers, and negative test tables MUST go to `reports/<TARGET_SLUG>/evidence/recon_notes.md`, NEVER scattered as individual files in `findings/`.
+- Maintain open permissions: all newly created files should have permissions readable by the host user (umask 0002 / 0666).
+
+# 3. SECRET HYGIENE & CREDENTIAL PROTECTION
+- NEVER commit real API keys, bearer tokens, or sensitive client passwords to Git repositories.
+- When saving evidence or writing markdown reports, always redact sensitive tokens (e.g., `Bearer [REDACTED_TEST_TOKEN]`, `password: [REDACTED]`).
+- All environment configurations must read from `.env` or system environment variables.
+
+# 4. REPORT AGGREGATION
+- After writing or modifying finding files in `reports/<TARGET_SLUG>/findings/`, always execute:
+  `python3 tools/aggregate_reports.py <TARGET_SLUG>`
+  to keep `SUMMARY.md` and `metadata.json` synchronized.
