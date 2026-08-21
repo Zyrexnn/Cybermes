@@ -60,8 +60,9 @@ RUN chmod +x /usr/local/bin/*
 
 # 4. Install Hermes Agent, Playwright & Python security tools
 RUN python3 -m venv /opt/hermes-venv && \
-    /opt/hermes-venv/bin/pip install --no-cache-dir --upgrade pip && \
     /opt/hermes-venv/bin/pip install --no-cache-dir hermes-agent playwright pyyaml requests python-telegram-bot arjun rich markdown jinja2 mcp-server-fetch && \
+    printf '#!/usr/bin/env bash\nexec /opt/hermes-venv/bin/python3 "$@"\n' > /usr/local/bin/python3 && chmod +x /usr/local/bin/python3 && \
+    printf '#!/usr/bin/env bash\nexec /opt/hermes-venv/bin/pip "$@"\n' > /usr/local/bin/pip && chmod +x /usr/local/bin/pip && \
     ln -sf /opt/hermes-venv/bin/hermes /usr/local/bin/hermes && \
     ln -sf /opt/hermes-venv/bin/mcp-server-fetch /usr/local/bin/mcp-server-fetch && \
     /opt/hermes-venv/bin/playwright install chromium 2>/dev/null || true
