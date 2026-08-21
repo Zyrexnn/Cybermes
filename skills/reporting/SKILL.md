@@ -86,9 +86,14 @@ Concrete actionable guidance for engineers:
    mkdir -p reports/<TARGET_SLUG>/findings reports/<TARGET_SLUG>/pocs reports/<TARGET_SLUG>/evidence
    ```
 3. **File Path Conventions**:
-   - **Finding Report**: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+   - **Confirmed Vulnerability Report** (`low`, `medium`, `high`, `critical` ONLY):
+     `reports/<TARGET_SLUG>/findings/<severity>_<vuln_name>.md` (clean snake_case, no square brackets, e.g. `high_idor_documents.md`, `critical_auth_lockout.md`).
+   - **Informational / Recon Notes / Negative Tests**:
+     DO NOT create separate files in `findings/` for `[INFO]` observations (e.g. missing security headers, version disclosures, negative test tables). Consolidate all informational findings into:
+     `reports/<TARGET_SLUG>/evidence/recon_notes.md`
    - **Executable PoC**: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
-   - **Raw Evidence / Screenshots**: `reports/<TARGET_SLUG>/evidence/<filename>`
+   - **Raw Evidence / Screenshots / Dumps**: `reports/<TARGET_SLUG>/evidence/<filename>`
+   - **NEVER place draft notes or random markdown files directly in `findings/`**.
 4. **Summary Aggregation**:
    After writing findings, always trigger the report aggregator to refresh `SUMMARY.md` and `metadata.json`:
    ```bash

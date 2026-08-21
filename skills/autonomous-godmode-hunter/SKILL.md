@@ -70,7 +70,8 @@ description: Autonomous end-to-end security research and full-surface bug huntin
 ## 5. Target-Scoped Output Hierarchy & Deliverables
 Always create target-scoped directories before saving outputs (`TARGET_SLUG` e.g. `example_com` or `127_0_0_1_8888`):
 - Directory Setup: `mkdir -p reports/<TARGET_SLUG>/findings reports/<TARGET_SLUG>/pocs reports/<TARGET_SLUG>/evidence`
-- Finding Report: `reports/<TARGET_SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
+- Finding Report (Confirmed `low`, `medium`, `high`, `critical` only): `reports/<TARGET_SLUG>/findings/<severity>_<vuln_name>.md` (clean snake_case, no square brackets)
+- Informational & Recon Findings: Group into `reports/<TARGET_SLUG>/evidence/recon_notes.md` (Do NOT clutter `findings/` with INFO files)
 - Standalone PoC: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
 - Visual / HTTP Evidence: `reports/<TARGET_SLUG>/evidence/<filename>`
 - Consolidated Summary: Run `python3 tools/aggregate_reports.py <TARGET_SLUG>` to index findings into `reports/<TARGET_SLUG>/SUMMARY.md`.
