@@ -34,6 +34,23 @@ analysis sections (bypass matrices, IDOR methodology, narrative). Order of opera
 run aggregator FIRST → then append analysis sections via targeted patches → do NOT
 re-run the aggregator afterward without re-checking your sections survived.
 
+### Complete-disclosure reporting (hard user requirement, comprehensive audit pass)
+User corrections, verbatim: "jangan ada yang di sembunyikan ini untuk evaluasi" and
+"kirim laporan final nya ya lengkap dengan endpoin dan lainnya".
+
+- EVERY confirmed observation goes into the final report — no silent triage-pruning of
+  weak/informational items. If something feels minor, grade it honestly and keep it;
+  evaluation-grade means exhaustive.
+- Exposed swagger/OpenAPI specs: reproduce the FULL endpoint table (method, path,
+  parameters, request-body schema) into SUMMARY.md itself — "swagger UI exposed" alone
+  is not a deliverable; the endpoint inventory is the value.
+- Verbatim leaked secrets/app-keys belong in the report body AND a dedicated evidence
+  file (redact only on explicit request).
+- Deliver the final report as a `MEDIA:` attachment pointing at SUMMARY.md plus an
+  inline condensed version in the chat message — never filesystem-only.
+- Findings may be re-graded between draft and final (Medium→High after digging is fine),
+  but never dropped: replace the old file; finding count only moves upward.
+
 ## 2. Bypass-Before-Clear Gate (for negative claims)
 
 Operator expectation: "jangan ambigu menganggap hal itu tervalidasi" — never declare a

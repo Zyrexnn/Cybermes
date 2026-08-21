@@ -60,6 +60,9 @@ targets/*
 skills/.usage.json
 skills/.curator_state
 skills/.*
+skills/**/references/*kompas*
+skills/security/recon-output-triage/
+*kompas*
 reports/*
 !reports/.gitkeep
 !reports/127_0_0_1_8888/

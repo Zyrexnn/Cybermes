@@ -14,9 +14,21 @@ Class workflow for authorized audits where you have NO test account (operator-re
 3. **Credentials are always fake** for rate-limit/login tests. A quarantine of your own IP after 429 is *evidence the control works* — record it as such.
 4. Embedded keys found in bundles get **tested live against their real API** before any claim (Firebase: `identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=` → 400 "API key not valid" = revoked, informational only).
 
+## Pre-Flight: Authorization Check
+
+Before any probing, check for a public bug bounty program (HackerOne/Bugcrowd/Intigriti) and `/.well-known/security.txt` on apex + www. If NEITHER exists, downgrade to passive/non-intrusive observation only (CT logs, header analysis, unauth GETs) and state that explicitly in the report's legal-notes section — findings from active testing of a no-program target are unreportable and create liability.
+
 ## Attack Surface When You Have No Account
 
-Subfinder/gau often return near-zero on these targets. The bundle IS the map:
+Subfinder/gau often return near-zero on these targets. Two maps work:
+
+**Map A — CT-log subdomain sweep (do this FIRST, ~2 min):**
+1. `curl "https://crt.sh/?q=%25.DOMAIN&output=json"` → on 502/malformed (frequent), fall back to `https://api.certspotter.com/v1/issuances?domain=DOMAIN&include_subdomains=true&expand=dns_names` (returned 24 hosts when crt.sh was down).
+2. Probe every host in one bash loop: status, redirect target, `<title>`, Server/X-Powered-By headers; tee to `recon/<target>/host_probe.txt`.
+3. High-yield host classes: `staging-*`/`*dev*` (note auth gates), `mail.*` (webmail brand/version), `api-*`/`apps.*` (swagger candidates), odd personal-looking names (leftover deployments).
+4. On ASP.NET Core hosts try `/swagger/index.html` then `/swagger/v1/swagger.json` (also `/swagger/doc.json`). A 200 swagger.json with empty `security`/`securitySchemes` = Medium documentation-exposure finding; enumerate paths read-only, never send the documented POSTs.
+
+**Map B — the JS bundle** when a SPA exists:
 
 1. Download all `/_next/static/chunks/*.js` (or equivalent SPA bundles) to disk; never `cat` minified files — grep them.
 2. Extract endpoint inventory (regex `/api/[a-z0-9/_-]+`, quoted AND backtick strings) → typically 50–100 endpoints from a ~1MB bundle.
@@ -47,6 +59,8 @@ Real IDs from ANY public leak make a meaningful object-access pass possible:
 - **Cloudflare blocks default `python-urllib` UA with 403** while curl/browser UA passes. Every urllib/requests-based PoC MUST set a browser User-Agent or it fails where your curl probes succeeded.
 - No `dig/host/nslookup` on many boxes → DNS-over-HTTPS via curl (`https://dns.google/resolve?name=X&type=A`).
 - crt.sh intermittently returns malformed short responses → fall back to JS mining for subdomain/endpoint hints.
+- **ASP.NET edge can trap API probing in infinite 307 redirect loops** (`Location:` points at the same URL; `-L` never resolves). Diagnose by reading headers, not just following. Workarounds that flipped 307→real answers in one case: add `Accept: application/json` (→403 = WAF gate), try trailing slash, force `--http1.1`.
+- ASP.NET hosts leak versions via headers even when pages are gated — capture `X-Powered-By`, `X-AspNet-Version`, `X-AspNetMvc-Version`, and literal `Server: Microsoft-IIS/8.0` (IIS 8.0 = Windows Server 2012, EOL Oct 2023 → version-exposure finding with upgrade recommendation).
 - Missing binaries are setup issues, not findings — note once, work around, move on.
 
 ## Report Delivery (user preferences — hard rules)
