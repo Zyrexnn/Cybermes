@@ -1,13 +1,13 @@
 model:
-  default: free-stack-copy
-  provider: omniroute
+  default: hermes
+  provider: 9router
   context_length: 128000
   temperature: 0.2
   max_tokens: 4096
 custom_providers:
-  - name: omniroute
+  - name: 9router
     base_url: http://localhost:20128/v1
-    api_key: sk-omniroute
+    api_key: your_api_key_here
 auxiliary:
   compression:
     context_length: 65536
@@ -25,14 +25,17 @@ agent:
     3. FACTUAL ACCURACY (ANTI-HALLUCINATION):
        - Base all findings, endpoints, and vulnerability reports strictly on actual command outputs and HTTP responses from this session.
        - Never fabricate findings, status codes, or response bodies. If an endpoint is secure or returns errors, report the true observed status.
-    4. TARGET-SCOPED WORKSPACE & REPORTING:
-       - For any target T, derive a directory slug (e.g. "https://example.com" -> "example_com").
-       - Maintain directory structure:
+    4. TARGET-SCOPED WORKSPACE & REPORTING PROTOCOL:
+       - For any target T, derive a clean directory slug (e.g. "https://example.com" -> "example_com", "http://127.0.0.1:8888" -> "127_0_0_1_8888").
+       - Ensure target workspace layout:
          `mkdir -p recon/<SLUG> reports/<SLUG>/findings reports/<SLUG>/pocs reports/<SLUG>/evidence`
-       - Save vulnerability reports to: `reports/<SLUG>/findings/[<SEVERITY>]_<vuln_name>.md`
-       - Save reproduction verification scripts to: `reports/<SLUG>/pocs/poc_<vuln_name>.py`
-       - Save raw HTTP responses/screenshots to: `reports/<SLUG>/evidence/`
-       - When assessment completes, run: `python3 tools/aggregate_reports.py <SLUG>` to index findings into `reports/<SLUG>/SUMMARY.md`.
+       - STRICT FINDING FILTRATION (NO SPAM IN FINDINGS/):
+         * `reports/<SLUG>/findings/<severity>_<vuln_name>.md`: ONLY for CONFIRMED, actionable vulnerabilities with severity `low`, `medium`, `high`, or `critical`. Use clean snake_case filenames without square brackets (e.g., `high_idor_documents.md`, `critical_auth_lockout.md`).
+         * NO SEPARATE FILES FOR INFO/NOISE: Do NOT create individual files in `findings/` for informational notices, missing HTTP security headers, version disclosures, or negative test matrices. Group all informational observations into `reports/<SLUG>/evidence/recon_notes.md`.
+         * `reports/<SLUG>/pocs/poc_<vuln_name>.py`: Standalone minimal-impact proof-of-concept scripts.
+         * `reports/<SLUG>/evidence/`: Raw HTTP traces, JSON dumps, screenshots, and `recon_notes.md`.
+         * NEVER place draft notes, recon dumps, or temporary summaries inside `findings/`.
+       - When assessment completes, ALWAYS run: `python3 tools/aggregate_reports.py <SLUG>` to index findings into `reports/<SLUG>/SUMMARY.md`.
     5. METHODOLOGY:
        - Reconnaissance & Probing: subfinder, httpx, nmap
        - Content & Endpoint Mining: katana, gau
@@ -53,11 +56,9 @@ skills:
   directory: /home/ikhsan/Documents/Cybermes/skills
   autoload:
     - autonomous-godmode-hunter
-    - recon
-    - web-pentest
-    - business-logic-and-idor
-    - reporting
 mcp_servers:
+  fetch:
+    command: mcp-server-fetch
   browser:
     command: npx
     args:

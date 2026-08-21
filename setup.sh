@@ -64,15 +64,27 @@ mkdir -p "$CYBERMES_DIR/reports" \
          "$CYBERMES_DIR/tools/bin" \
          "$CYBERMES_DIR/.hermes/skills"
 
+# Set ACL and permissions so created files/reports are readable by user
+if command -v setfacl >/dev/null 2>&1; then
+    setfacl -R -d -m u::rwx,g::rwx,o::rwx "$CYBERMES_DIR/reports" "$CYBERMES_DIR/recon" "$CYBERMES_DIR/output" "$CYBERMES_DIR/logs" "$CYBERMES_DIR/skills" "$CYBERMES_DIR/targets" 2>/dev/null || true
+    setfacl -R -m u::rwx,g::rwx,o::rwx "$CYBERMES_DIR/reports" "$CYBERMES_DIR/recon" "$CYBERMES_DIR/output" "$CYBERMES_DIR/logs" "$CYBERMES_DIR/skills" "$CYBERMES_DIR/targets" 2>/dev/null || true
+fi
+chmod -R a+rwX "$CYBERMES_DIR/reports" "$CYBERMES_DIR/recon" "$CYBERMES_DIR/output" "$CYBERMES_DIR/logs" "$CYBERMES_DIR/skills" "$CYBERMES_DIR/targets" 2>/dev/null || true
+
 # 6. Copy skills to Hermes home if needed
 if [ -d "$CYBERMES_DIR/skills" ]; then
     cp -r "$CYBERMES_DIR"/skills/* "$CYBERMES_DIR/.hermes/skills/" 2>/dev/null || true
 fi
 
-# 7. Setup .env file
+# 7. Setup .env and .hermes/config.yaml from examples
 if [ ! -f "$CYBERMES_DIR/.env" ] && [ -f "$CYBERMES_DIR/.env.example" ]; then
     cp "$CYBERMES_DIR/.env.example" "$CYBERMES_DIR/.env"
     echo "✓ Generated default .env file from .env.example"
+fi
+
+if [ ! -f "$CYBERMES_DIR/.hermes/config.yaml" ] && [ -f "$CYBERMES_DIR/.hermes/config.yaml.example" ]; then
+    cp "$CYBERMES_DIR/.hermes/config.yaml.example" "$CYBERMES_DIR/.hermes/config.yaml"
+    echo "✓ Initialized .hermes/config.yaml from .hermes/config.yaml.example"
 fi
 
 # 8. Set execute permissions
@@ -85,25 +97,54 @@ if [ -d "$CYBERMES_DIR/tools/bin" ]; then
     chmod +x "$CYBERMES_DIR"/tools/bin/* 2>/dev/null || true
 fi
 
-# 9. Configure dynamically in .hermes/config.yaml
+# 9. Configure dynamically in .hermes/config.yaml & sync .env
 python3 - <<PYEOF
+import os
 import re
 from pathlib import Path
 
-config_path = Path("$CYBERMES_DIR/.hermes/config.yaml")
+cybermes_dir = "$CYBERMES_DIR"
+config_path = Path(cybermes_dir) / ".hermes/config.yaml"
+env_path = Path(cybermes_dir) / ".env"
+
+env_vars = {}
+if env_path.exists():
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            env_vars[k.strip()] = v.strip().strip("'\"")
+
+api_key = env_vars.get("ROUTER_API_KEY") or env_vars.get("OPENROUTER_API_KEY") or "your_api_key_here"
+base_url = env_vars.get("ROUTER_BASE_URL") or env_vars.get("OPENROUTER_BASE_URL") or "http://localhost:20128/v1"
+model_name = env_vars.get("HERMES_DEFAULT_MODEL") or "hermes"
+
 if config_path.exists():
     content = config_path.read_text(encoding="utf-8")
     # Replace absolute workspace paths with current CYBERMES_DIR
-    content = re.sub(r'root:\s*.*', f'root: $CYBERMES_DIR', content)
-    content = re.sub(r'targets:\s*.*', f'targets: $CYBERMES_DIR/targets', content)
-    content = re.sub(r'recon:\s*.*', f'recon: $CYBERMES_DIR/recon', content)
-    content = re.sub(r'output:\s*.*', f'output: $CYBERMES_DIR/output', content)
-    content = re.sub(r'reports:\s*.*', f'reports: $CYBERMES_DIR/reports', content)
-    content = re.sub(r'logs:\s*.*', f'logs: $CYBERMES_DIR/logs', content)
-    content = re.sub(r'knowledge:\s*.*', f'knowledge: $CYBERMES_DIR/knowledge', content)
-    content = re.sub(r'wordlists:\s*.*', f'wordlists: $CYBERMES_DIR/tools/wordlists', content)
-    content = re.sub(r'directory:\s*.*skills', f'directory: $CYBERMES_DIR/skills', content)
+    content = re.sub(r'root:\s*.*', f'root: {cybermes_dir}', content)
+    content = re.sub(r'targets:\s*.*', f'targets: {cybermes_dir}/targets', content)
+    content = re.sub(r'recon:\s*.*', f'recon: {cybermes_dir}/recon', content)
+    content = re.sub(r'output:\s*.*', f'output: {cybermes_dir}/output', content)
+    content = re.sub(r'reports:\s*.*', f'reports: {cybermes_dir}/reports', content)
+    content = re.sub(r'logs:\s*.*', f'logs: {cybermes_dir}/logs', content)
+    content = re.sub(r'knowledge:\s*.*', f'knowledge: {cybermes_dir}/knowledge', content)
+    content = re.sub(r'wordlists:\s*.*', f'wordlists: {cybermes_dir}/tools/wordlists', content)
+    content = re.sub(r'directory:\s*.*skills', f'directory: {cybermes_dir}/skills', content)
+
+    # Sync model and provider credentials if available in .env
+    content = re.sub(r'default:\s*.*', f'default: {model_name}', content)
+    if api_key and api_key != "your_api_key_here":
+        content = re.sub(r'api_key:\s*.*', f'api_key: {api_key}', content)
+    if base_url:
+        content = re.sub(r'base_url:\s*.*', f'base_url: {base_url}', content)
+
     config_path.write_text(content, encoding="utf-8")
+
+# Sync to .hermes/.env
+hermes_env = Path(cybermes_dir) / ".hermes/.env"
+if env_path.exists():
+    hermes_env.write_text(env_path.read_text(encoding="utf-8"), encoding="utf-8")
 PYEOF
 
 echo ""

@@ -3,6 +3,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CYBERMES_DIR="$SCRIPT_DIR"
 export HERMES_HOME="$CYBERMES_DIR/.hermes"
 export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
+umask 0002
+
+# Load local .env if present
+if [ -f "$CYBERMES_DIR/.env" ]; then
+    set -a
+    source "$CYBERMES_DIR/.env"
+    set +a
+fi
 
 if [ -f "$CYBERMES_DIR/venv/bin/activate" ]; then
     source "$CYBERMES_DIR/venv/bin/activate"

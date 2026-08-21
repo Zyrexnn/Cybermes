@@ -4,7 +4,7 @@
 
 # 1. Hermes Agent Local State, Data & Sessions
 .hermes/*
-!.hermes/config.yaml
+!.hermes/config.yaml.example
 !.hermes/SOUL.md
 *.db
 *.sqlite*
@@ -58,6 +58,8 @@ recon/*
 targets/*
 !targets/.gitkeep
 skills/.usage.json
+skills/.curator_state
+skills/.*
 reports/*
 !reports/.gitkeep
 !reports/127_0_0_1_8888/
