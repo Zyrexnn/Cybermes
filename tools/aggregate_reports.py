@@ -33,12 +33,12 @@ def parse_finding_file(filepath: Path) -> dict:
     title_match = re.search(r"^#\s+(?:Vulnerability Report:\s*)?(.+)$", content, re.MULTILINE)
     title = title_match.group(1).strip() if title_match else filename.replace(".md", "").replace("_", " ")
 
-    # Extract severity (from table or bullets)
+    # Extract severity (from table, headers, or filename prefix)
     sev_match = re.search(r"(?:Severity|Severity Rating)\s*[:|]\s*\*?`?([A-Za-z]+)`?\*?", content, re.IGNORECASE)
     if sev_match:
         severity = sev_match.group(1).strip().upper()
     else:
-        prefix_match = re.search(r"^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?", filename, re.IGNORECASE)
+        prefix_match = re.search(r"^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?[-_]", filename, re.IGNORECASE)
         severity = prefix_match.group(1).upper() if prefix_match else "UNKNOWN"
     if severity == "INFO":
         severity = "INFORMATIONAL"
@@ -101,6 +101,12 @@ def aggregate_target(target_dir: Path) -> dict:
         if sev in severity_counts:
             severity_counts[sev] += 1
 
+    # Check for recon_notes.md in evidence
+    recon_notes = None
+    recon_notes_file = evidence_dir / "recon_notes.md"
+    if recon_notes_file.exists():
+        recon_notes = "evidence/recon_notes.md"
+
     summary_data = {
         "target": target_name,
         "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -108,13 +114,18 @@ def aggregate_target(target_dir: Path) -> dict:
         "severity_summary": severity_counts,
         "findings": findings,
         "pocs": pocs,
-        "evidence_files": evidence
+        "evidence_files": evidence,
+        "recon_notes": recon_notes
     }
 
     # Write metadata.json
     metadata_file = target_dir / "metadata.json"
     with open(metadata_file, "w", encoding="utf-8") as f:
         json.dump(summary_data, f, indent=2)
+    try:
+        os.chmod(metadata_file, 0o666)
+    except Exception:
+        pass
 
     # Generate SUMMARY.md
     generate_summary_md(target_dir, summary_data)
@@ -174,9 +185,12 @@ def generate_summary_md(target_dir: Path, data: dict):
 
     lines.extend([
         "",
-        "## 📁 Evidence Files (`evidence/`)",
+        "## 📁 Evidence & Recon Notes (`evidence/`)",
         ""
     ])
+
+    if data.get("recon_notes"):
+        lines.append(f"- 📝 **[Reconnaissance & Informational Notes]({data['recon_notes']})**")
 
     if data["evidence_files"]:
         for ev in data["evidence_files"]:
@@ -188,11 +202,16 @@ def generate_summary_md(target_dir: Path, data: dict):
 
     summary_file = target_dir / "SUMMARY.md"
     summary_file.write_text("\n".join(lines), encoding="utf-8")
+    try:
+        os.chmod(summary_file, 0o666)
+    except Exception:
+        pass
 
 def main():
     parser = argparse.ArgumentParser(description="Cybermes Report Aggregator & Indexer")
     parser.add_argument("target", nargs="?", help="Target slug name (e.g. 127_0_0_1_8888 or example_com)")
     parser.add_argument("--all", action="store_true", help="Process all target directories under reports/")
+    parser.add_argument("--no-pdf", action="store_true", help="Skip rendering HTML and PDF reports")
     args = parser.parse_args()
 
     if not REPORTS_DIR.exists():
@@ -220,9 +239,26 @@ def main():
             print("No target directory specified and no existing target directories found.")
             sys.exit(0)
 
+    # Import generate_pdf dynamically if available
+    pdf_generator = None
+    if not args.no_pdf:
+        try:
+            sys.path.insert(0, str(BASE_DIR / "tools"))
+            from generate_pdf import generate_report_for_target
+            pdf_generator = generate_report_for_target
+        except Exception as e:
+            print(f"⚠️  PDF generator module not available: {e}")
+
     for t_dir in targets_to_process:
         res = aggregate_target(t_dir)
         print(f"✓ Aggregated reports for target [{t_dir.name}]: {res['total_findings']} findings indexed -> {t_dir / 'SUMMARY.md'}")
+        if pdf_generator:
+            try:
+                html_f, pdf_f = pdf_generator(t_dir, output_pdf=True)
+                if pdf_f.exists():
+                    print(f"   📑 Rendered PDF: {pdf_f.name} ({pdf_f.stat().st_size / 1024:.1f} KB)")
+            except Exception as pe:
+                print(f"   ⚠️  Failed to render PDF: {pe}")
 
 if __name__ == "__main__":
     main()

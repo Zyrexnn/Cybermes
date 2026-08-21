@@ -1,6 +1,6 @@
 # 🛡️ Security Assessment Summary: `127_0_0_1_8888`
 
-- **Generated At**: 2026-08-20 15:16:01
+- **Generated At**: 2026-08-21 21:02:44
 - **Total Confirmed Findings**: 1
 - **Severity Breakdown**: 🔴 Critical: 0 | 🟠 High: 1 | 🟡 Medium: 0 | 🔵 Low: 0 | ⚪ Info: 0
 
@@ -18,6 +18,6 @@
 
 - [`pocs/poc_idor.py`](pocs/poc_idor.py)
 
-## 📁 Evidence Files (`evidence/`)
+## 📁 Evidence & Recon Notes (`evidence/`)
 
 - *No visual or trace evidence attached.*
