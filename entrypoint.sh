@@ -32,7 +32,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-export PATH="/workspace/tools/bin:/usr/local/bin:$PATH"
+export PATH="/opt/hermes-venv/bin:/workspace/tools/bin:/usr/local/bin:$PATH"
 
 if [ "$#" -eq 0 ]; then
     hermes gateway run
