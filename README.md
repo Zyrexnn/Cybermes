@@ -6,300 +6,234 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v1.2.0](https://img.shields.io/badge/Release-v1.2.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
+[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.3.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
-[![Security: Authorized Scope](https://img.shields.io/badge/Security-Authorized%20Testing%20Only-brightgreen.svg)](scope.yaml)
+[![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
+[![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
+[![AI Standards: AGENTS.md](https://img.shields.io/badge/AI%20Standards-AGENTS.md%20%2B%20.cursorrules-success.svg)](AGENTS.md)
 
 <p align="center">
-  <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, and automated CVSS v3.1 reporting.
+  <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, token-efficient context management, and automated executive PDF/HTML report generation.
 </p>
+
+[Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Documentation](docs/) • [Release Notes](#-release--version-history)
 
 </div>
 
+---
+
+## ⚡ What Makes Cybermes Different?
+
+| Traditional Security Scanners ❌ | Cybermes Autonomous Agent 🛡️ |
+| :--- | :--- |
+| **Noisy & Speculative**: Dumps hundreds of unverified alerts based on simple regex. | **Zero-False-Positive Gate**: Requires deterministic HTTP proof, status codes, and standalone Python PoC scripts before reporting. |
+| **Context Window Bloat**: Dumps 5,000+ raw output lines into LLM context, causing hallucinations. | **Smart Output Filter & Token Economy**: Compresses verbose logs by 70–85% with `smart_pipe.py` and native Markdown MCP converters. |
+| **Markdown-Only Deliverables**: Leaves users with raw markdown files scattered across directories. | **End-to-End Automated PDF/HTML Engine**: Generates pixel-perfect executive PDF reports (`REPORT.pdf`) and interactive HTML dashboards. |
+| **Fragile File Permissions**: Docker and root processes create locked files (`NoPermissions`). | **Live Background Permission Daemon**: Integrated POSIX ACLs and live permission keeper guaranteeing `-rw-rw-rw-` open access. |
+| **Single-Phase Execution**: Scans without understanding application logic or multi-step auth. | **Autonomous Reasoning Loop**: Mines JS bundles, tests multi-account auth matrices, and validates complex business logic. |
 
 ---
 
 ## 📑 Table of Contents
 
-- [Overview](#-overview)
-- [Architecture & Core Engine](#-architecture--core-engine)
-- [Operational Methodology (Phases 1–6)](#-operational-methodology-phases-16)
-- [Offensive Skills Layer (50+ Modules)](#-offensive-skills-layer-50-modules)
-- [Integrated Security Knowledge Base](#-integrated-security-knowledge-base)
-- [Toolchain & Integration](#-toolchain--integration)
-- [Repository Structure](#-repository-structure)
-- [Installation & Quick Start](#-installation--quick-start)
-  - [Method 1: Docker & Docker Compose (Recommended)](#method-1-docker--docker-compose-recommended)
-  - [Method 2: Native Host Setup](#method-2-native-host-setup)
-- [🤖 Telegram Bot Integration](#-telegram-bot-integration)
+- [🏛️ Architecture & Core Engine](#-architecture--core-engine)
+- [📑 Automated Executive Reporting (PDF & HTML)](#-automated-executive-reporting-pdf--html)
+- [🧠 Token Economy & Smart Output Filtering](#-token-economy--smart-output-filtering)
+- [🛡️ Universal AI Agent Standards (`AGENTS.md`)](#-universal-ai-agent-standards-agentsmd--cursorrules)
+- [🔄 Operational Methodology (Phases 1–6)](#-operational-methodology-phases-16)
+- [🧰 Available Toolchain & MCP Bridge](#-available-toolchain--mcp-bridge)
+- [📁 Target-Scoped Directory Structure](#-target-scoped-directory-structure)
+- [🚀 Installation & Quick Start](#-installation--quick-start)
+  - [Method 1: Native Host Setup (Recommended)](#method-1-native-host-setup-recommended)
+  - [Method 2: Docker & Docker Compose](#method-2-docker--docker-compose)
+- [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
-- [📚 Extended Documentation](#-extended-documentation)
-- [Configuration & Scope Rules](#-configuration--scope-rules)
-- [Local Validation with Mock Target](#-local-validation-with-mock-target)
+- [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
 - [📦 Release & Version History](#-release--version-history)
 - [⚖️ License](#️-license)
 - [⚠️ Legal & Ethical Disclaimer](#️-legal--ethical-disclaimer)
-- [👥 Contributors](#-contributors)
-
----
-
-## 📖 Overview
-
-**Cybermes** bridges modern LLM reasoning with automated offensive security workflows. Built upon the **Hermes Agent** runtime, it empowers security teams and researchers to conduct deep, context-aware security assessments within authorized boundaries.
-
-Unlike traditional heuristic scanners that generate noisy alerts, Cybermes combines:
-- **Autonomous Multi-Step Reasoning**: Dynamically formulates attack plans based on observed server technologies and response signatures.
-- **Deep Skill Matrix**: 50+ domain-specific skills covering authorization, business logic, injections, cryptographic flaws, and cloud vectors.
-- **Multi-Source Knowledge Retrieval**: Integrated offline knowledge bases from *PayloadsAllTheThings*, *HackTricks*, *Claude-BugHunter*, and *Strix*.
-- **Client-Side & Browser MCP Automation**: Full browser interaction via Playwright / Chromium for DOM inspection, SPA routing, and headless client verification.
-- **Zero-Noise PoC Validation**: Every finding is validated programmatically with executable proof scripts before entering the final report.
 
 ---
 
 ## 🏛️ Architecture & Core Engine
 
 ```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                          CYBERMES CORE ENGINE                          │
-├────────────────────────────────────────────────────────────────────────┤
-│  [ Operator Prompt / Target Queue ]  ──>  [ Scope Validator: scope.yaml ]
-│                                                     │
-│                                                     ▼
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                    Hermes Reasoning Loop                         │  │
-│  │  - Context Window Memory       - Multi-Model LLM Orchestration   │  │
-│  │  - Action Planning & Recovery  - Decision Confidence Grading     │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│          │                                         │                   │
-│          ▼                                         ▼                   │
-│  ┌─────────────────────────┐             ┌──────────────────────────┐  │
-│  │   50+ Security Skills   │             │  Curated Knowledge Base  │  │
-│  │  - IDOR / BOLA / Auth   │             │  - PayloadsAllTheThings  │  │
-│  │  - SSRF / XSS / SQLi    │ <─────────> │  - HackTricks Wiki       │  │
-│  │  - Cloud / K8s / SAML   │             │  - Claude-BugHunter      │  │
-│  │  - Prompt Injection     │             │  - Strix Multi-Agent DB  │  │
-│  └─────────────────────────┘             └──────────────────────────┘  │
-│          │                                         │                   │
-│          ▼                                         ▼                   │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                  Security Toolchain & MCP Bridge                 │  │
-│  │  • Recon: subfinder, amass, assetfinder, httpx                   │  │
-│  │  • Mining & Crawling: katana, gau, waybackurls, arjun            │  │
-│  │  • Fuzzing & Exploitation: ffuf, sqlmap, dalfox, nuclei, nmap    │  │
-│  │  • Headless Browser MCP: Chromium Playwright DOM Automation      │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                                     │                                  │
-│                                     ▼                                  │
-│              [ Validated PoC Scripts & CVSS v3.1 Report ]              │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                             CYBERMES ENGINE v1.3.0                               │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│  [ Operator Prompt / Target Queue ]  ──>  [ Direct Operator Authorization Hook ] │
+│                                                          │                       │
+│                                                          ▼                       │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                       Hermes Autonomous Reasoning Loop                     │  │
+│  │  - Context Window Memory       - Streamlined Autoload (Godmode Orchestrator)│  │
+│  │  - Action Planning & Recovery  - Decision Confidence & CVSS v3.1 Grading   │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+│          │                                                │                      │
+│          ▼                                                ▼                      │
+│  ┌───────────────────────────────┐              ┌─────────────────────────────┐  │
+│  │      50+ Security Skills      │              │   Curated Knowledge Base    │  │
+│  │  - Next.js AI Router Audits   │              │  - PayloadsAllTheThings     │  │
+│  │  - IDOR / BOLA / Auth Bypass  │ <──────────> │  - HackTricks Wiki          │  │
+│  │  - Business Logic & Race Cond │              │  - Claude-BugHunter         │  │
+│  │  - DOM XSS / SSRF / Injection │              │  - Strix Multi-Agent DB     │  │
+│  └───────────────────────────────┘              └─────────────────────────────┘  │
+│          │                                                │                      │
+│          ▼                                                ▼                      │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                      Security Toolchain & MCP Layer                        │  │
+│  │  • Recon: subfinder, amass, httpx, nmap                                    │  │
+│  │  • Content & Endpoint Mining: katana, gau, waybackurls, arjun              │  │
+│  │  • Smart Token Pipe: tools/smart_pipe.py (Captures raw, emits top-signal)  │  │
+│  │  • Fuzzing & Exploitation: ffuf, sqlmap, dalfox, nuclei                    │  │
+│  │  • MCP Bridge: Puppeteer Browser, Filesystem, mcp-server-fetch             │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+│                                          │                                       │
+│                                          ▼                                       │
+│  ┌────────────────────────────────────────────────────────────────────────────┐  │
+│  │                  Automated Multi-Format Reporting Pipeline                 │  │
+│  │  ├── SUMMARY.md (Aggregated Markdown)    ├── report.html (Interactive UI)  │  │
+│  │  ├── metadata.json (Structured Metrics)  ├── REPORT.pdf (Print-Ready PDF)  │  │
+│  │  └── pocs/poc_<vuln>.py (Standalone Reproducible Python Scripts)           │  │
+│  └────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔄 Operational Methodology (Phases 1–6)
+## 📑 Automated Executive Reporting (PDF & HTML)
 
-Cybermes operates through a structured six-phase pipeline:
+Cybermes v1.3.0 features an integrated **Playwright Chromium PDF & HTML generator** (`tools/generate_pdf.py`). Whenever an assessment completes or `python3 tools/aggregate_reports.py <TARGET_SLUG>` is executed, Cybermes produces four structured deliverable formats simultaneously:
 
 ```text
-Phase 1: Recon & Port Surface     ──> Subdomain enumeration, DNS resolution, port probing
-Phase 2: Endpoint & URL Mining   ──> Active crawling, historical URL scraping, SPA analysis
-Phase 3: Fuzzing & Parameter Hunt ──> Directory discovery, hidden parameter mining, JS secret audit
-Phase 4: Vulnerability Analysis   ──> Nuclei templating, OOB callback verification, DOM XSS checks
-Phase 5: Logic, Auth & IDOR       ──> Dual-account matrix testing, JWT abuse, privilege escalation
-Phase 6: Verification & Reporting ──> Reproducible PoC script execution, CVSS v3.1 scoring, remediation
+reports/<TARGET_SLUG>/
+├── SUMMARY.md          # Consolidated executive summary & findings matrix
+├── metadata.json       # Structured JSON metrics for CI/CD & automation
+├── report.html         # Interactive standalone dashboard with Dark/Light styling
+├── REPORT.pdf          # Executive PDF deliverable with CVSS risk badges
+├── findings/           # Granular vulnerability writeups (LOW, MED, HIGH, CRIT only)
+├── pocs/               # Minimal-impact reproducible Python proof-of-concept scripts
+└── evidence/           # Raw HTTP traces, screenshot dumps, and recon_notes.md
 ```
 
-1. **Phase 1 — Reconnaissance & Asset Discovery**: Subdomain discovery (`subfinder`, `amass`), DNS resolution, and live endpoint probing (`httpx`).
-2. **Phase 2 — Content, URL & SPA Mining**: Active crawling (`katana`), historical URL scraping (`gau`, `waybackurls`), stream deduplication, and browser rendering for SPAs (React, Vue, Angular).
-3. **Phase 3 — Parameter Discovery & Fuzzing**: Directory/vhost fuzzing (`ffuf`, `feroxbuster`), hidden parameter identification (`arjun`), and client-side JavaScript secret hunting.
-4. **Phase 4 — Automated Testing & Callback Verification**: Targeted `nuclei` evaluation, Out-of-Band callback checks (`interactsh`) for blind SSRF/RCE, and DOM-level browser evaluation.
-5. **Phase 5 — Business Logic, Auth & IDOR**: Dual-session testing across permission boundaries, token replay, mass assignment, and tenant boundary validation.
-6. **Phase 6 — Verification & Structured Reporting**: End-to-end Python PoC verification, CWE mapping, CVSS v3.1 vector calculation, and remediation advisory generation.
+### ✨ PDF & HTML Report Highlights:
+* **Executive Summary & Risk Score Bar**: Visual breakdown of Critical, High, Medium, Low, and Informational findings.
+* **Findings Matrix Table**: Color-coded severity badges with CVSS v3.1 vector strings, CWE classifications, and affected endpoints.
+* **Syntax-Highlighted Proof Boxes**: Clean monospaced HTTP Request/Response proofs and Python PoC snippets.
+* **Print-Ready Page Breaks**: CSS `@media print` rules ensure tables and vulnerability chapters never get awkwardly split across pages.
 
 ---
 
-## 🎯 Offensive Skills Layer (50+ Modules)
+## 🧠 Token Economy & Smart Output Filtering
 
-Cybermes bundles 50+ domain-specific offensive security skills:
+Traditional AI security agents quickly exhaust context windows and suffer from attention degradation when reading thousands of raw terminal lines from tools like `katana` or `ffuf`. 
 
-| Category | Skills Included |
-| :--- | :--- |
-| **Authentication & Authorization** | `authbypass-authentication-flaws`, `api-authorization-and-bola`, `hunt-idor`, `business-logic-and-idor`, `hunt-ato`, `oauth-oidc-misconfiguration`, `hunt-jwt-crypto`, `saml-sso-assertion-attacks`, `hunt-saml` |
-| **Web Injections & XSS** | `sqli-sql-injection`, `hunt-sqli`, `xss-cross-site-scripting`, `hunt-xss`, `prototype-pollution`, `prototype-pollution-advanced`, `ssti-server-side-template-injection`, `expression-language-injection`, `xslt-injection` |
-| **Server-Side & Network Flaws** | `ssrf-server-side-request-forgery`, `hunt-ssrf`, `hunt-rce`, `hunt-race-condition`, `request-smuggling`, `http-parameter-pollution`, `hunt-host-header`, `csrf-cross-site-request-forgery`, `clickjacking` |
-| **Reconnaissance & OSINT** | `recon-and-methodology`, `web2-recon`, `fuzzing-and-content-discovery`, `js-recon-secret-hunting`, `api-recon-and-docs`, `offensive-osint`, `subdomain-takeover`, `hunt-shadow-api` |
-| **Cloud & Infrastructure** | `kubernetes-pentesting`, `hunt-k8s`, `m365-entra-attack`, `okta-attack`, `vmware-vcenter-attack`, `enterprise-vpn-attack`, `supply-chain-attack-recon`, `network-protocol-attacks` |
-| **AI & LLM Security** | `llm-prompt-injection`, `hunt-rag-vector`, `ai-api-gateway-security` |
-| **Reporting & Triage** | `report-writing`, `bugcrowd-reporting`, `redteam-report-template`, `triage-validation`, `evidence-hygiene` |
+Cybermes solves this with a two-tiered token optimization architecture:
 
----
+1. **Smart CLI Output Filter (`tools/smart_pipe.py`)**:
+   - Intercepts tool streams and dumps **100% of raw logs** to `recon/<TARGET_SLUG>/<tool>_raw.txt`.
+   - Filters out static asset clutter (`.png`, `.css`, `.woff`) and 404 noise.
+   - Streams only the **top 30–50 high-signal findings** (HTTP 200/301/403, unique parameters, API routes) to the AI context.
+   - **Result**: Saves **70%–85% token consumption** per recon phase.
 
-## 📚 Integrated Security Knowledge Base
-
-The repository includes curated knowledge repositories located under `knowledge/`:
-
-- **PayloadsAllTheThings**: Comprehensive repository of payloads, filter bypasses, and injection cheatsheets across 50+ vulnerability types.
-- **HackTricks**: Industry-standard penetration testing wiki covering service enumeration, web exploitation, lateral movement, and privilege escalation.
-- **Claude-BugHunter**: Specialized engagement patterns, automated triage playbooks, and assessment strategies.
-- **Strix Knowledge**: Multi-agent collaborative security coordination patterns and technology fingerprints.
+2. **Native Markdown MCP Fetch (`mcp-server-fetch`)**:
+   - Converts external web pages and documentation directly into clean markdown, stripping massive raw HTML boilerplate before LLM evaluation.
 
 ---
 
-## 🧰 Toolchain & Integration
+## 🛡️ Universal AI Agent Standards (`AGENTS.md` & `.cursorrules`)
 
-| Tool | Purpose | Integration Type |
+Cybermes is built for seamless collaboration across all modern AI developer ecosystems:
+
+* **[`AGENTS.md`](AGENTS.md)**: Universal master operational directives defining core persona, zero-false-positive boundaries, toolchain syntax, anti-hallucination gates, and self-healing error recovery.
+* **[`.cursorrules`](.cursorrules)**: Coding and workspace standards governing Python PoC construction (`requests`, explicit timeouts, error handling), snake_case file naming without shell brackets `[...]`, and secret hygiene.
+
+---
+
+## 🧰 Available Toolchain & MCP Bridge
+
+All tools are pre-configured and accessible across host and Docker environments:
+
+| Tool | Primary Purpose | Standard Syntax |
 | :--- | :--- | :--- |
-| `nuclei` | Fast and customizable vulnerability scanning | Native Binary CLI |
-| `httpx` | Fast multi-purpose HTTP probing tool | Native Binary CLI |
-| `subfinder` | Fast passive subdomain enumeration | Native Binary CLI |
-| `katana` | Next-generation crawling & spidering engine | Native Binary CLI |
-| `ffuf` | High-speed web fuzzer | Native Binary CLI |
-| `sqlmap` | Automated SQL injection & database takeover | Integrated Source Engine |
-| `strix` | Multi-agent autonomous penetration testing | Integrated Framework |
-| `dalfox` | Parameter analysis and XSS scanner | Native Binary CLI |
-| `nmap` | Network exploration and port scanning | System Wrapper |
-| `Playwright` | Headless browser automation for DOM/SPA testing | Node.js MCP Server |
-
----
-
-## 📁 Repository Structure
-
-```text
-Cybermes/
-├── .dockerignore                     # Docker build exclusions
-├── .env.example                      # Configuration template (keys, endpoints, limits)
-├── .gitignore                        # Git safety rules (protects credentials, DBs, binaries)
-├── Dockerfile                        # Multi-stage security container build definition
-├── docker-compose.yml                # Docker compose orchestration and volume mounts
-├── entrypoint.sh                     # Container runtime entrypoint
-├── env.sh                            # Host environment activation script
-├── hermes                            # Host execution wrapper
-├── bin/
-│   └── hermes                        # CLI shortcut script
-├── knowledge/                        # Curated offensive security knowledge base
-│   ├── Claude-BugHunter/             # Bug hunting methodologies
-│   ├── PayloadsAllTheThings/         # Cheatsheets and payloads
-│   ├── hack-skills/                  # Specialized attack playbooks
-│   ├── hacktricks/                   # Pentesting wiki & escalation guides
-│   └── strix-skills/                 # Multi-agent coordination knowledge
-├── assets/                           # Project visual assets & social preview banner
-│   └── banner.jpg                    # High-resolution project banner
-├── logs/                             # Execution logs (.gitkeep)
-
-├── mock_vulnerable_app.py            # Local vulnerable test harness for validation
-├── output/                           # Scan dumps and dynamic artifacts (.gitkeep)
-├── recon/                            # Reconnaissance output directory (.gitkeep)
-├── reports/                          # Target-scoped vulnerability reports & PoCs
-│   └── <target_slug>/                # Isolated assessment output (e.g. 127_0_0_1_8888)
-│       ├── SUMMARY.md                # Consolidated executive finding summary
-│       ├── metadata.json             # Machine-readable scan metadata & counts
-│       ├── findings/                 # Per-vulnerability markdown reports
-│       ├── pocs/                     # Executable verification scripts (.py, .sh)
-│       └── evidence/                 # Raw HTTP response traces & screenshots
-├── scope.yaml                        # Scope definition and rules of engagement
-├── skills/                           # 50+ Hermes bug bounty skill modules
-├── targets/                          # Target asset queue (.gitkeep)
-├── templates/
-│   └── report_template.md            # Standardized CVSS v3.1 report template
-├── tools/                            # Security tools and wordlists
-│   ├── aggregate_reports.py          # Automated report parser & summary generator
-│   ├── bin/                          # Binary tool directory (.gitkeep, wrappers)
-│   ├── sqlmap/                       # SQL injection testing engine
-│   ├── strix/                        # Autonomous penetration testing framework
-│   └── wordlists/                    # Curated fuzzing and discovery wordlists
-├── ATTRIBUTION.md                    # Third-party notices and upstream attributions
-├── CONTRIBUTORS.md                   # Project contributors and AI co-authors
-├── LICENSE                           # MIT License
-└── README.md                         # Project documentation
-
-```
+| **subfinder** | Passive Subdomain Discovery | `subfinder -d <target> -silent` |
+| **httpx** | Probing & Tech Detection | `httpx -silent -status-code -title -tech-detect` |
+| **katana** | Crawler & SPA Endpoint Miner | `katana -u <url> -silent -depth 3` |
+| **smart_pipe.py** | Smart Filter & Token Saver | `<tool_cmd> \| python3 tools/smart_pipe.py --target <SLUG> --tool <NAME>` |
+| **ffuf** | Directory & Parameter Fuzzing | `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -mc 200,301,302,403` |
+| **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -silent` |
+| **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
+| **dalfox** | XSS Scanner & Parameter Analyzer | `dalfox url <url> --silence` |
+| **generate_pdf.py**| Automated PDF/HTML Generator | `python3 tools/generate_pdf.py <TARGET_SLUG>` |
+| **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
+| **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
 
 ---
 
 ## 🚀 Installation & Quick Start
 
-### Method 1: Docker & Docker Compose (Recommended)
+### Method 1: Native Host Setup (Recommended)
 
-Docker provides an isolated, fully pre-configured environment including Chromium headless browser dependencies, Node MCP servers, and Python toolchains.
+Cybermes provides a single-command automated installer for Linux and macOS:
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Zyrexnn/Cybermes.git
-   cd Cybermes
-   ```
+```bash
+# 1. Clone the repository
+git clone https://github.com/Zyrexnn/Cybermes.git
+cd Cybermes
 
-2. **Configure your environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env and supply your LLM Provider endpoint and keys
-   ```
+# 2. Run the automated installer (sets up venv, Playwright, MCPs, ACLs, and tools)
+./setup.sh
 
-3. **Build and start the Docker container (Telegram Gateway Mode):**
-   ```bash
-   docker compose up -d --build
-   ```
+# 3. Configure your API keys in .env
+nano .env
 
-4. **Monitor logs:**
-   ```bash
-   docker compose logs -f
-   ```
+# 4. Activate the environment
+source env.sh
+
+# 5. Launch an assessment
+./hermes "Assess http://127.0.0.1:8888 and generate full report."
+```
+
+### Method 2: Docker & Docker Compose
+
+Run Cybermes inside a fully isolated, rootless-friendly container with live permission auto-healing:
+
+```bash
+# 1. Clone and navigate to repository
+git clone https://github.com/Zyrexnn/Cybermes.git
+cd Cybermes
+
+# 2. Copy and edit environment variables
+cp .env.example .env
+nano .env
+
+# 3. Start Cybermes container
+docker compose up -d
+
+# 4. Execute commands inside container
+docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
+```
 
 ---
 
-### Method 2: Native Host Setup (Linux / macOS)
+## 🤖 Telegram Bot Gateway
 
-For local development and running natively without Docker:
+Control Cybermes remotely from your phone or desktop via Telegram:
 
-1. **Clone the repository and run the automated installer:**
-   ```bash
-   git clone https://github.com/Zyrexnn/Cybermes.git
-   cd Cybermes
-   chmod +x setup.sh
-   ./setup.sh
+1. Obtain a Bot Token from [@BotFather](https://t.me/BotFather).
+2. Add your token and numeric Telegram User ID to `.env`:
+   ```ini
+   TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+   TELEGRAM_ALLOWED_USERS=your_telegram_user_id
    ```
-   *The installer automatically configures the Python virtual environment (`venv`), installs dependencies from `requirements.txt`, sets up Playwright Chromium, and registers MCP servers.*
-
-2. **Activate the environment & configure API keys:**
+3. Start the gateway:
    ```bash
-   source env.sh
-   # Edit .env and configure your LLM Provider API keys
-   ```
-
-3. **Verify status & start assessment:**
-   ```bash
-   ./hermes --help
-   ./hermes "Assess http://127.0.0.1:8888"
-
-   # Or run in Telegram Gateway daemon mode:
    ./hermes gateway run
    ```
-
----
-
-## 🤖 Telegram Bot Integration
-
-Cybermes runs autonomously with messaging support for Telegram via Hermes Gateway.
-
-1. Create a bot using **[@BotFather](https://t.me/BotFather)** on Telegram.
-2. Retrieve your numeric User ID from **[@userinfobot](https://t.me/userinfobot)**.
-3. Configure `.env` or `.hermes/.env`:
-   ```ini
-   TELEGRAM_BOT_TOKEN=your_bot_token_here
-   TELEGRAM_ALLOWED_USERS=your_numeric_user_id
-   GATEWAY_ALLOW_ALL_USERS=false
-   HERMES_YOLO_MODE=1
-   ```
-4. Start the container:
-   ```bash
-   docker compose up -d
-   ```
-5. Key Telegram commands:
-   * `/new` or `/reset` — Start a fresh session & clear context.
-   * `/status` — View current agent status, model, and resource usage.
-   * `/skills` — List 200+ available offensive security skills.
+4. Send assessment instructions directly to your Telegram bot.
 
 ---
 
@@ -312,114 +246,64 @@ To maximize execution efficiency and **prevent model safety refusals** (false po
 ```
 
 ### Quick Phrasing Examples:
-
 * **Recon & Asset Discovery**:
-  > *"Under authorized scope in scope.yaml for target domain example.com, execute Phase 1 reconnaissance to map live subdomains, open web ports, and technologies into recon/."*
+  > *"Under authorized scope for target domain example.com, execute Phase 1 reconnaissance to map live subdomains, open web ports, and technologies into recon/."*
 * **Authentication & IDOR Testing**:
   > *"Evaluate access control boundaries on https://example.com/api/user/101 using dual-account test matrix. Verify if Account B can access Account A resources without modification."*
-* **Zero False-Positive Verification**:
-  > *"Conduct an authorized vulnerability verification on target endpoint. Validate findings programmatically with a non-destructive standalone Python PoC and CVSS v3.1 report."*
+* **Vulnerability Verification**:
+  > *"Conduct an authorized vulnerability verification on target endpoint. Validate findings programmatically with a non-destructive standalone Python PoC and generate full PDF report."*
 
 👉 For complete phase-by-phase templates and refusal evasion rules, see the [**Prompt Engineering & Anti-Filter Guide**](docs/prompt_guide.md).
 
 ---
 
-## 📚 Extended Documentation
-
-Detailed documentation guides are available in the [`docs/`](docs/) directory:
-
-* **[Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md)**: Recommended prompt framing, bypass refusal patterns, and phase-by-phase templates.
-* **[Telegram Setup Guide](docs/telegram_setup.md)**: Step-by-step bot creation, whitelist configuration, and usage.
-* **[Tools & Skills Reference](docs/tools_and_skills.md)**: Overview of integrated toolchain, MCP servers, and offensive skills.
-* **[Troubleshooting Guide](docs/troubleshooting.md)**: Common fixes for connectivity, model refusal, and permissions.
-
----
-
-## ⚙️ Configuration & Scope Rules
-
-### 1. Environment Settings (`.env`)
-
-```ini
-# LLM Provider Configuration
-OPENROUTER_API_KEY=your_api_key_here
-OPENROUTER_BASE_URL=http://localhost:20128/v1
-HERMES_DEFAULT_MODEL=free-stack-copy
-
-# Tool Rate Limiting (Safety Controls)
-NUCLEI_RATE_LIMIT=10
-SUBFINDER_RATE_LIMIT=10
-HTTPX_RATE_LIMIT=50
-KATANA_RATE_LIMIT=10
-HTTPX_TIMEOUT=30
-```
-
-### 2. Scope & Boundaries (`scope.yaml`)
-
-Cybermes validates all requested targets against `scope.yaml`:
-
-```yaml
-program: "Authorized Security Assessment"
-authorization: "AUTHORIZED"
-
-targets:
-  - "http://127.0.0.1:8888"
-  - "http://localhost:8888"
-
-allowed:
-  reconnaissance: true
-  endpoint_discovery: true
-  parameter_fuzzing: true
-  vulnerability_testing: true
-  authenticated_testing: true
-  exploit_validation: true
-  poc_generation: true
-  browser_automation: true
-
-restricted:
-  destructive_actions: true
-  denial_of_service: true
-  data_destruction: true
-```
-
----
-
 ## 🧪 Local Validation with Mock Target
 
-To safely verify Cybermes capabilities locally:
+To safely verify Cybermes capabilities in an isolated environment:
 
 1. **Start the local vulnerable test target:**
    ```bash
    python3 mock_vulnerable_app.py
    ```
-   *The server starts listening on `http://127.0.0.1:8888`.*
+   *Server listens on `http://127.0.0.1:8888`.*
 
 2. **Instruct Cybermes to assess the target:**
    ```bash
-   ./hermes "Assess http://127.0.0.1:8888 based on scope.yaml and validate endpoints."
+   ./hermes "Assess http://127.0.0.1:8888 and generate structured reports."
+   ```
+
+3. **Inspect the generated PDF and HTML deliverables:**
+   ```bash
+   ls -la reports/127_0_0_1_8888/
+   # -> SUMMARY.md, metadata.json, report.html, REPORT.pdf
    ```
 
 ---
 
 ## 📦 Release & Version History
 
-### **[v1.2.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.2.0)** — *Target-Scoped Reporting, Automated Setup & Multi-Environment Support*
-* **Target-Scoped Directory Hierarchy**: Organized finding reports, PoCs, and evidence per target slug (`reports/<target>/findings/`, `pocs/`, `evidence/`).
-* **Automated Report Aggregator**: Built-in `tools/aggregate_reports.py` to compile consolidated `SUMMARY.md` matrices and `metadata.json`.
-* **Zero-Docker Native Host Installer**: Added automated 1-click installer `setup.sh` and dynamic path resolution in `env.sh` and `hermes`.
-* **Anti-Hallucination & Anti-Refusal System Prompt**: Grounded prompt architecture preventing hallucinations and model safety false-positives.
-* **Dynamic Scope Authorization**: Wildcard scope and operator-driven target overrides without manual configuration edits.
+### **[v1.3.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.3.0)** — *Automated PDF/HTML Reporting, Token Economy & Universal AI Standards*
+* **Automated PDF & HTML Generator**: Built-in `tools/generate_pdf.py` using Playwright Headless Chromium to output print-ready `REPORT.pdf` and standalone `report.html` dashboards automatically.
+* **Smart CLI Output Filter (`tools/smart_pipe.py`)**: Streams top-signal findings to AI context while saving full logs to disk, saving 70–85% token consumption.
+* **Live Docker Permission Daemon**: Real-time permission keeper in `entrypoint.sh` and POSIX default ACLs in `setup.sh` eliminating `NoPermissions` errors permanently.
+* **Universal AI Standards**: Added `AGENTS.md` master directives and `.cursorrules` coding standards for cross-platform AI pair programming.
+* **Zero-Leak Credential Architecture**: Sanitized `.hermes/config.yaml.example` and dynamic environment variable injection via `setup.sh`.
+* **New Offensive Skills**: Added `custom-ai-router-assessment`, `blackbox-web-audit`, and `engagement-deliverables-and-validation`.
+
+### **[v1.2.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.2.0)** — *Target-Scoped Reporting & Native Host Setup*
+* **Target-Scoped Directory Hierarchy**: Organized findings, PoCs, and evidence per target slug (`reports/<target>/findings/`).
+* **Automated Report Aggregator**: Built-in `tools/aggregate_reports.py` compiling `SUMMARY.md` matrices and `metadata.json`.
+* **Native Host Installer**: Automated 1-click installer `setup.sh` with dynamic path resolution.
 
 ### **[v1.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.1.0)** — *Cybermes Identity & Prompt Architecture Update*
-* **Cybermes Persona & Identity**: Full migration to unified Cybermes system prompt and SOUL persona with automatic target authorization handling.
-* **Anti-Filter Prompt Architecture**: Added comprehensive English [Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md) to prevent model refusals during authorized testing.
-* **Telegram Messaging Gateway**: Added full remote bot integration guide, session reset workflows (`/new`, `/reset`), and troubleshooting guides.
-* **Toolchain & Wordlist Expansion**: Extended tools reference and wordlist mapping.
+* **Unified Cybermes Persona**: Streamlined system prompt and SOUL persona with automatic target authorization handling.
+* **Anti-Filter Prompt Architecture**: Comprehensive [Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md).
+* **Telegram Messaging Gateway**: Remote bot integration with session management.
 
 ### **[v1.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.0.0)** — *Initial Production Release*
-* **Autonomous Core Architecture**: Integrated multi-step offensive security reasoning loop built upon the Hermes Agent runtime.
-* **50+ Offensive Security Skills**: Bundled playbooks for IDOR/BOLA, SQLi, SSRF, SSTI, SAML, OAuth, Cloud/K8s, and Prompt Injection.
+* **Autonomous Core Architecture**: Multi-step offensive security reasoning loop built upon the Hermes runtime.
+* **50+ Offensive Security Skills**: Bundled playbooks for IDOR/BOLA, SQLi, SSRF, SSTI, SAML, OAuth, and Cloud/K8s.
 * **Offline Knowledge Aggregation**: Embedded knowledge bases from *HackTricks*, *PayloadsAllTheThings*, *Claude-BugHunter*, and *Strix*.
-* **Playwright / Headless Browser MCP**: Automated DOM interaction, client-side XSS auditing, and visual screenshot evidence capture.
 
 ---
 
@@ -441,20 +325,17 @@ Third-party research materials, datasets, and upstream tools incorporated or ref
 
 ## 🙏 Acknowledgments & Upstream Credits
 
-Cybermes stands on the shoulders of giants in the open-source and offensive security research communities. We express our deepest gratitude and recognition to the following researchers, creators, and projects:
+Cybermes stands on the shoulders of giants in the open-source and offensive security research communities:
 
-| Project / Tool | Author / Maintainer | Role & Contribution to Cybermes |
+| Project / Tool | Author / Maintainer | Contribution to Cybermes |
 | :--- | :--- | :--- |
-| **[HackTricks](https://github.com/carlospolop/hacktricks)** | [@carlospolop](https://github.com/carlospolop) (Carlos Polop) | Comprehensive privilege escalation, service exploitation & pentesting wiki |
-| **[PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings)** | [@swisskyrepo](https://github.com/swisskyrepo) (Swissky) | Curated collection of web application payloads and bypass vectors |
-| **[SQLMap](https://github.com/sqlmapproject/sqlmap)** | Bernardo Damele & Miroslav Stampar | Industry-standard automated SQL injection detection and database takeover engine |
-| **[Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter)** | [@sachinsharma-96](https://github.com/sachinsharma-96) (Sachin Sharma) | Bug bounty engagement patterns, reasoning skills, and automated evaluation |
-| **[Strix Framework](https://github.com/strix-security/strix)** | Strix Security Team | Autonomous multi-agent coordination architecture and security tooling |
-| **[Hack-Skills](https://github.com/yaklang/hack-skills)** | [@VillanCh](https://github.com/VillanCh) (Yaklang Team) | Domain-specific offensive security playbooks and skill modules |
-| **[ProjectDiscovery Suite](https://projectdiscovery.io/)** | ProjectDiscovery Team | Foundation recon & probing tools (`nuclei`, `httpx`, `subfinder`, `katana`) |
-| **[FFuF](https://github.com/ffuf/ffuf)** | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer for directory and parameter discovery |
-
-*For complete copyright notices and third-party license details, see [ATTRIBUTION.md](ATTRIBUTION.md).*
+| **[HackTricks](https://github.com/carlospolop/hacktricks)** | [@carlospolop](https://github.com/carlospolop) (Carlos Polop) | Privilege escalation, service exploitation & pentesting knowledge |
+| **[PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings)** | [@swisskyrepo](https://github.com/swisskyrepo) (Swissky) | Web application payloads and bypass vectors |
+| **[SQLMap](https://github.com/sqlmapproject/sqlmap)** | Bernardo Damele & Miroslav Stampar | Automated SQL injection detection engine |
+| **[Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter)** | [@sachinsharma-96](https://github.com/sachinsharma-96) (Sachin Sharma) | Bug bounty engagement patterns & validation playbooks |
+| **[Strix Framework](https://github.com/strix-security/strix)** | Strix Security Team | Autonomous multi-agent coordination architecture |
+| **[ProjectDiscovery Suite](https://projectdiscovery.io/)** | ProjectDiscovery Team | Foundation tools (`nuclei`, `httpx`, `subfinder`, `katana`) |
+| **[FFuF](https://github.com/ffuf/ffuf)** | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer |
 
 ---
 
@@ -462,4 +343,3 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
 
 - **[Zyrexnn](https://github.com/Zyrexnn)** — Lead Author & Architect
 - **[@claude](https://github.com/claude)** — AI Co-Author & Security Architecture Research
-
