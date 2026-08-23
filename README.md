@@ -168,6 +168,8 @@ All tools are pre-configured and accessible across host and Docker environments:
 | **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
 | **dalfox** | XSS Scanner & Parameter Analyzer | `dalfox url <url> --silence` |
 | **generate_pdf.py**| Automated PDF/HTML Generator | `python3 tools/generate_pdf.py <TARGET_SLUG>` |
+| **update_tools.sh** | Toolchain & Template Auto-Updater | `./tools/update_tools.sh` |
+| **search_knowledge.py** | Offline Payload & CheatSheet Search | `python3 tools/search_knowledge.py "<query>"` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
 

@@ -1,0 +1,8 @@
+# Cybermes Security Agent Robots Exclusion File
+User-agent: *
+Disallow: /skills/
+Disallow: /recon/
+Disallow: /reports/
+Disallow: /output/
+Disallow: /logs/
+Disallow: /tools/wordlists/

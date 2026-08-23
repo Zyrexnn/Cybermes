@@ -65,8 +65,6 @@ skills/security/recon-output-triage/
 *kompas*
 reports/*
 !reports/.gitkeep
-!reports/127_0_0_1_8888/
-!reports/127_0_0_1_8888/**
 *.log
 
 # 6. IDE, Editor & OS Artifacts

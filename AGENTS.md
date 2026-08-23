@@ -73,6 +73,7 @@ All pre-compiled security binaries are located in `tools/bin/` and exposed on yo
 | **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -silent` |
 | **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
 | **dalfox** | XSS Scanner & Parameter Analyzer| `dalfox url <url> --silence` |
+| **search_knowledge**| Offline Payload & CheatSheet Search | `python3 tools/search_knowledge.py "<query>" --limit 3` |
 | **Puppeteer MCP** | Browser Automation & DOM Audit | Use `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate` |
 
 ---
