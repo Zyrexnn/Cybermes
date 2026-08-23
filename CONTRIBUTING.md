@@ -8,9 +8,10 @@ To maintain high code quality, security standards, and reproducibility across au
 
 ## 📜 Core Contribution Rules
 
-1. **Mandatory Review Gate**:
-   - Direct pushes to `main` are restricted.
-   - All contributions must be submitted via a **Pull Request (PR)** from a fork or topic branch.
+1. **Mandatory Review Gate & Branching Strategy**:
+   - Direct pushes to `main` and `dev` are restricted.
+   - **`dev` branch**: Primary development branch. All Pull Requests (PRs) should be branched from and targeted against `dev`.
+   - **`main` branch**: Production-ready, stable releases only. `dev` is merged into `main` after complete testing and tagging.
    - Every PR requires review and explicit approval by the repository maintainer ([@Zyrexnn](https://github.com/Zyrexnn)) before merging.
 
 2. **Zero Sensitive Data / Sanitization Standard**:
@@ -39,11 +40,16 @@ git clone https://github.com/<YOUR_USERNAME>/Cybermes.git
 cd Cybermes
 ```
 
-### 2. Create a Feature Branch
+### 2. Create a Feature Branch from `dev`
 ```bash
-git checkout -b fix/your-fix-name
-# or
+# Ensure you are based on the latest dev branch
+git checkout dev
+git pull origin dev
+
+# Create your feature/fix branch
 git checkout -b feat/your-feature-name
+# or
+git checkout -b fix/your-fix-name
 ```
 
 ### 3. Make and Verify Changes
@@ -51,21 +57,26 @@ git checkout -b feat/your-feature-name
   ```bash
   python3 -m py_compile tools/<your_script>.py
   ```
+* On Windows, test compatibility:
+  ```powershell
+  python tools\windows_compat_check.py
+  ```
 * Ensure tools are self-contained and document their CLI arguments clearly.
 
 ### 4. Commit and Push
 ```bash
 git add .
-git commit -m "fix(tools): describe your changes concisely"
-git push origin fix/your-fix-name
+git commit -m "feat(tools): add new reconnaissance module"
+git push origin feat/your-feature-name
 ```
 
 ### 5. Open a Pull Request
-* Open a PR against the `main` branch of `Zyrexnn/Cybermes`.
+* Open a PR against the **`dev`** branch of `Zyrexnn/Cybermes`.
 * Fill out the automated PR template completely.
+* You are welcome to add yourself to [`CONTRIBUTORS.md`](CONTRIBUTORS.md) as part of your PR.
 * Wait for maintainer review. Respond to feedback or requested changes promptly.
 
 ---
 
 ## 👥 Recognition
-All accepted contributors will be credited in our release changelogs and documentation. Thank you for making Cybermes better!
+All accepted contributors are listed in [`CONTRIBUTORS.md`](CONTRIBUTORS.md) and credited in release changelogs. Thank you for making Cybermes better!

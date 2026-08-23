@@ -10,13 +10,15 @@
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm_Noncommercial-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
+[![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg)](docs/INSTALL_WINDOWS.md)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
 [![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
 [![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
 [![AI Standards: AGENTS.md](https://img.shields.io/badge/AI%20Standards-AGENTS.md%20%2B%20.cursorrules-success.svg)](AGENTS.md)
 
 <p align="center">
-  <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, token-efficient context management, and automated executive PDF/HTML report generation.
+  <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, token-efficient context management, and automated executive PDF/HTML report generation.<br><br>
+  <i>✅ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
 [Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Documentation](docs/) • [Release Notes](#-release--version-history)
@@ -47,8 +49,13 @@
 - [🧰 Available Toolchain & MCP Bridge](#-available-toolchain--mcp-bridge)
 - [📁 Target-Scoped Directory Structure](#-target-scoped-directory-structure)
 - [🚀 Installation & Quick Start](#-installation--quick-start)
-  - [Method 1: Native Host Setup (Recommended)](#method-1-native-host-setup-recommended)
-  - [Method 2: Docker & Docker Compose](#method-2-docker--docker-compose)
+  - [💻 Installing on Windows](#-installing-on-windows)
+    - [Method 1A: PowerShell Native Setup (RECOMMENDED)](#method-1a-powershell-native-setup-recommended-)
+    - [Method 1B: WSL2 + Linux Subsystem](#method-1b-wsl2-linux-subsystem-best-performance)
+    - [Method 1C: Docker Desktop](#method-1c-docker-desktop-easiest-isolation)
+  - [🐧 Native Host Setup (Linux/macOS)](#native-host-setup-linuxmacos)
+  - [🐳 Docker & Docker Compose (All Platforms)](#docker--docker-compose-all-platforms)
+- [🆘 Getting Help](#%EF%B8%8F-getting-help)
 - [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
 - [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
@@ -170,14 +177,84 @@ All tools are pre-configured and accessible across host and Docker environments:
 | **generate_pdf.py**| Automated PDF/HTML Generator | `python3 tools/generate_pdf.py <TARGET_SLUG>` |
 | **update_tools.sh** | Toolchain & Template Auto-Updater | `./tools/update_tools.sh` |
 | **search_knowledge.py** | Offline Payload & CheatSheet Search | `python3 tools/search_knowledge.py "<query>"` |
+| **windows_compat_check.py** | Windows System Diagnostics | `python tools\windows_compat_check.py` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
+
+🪟 **Windows Users**: Run `.\\bin\\hermes.bat` instead of `./hermes` and use `setup_windows.ps1` for installation.
 
 ---
 
 ## 🚀 Installation & Quick Start
 
-### Method 1: Native Host Setup (Recommended)
+Choose your installation method based on your operating system and preferences:
+
+| Method | OS | Difficulty | Performance | Best For |
+|--------|----|------------|-------------|----------|
+| **Native Setup** | Linux/macOS | ⭐ Easy | ⭐⭐⭐⭐⭐ | Linux users |
+| **PowerShell Setup** | Windows 10/11 | ⭐ Easy | ⭐⭐⭐⭐ | Beginners, easy setup |
+| **WSL2 Setup** | Windows → Linux | ⭐⭐ Medium | ⭐⭐⭐⭐⭐ | Power users |
+| **Docker Desktop** | Windows/Linux/Mac | ⭐ Easy | ⭐⭐⭐⭐ | Isolated environments |
+
+---
+
+### 💻 Installing on Windows
+
+#### Method 1A: PowerShell Native Setup (RECOMMENDED) ⭐
+
+Perfect for Windows beginners who want easy setup without virtualization:
+
+```powershell
+# 1. Clone the repository
+git clone https://github.com/Zyrexnn/Cybermes.git
+cd Cybermes
+
+# 2. Run automated installer (one command!)
+.\setup_windows.ps1
+
+# 3. Configure API keys
+notepad .env
+
+# 4. Launch an assessment
+.\bin\hermes.bat "Assess http://127.0.0.1:8888"
+```
+
+👉 **See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for detailed instructions**
+
+#### Method 1B: WSL2 + Linux Subsystem (Best Performance)
+
+For Windows power users who prefer Linux environment:
+
+```powershell
+# Enable WSL2 (run once as Administrator)
+wsl --install
+
+# Then follow Linux instructions below
+```
+
+#### Method 1C: Docker Desktop (Easiest Isolation)
+
+Fully isolated environment perfect for beginners:
+
+```powershell
+# 1. Clone repository
+git clone https://github.com/Zyrexnn/Cybermes.git
+cd Cybermes
+
+# 2. Configure environment
+copy .env.example .env
+notepad .env
+
+# 3. Start containers
+.\bin\docker_windows.bat up
+
+# 4. Execute commands
+docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
+```
+
+---
+
+### 🐧 Native Host Setup (Linux/macOS)
 
 Cybermes provides a single-command automated installer for Linux and macOS:
 
@@ -199,9 +276,11 @@ source env.sh
 ./hermes "Assess http://127.0.0.1:8888 and generate full report."
 ```
 
-### Method 2: Docker & Docker Compose
+---
 
-Run Cybermes inside a fully isolated, rootless-friendly container with live permission auto-healing:
+### 🐳 Docker & Docker Compose (All Platforms)
+
+Run Cybermes inside a fully isolated, rootless-friendly container:
 
 ```bash
 # 1. Clone and navigate to repository
@@ -218,6 +297,46 @@ docker compose up -d
 # 4. Execute commands inside container
 docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
 ```
+
+---
+
+## 🆘 Getting Help
+
+### Quick Links
+
+- **[Windows Installation Guide](docs/INSTALL_WINDOWS.md)** - Complete Windows setup tutorial
+- **[Troubleshooting Common Issues](docs/troubleshooting.md)** - Solutions for common problems
+- **[Prompt Engineering Guide](docs/prompt_guide.md)** - Learn effective prompting techniques
+- **[GitHub Discussions](https://github.com/Zyrexnn/Cybermes/discussions)** - Ask questions, share experiences
+- **[Release Notes](https://github.com/Zyrexnn/Cybermes/releases)** - Latest updates and features
+
+### Diagnostic Tools
+
+Run these to check your setup:
+
+```bash
+# Check system compatibility (Windows)
+python tools\windows_compat_check.py
+
+# Check environment status (Windows)
+.\bin\env.bat status
+
+# Test Docker connectivity
+docker compose ps
+```
+
+### Common Questions
+
+**Q: Which installation method should I choose?**
+- **Windows Beginner**: Use PowerShell Native Setup (`setup_windows.ps1`)
+- **Power User**: WSL2 provides best performance
+- **Need Isolation**: Docker Desktop works on all platforms
+
+**Q: Python command not found on Windows?**
+Install Python 3.11+ from python.org and check "Add Python to PATH" during installation.
+
+**Q: Script execution blocked by PowerShell?**
+Run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` once to allow scripts.
 
 ---
 
