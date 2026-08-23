@@ -2,6 +2,7 @@
 """
 Cybermes Report Aggregator & Indexer
 Parses findings in reports/<target>/findings/ and generates a unified SUMMARY.md and metadata.json.
+Features resilient multi-format parsing (tables, lists, key-values, frontmatter) and custom section preservation.
 """
 
 import os
@@ -24,36 +25,78 @@ SEVERITY_ORDER = {
     "UNKNOWN": 6,
 }
 
+def clean_extracted_value(val: str) -> str:
+    """Clean markdown backticks, asterisks, and whitespace."""
+    if not val:
+        return ""
+    return re.sub(r'[`\*_]', '', val).strip()
+
 def parse_finding_file(filepath: Path) -> dict:
     """Parse a single finding markdown file to extract structured metadata."""
     content = filepath.read_text(encoding="utf-8", errors="replace")
     filename = filepath.name
 
-    # Extract title from first H1 header or filename
-    title_match = re.search(r"^#\s+(?:Vulnerability Report:\s*)?(.+)$", content, re.MULTILINE)
-    title = title_match.group(1).strip() if title_match else filename.replace(".md", "").replace("_", " ")
+    # 1. Extract Title
+    title = None
+    fm_match = re.search(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
+    if fm_match:
+        fm_title = re.search(r"^title:\s*['\"]?(.+?)['\"]?$", fm_match.group(1), re.MULTILINE)
+        if fm_title:
+            title = fm_title.group(1).strip()
 
-    # Extract severity (from table, headers, or filename prefix)
-    sev_match = re.search(r"(?:Severity|Severity Rating)\s*[:|]\s*\*?`?([A-Za-z]+)`?\*?", content, re.IGNORECASE)
-    if sev_match:
-        severity = sev_match.group(1).strip().upper()
-    else:
-        prefix_match = re.search(r"^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?[-_]", filename, re.IGNORECASE)
-        severity = prefix_match.group(1).upper() if prefix_match else "UNKNOWN"
-    if severity == "INFO":
+    if not title:
+        title_match = re.search(r"^#\s+(?:(?:Vulnerability Report|Finding|Vuln):\s*)?(?:\[[A-Z]+\]\s*[-:]?\s*)?(?:[0-9]+\.\s*)?(.+)$", content, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1).strip()
+        else:
+            title = filename.replace(".md", "").replace("_", " ").replace("-", " ")
+
+    # 2. Extract Severity
+    severity = None
+    if fm_match:
+        fm_sev = re.search(r"^severity:\s*['\"]?([A-Za-z]+)['\"]?$", fm_match.group(1), re.MULTILINE | re.IGNORECASE)
+        if fm_sev:
+            severity = fm_sev.group(1).strip().upper()
+
+    if not severity:
+        # Table format
+        sev_match = re.search(r"\|\s*\*{0,2}(?:Severity|Severity Rating|Risk Level)\*{0,2}\s*\|\s*[`\*]?([A-Za-z]+)", content, re.IGNORECASE)
+        if not sev_match:
+            # Key-value format
+            sev_match = re.search(r"(?:Severity|Severity Rating|Risk Level)\s*[:=]\s*[`\*]?([A-Za-z]+)", content, re.IGNORECASE)
+        if sev_match:
+            severity = sev_match.group(1).strip().upper()
+        else:
+            # Check filename prefix
+            prefix_match = re.search(r"^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?[-_]", filename, re.IGNORECASE)
+            severity = prefix_match.group(1).upper() if prefix_match else "UNKNOWN"
+
+    if severity in ("INFO", "INFORMATIONAL", "NOTE"):
         severity = "INFORMATIONAL"
+    elif severity not in SEVERITY_ORDER:
+        severity = "UNKNOWN"
 
-    # Extract CVSS
-    cvss_match = re.search(r"CVSS(?:\s*v3\.1)?\s*(?:Score)?\s*[:|]\s*\*?`?([0-9\.]+(?:\s*\([^\)]+\))?)`?\*?", content, re.IGNORECASE)
-    cvss = cvss_match.group(1).strip() if cvss_match else "N/A"
+    # 3. Extract CVSS
+    cvss_match = re.search(r"\|\s*\*{0,2}CVSS(?:\s*v?3(?:\.1)?)?(?:\s*Score)?\*{0,2}\s*\|\s*[`\*]?([0-9\.]+(?:\s*\([^\)\|\n]+\))?)", content, re.IGNORECASE)
+    if not cvss_match:
+        cvss_match = re.search(r"CVSS(?:\s*v?3(?:\.1)?)?(?:\s*Score)?\s*[:=]\s*[`\*]?([0-9\.]+(?:\s*\([^\)\|\n]+\))?)", content, re.IGNORECASE)
+    cvss = clean_extracted_value(cvss_match.group(1)) if cvss_match else "N/A"
 
-    # Extract CWE
-    cwe_match = re.search(r"CWE\s*[:|]\s*\*?`?(CWE-\d+[^,\n\*\|`]*?)`?\*?", content, re.IGNORECASE)
-    cwe = cwe_match.group(1).strip() if cwe_match else "N/A"
+    # 4. Extract CWE
+    cwe_match = re.search(r"\|\s*\*{0,2}CWE\*{0,2}\s*\|\s*[`\*]?((?:CWE-)?\d+[^|*\n`]*)", content, re.IGNORECASE)
+    if not cwe_match:
+        cwe_match = re.search(r"CWE\s*[:=]\s*[`\*]?((?:CWE-)?\d+[^|*\n`]*)", content, re.IGNORECASE)
+    if cwe_match:
+        raw_cwe = clean_extracted_value(cwe_match.group(1))
+        cwe = raw_cwe if raw_cwe.upper().startswith("CWE-") else f"CWE-{raw_cwe}"
+    else:
+        cwe = "N/A"
 
-    # Extract Affected Endpoint/Asset
-    endpoint_match = re.search(r"(?:Affected Endpoint|Affected Asset|URL/Host)\s*[:|]\s*`?([^`\n\|]+)`?", content, re.IGNORECASE)
-    endpoint = endpoint_match.group(1).strip() if endpoint_match else "N/A"
+    # 5. Extract Affected Endpoint/Asset
+    ep_match = re.search(r"\|\s*\*{0,2}(?:Affected Endpoint|Affected Asset|Target|Endpoint|URL/Host|URL)\*{0,2}\s*\|\s*[`\*]?([^|*\n`]+)", content, re.IGNORECASE)
+    if not ep_match:
+        ep_match = re.search(r"(?:Affected Endpoint|Affected Asset|Target|Endpoint|URL/Host|URL)\s*[:=]\s*[`\*]?([^|*\n`]+)", content, re.IGNORECASE)
+    endpoint = clean_extracted_value(ep_match.group(1)) if ep_match else "N/A"
 
     return {
         "file_name": filename,
@@ -65,6 +108,23 @@ def parse_finding_file(filepath: Path) -> dict:
         "endpoint": endpoint,
         "last_modified": datetime.fromtimestamp(filepath.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
     }
+
+def extract_custom_sections(existing_summary_content: str) -> str:
+    """Preserve custom handwritten sections from an existing SUMMARY.md."""
+    if not existing_summary_content:
+        return ""
+    
+    custom_patterns = [
+        r"(##\s+(?:Verified Working Controls|Executive Narrative|Recommendations|Priority Action Items|Attack Path Narrative).*)$"
+    ]
+    
+    preserved = []
+    for pat in custom_patterns:
+        match = re.search(pat, existing_summary_content, re.DOTALL | re.IGNORECASE)
+        if match:
+            preserved.append(match.group(1).strip())
+            
+    return "\n\n---\n\n".join(preserved)
 
 def aggregate_target(target_dir: Path) -> dict:
     """Aggregate findings for a given target directory."""
@@ -101,7 +161,6 @@ def aggregate_target(target_dir: Path) -> dict:
         if sev in severity_counts:
             severity_counts[sev] += 1
 
-    # Check for recon_notes.md in evidence
     recon_notes = None
     recon_notes_file = evidence_dir / "recon_notes.md"
     if recon_notes_file.exists():
@@ -127,12 +186,17 @@ def aggregate_target(target_dir: Path) -> dict:
     except Exception:
         pass
 
+    # Check for existing SUMMARY.md to preserve custom notes
+    summary_file = target_dir / "SUMMARY.md"
+    existing_text = summary_file.read_text(encoding="utf-8", errors="replace") if summary_file.exists() else ""
+    custom_content = extract_custom_sections(existing_text)
+
     # Generate SUMMARY.md
-    generate_summary_md(target_dir, summary_data)
+    generate_summary_md(target_dir, summary_data, custom_content)
 
     return summary_data
 
-def generate_summary_md(target_dir: Path, data: dict):
+def generate_summary_md(target_dir: Path, data: dict, custom_content: str = ""):
     """Write a clean, professional SUMMARY.md document."""
     lines = [
         f"# 🛡️ Security Assessment Summary: `{data['target']}`",
@@ -198,6 +262,14 @@ def generate_summary_md(target_dir: Path, data: dict):
     else:
         lines.append("- *No visual or trace evidence attached.*")
 
+    if custom_content:
+        lines.extend([
+            "",
+            "---",
+            "",
+            custom_content
+        ])
+
     lines.append("")
 
     summary_file = target_dir / "SUMMARY.md"
@@ -239,7 +311,6 @@ def main():
             print("No target directory specified and no existing target directories found.")
             sys.exit(0)
 
-    # Import generate_pdf dynamically if available
     pdf_generator = None
     if not args.no_pdf:
         try:
