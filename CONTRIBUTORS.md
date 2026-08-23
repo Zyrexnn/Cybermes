@@ -11,6 +11,8 @@ We would like to express our gratitude to everyone who helps build, research, ma
 ---
 
 ### 🛡️ Community & Code Contributors
+- **[msarg44](https://github.com/msarg44)** — Playwright PDF rendering engine fix (#1)
+
 *Want to see your name here? Contribute a bug fix, new security skill, or documentation improvement via a Pull Request to the `dev` branch!*
 
 ---

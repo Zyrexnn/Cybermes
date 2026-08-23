@@ -6,7 +6,7 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.3.0)
+[![Release: v1.5.0](https://img.shields.io/badge/Release-v1.5.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm_Noncommercial-blue.svg)](LICENSE)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
@@ -59,7 +59,9 @@
 - [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
 - [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
+- [📈 Star History](#-star-history)
 - [📦 Release & Version History](#-release--version-history)
+- [👥 Contributors](#-contributors)
 - [⚖️ License](#️-license)
 - [⚠️ Legal & Ethical Disclaimer](#️-legal--ethical-disclaimer)
 
@@ -69,7 +71,7 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             CYBERMES ENGINE v1.3.0                               │
+│                             CYBERMES ENGINE v1.5.0                               │
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │  [ Operator Prompt / Target Queue ]  ──>  [ Direct Operator Authorization Hook ] │
 │                                                          │                       │
@@ -113,7 +115,7 @@
 
 ## 📑 Automated Executive Reporting (PDF & HTML)
 
-Cybermes v1.3.0 features an integrated **Playwright Chromium PDF & HTML generator** (`tools/generate_pdf.py`). Whenever an assessment completes or `python3 tools/aggregate_reports.py <TARGET_SLUG>` is executed, Cybermes produces four structured deliverable formats simultaneously:
+Cybermes v1.5.0 features an integrated **Playwright Chromium PDF & HTML generator** (`tools/generate_pdf.py`). Whenever an assessment completes or `python3 tools/aggregate_reports.py <TARGET_SLUG>` is executed, Cybermes produces four structured deliverable formats simultaneously:
 
 ```text
 reports/<TARGET_SLUG>/
@@ -401,6 +403,22 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 ---
 
+## 📈 Star History
+
+<div align="center">
+
+<a href="https://star-history.com/#Zyrexnn/Cybermes&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date" />
+    <img alt="Cybermes Star History Chart" src="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date" width="100%" />
+  </picture>
+</a>
+
+</div>
+
+---
+
 ## 📦 Release & Version History
 
 ### **[v1.5.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)** — *Windows Native Ecosystem, Automated PowerShell Setup & Multi-Platform Diagnostics*
@@ -455,5 +473,22 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
 
 ## 👥 Contributors
 
-- **[Zyrexnn](https://github.com/Zyrexnn)** — Lead Author & Architect
-- **[@claude](https://github.com/claude)** — AI Co-Author & Security Architecture Research
+A huge thanks to everyone who has contributed to making **Cybermes** better!
+
+<p align="center">
+  <a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes" alt="Cybermes Contributors" />
+  </a>
+</p>
+
+| Contributor | Profile | Role / Contribution | GitHub |
+| :---: | :--- | :--- | :--- |
+| <a href="https://github.com/Zyrexnn"><img src="https://github.com/Zyrexnn.png" width="55" style="border-radius:50%;" alt="Zyrexnn"/></a> | **[Zyrexnn](https://github.com/Zyrexnn)** | Project Lead, Core Architecture & Offensive Security Research | [@Zyrexnn](https://github.com/Zyrexnn) |
+| <a href="https://github.com/claude"><img src="https://github.com/claude.png" width="55" style="border-radius:50%;" alt="Claude"/></a> | **[Claude](https://github.com/claude)** | AI Co-Author & Security Architecture Research | [@claude](https://github.com/claude) |
+| <a href="https://github.com/msarg44"><img src="https://github.com/msarg44.png" width="55" style="border-radius:50%;" alt="msarg44"/></a> | **[msarg44](https://github.com/msarg44)** | Playwright PDF Rendering Engine Fix ([#1](https://github.com/Zyrexnn/Cybermes/pull/1)) | [@msarg44](https://github.com/msarg44) |
+
+<br>
+
+<p align="center">
+  <i>Want to contribute? Check out our <a href="CONTRIBUTING.md">Contributing Guide</a> and submit a pull request to the <code>dev</code> branch!</i>
+</p>
