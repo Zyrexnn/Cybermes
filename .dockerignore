@@ -16,3 +16,12 @@ recon/*
 reports/*.md
 reports/*.py
 chrome/
+
+# Sensitive local configurations & credentials
+.env
+.env.*
+auth.json*
+*.pem
+*.key
+.hermes/auth.json
+.hermes/.env
