@@ -407,13 +407,7 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 <div align="center">
 
-<a href="https://star-history.com/#Zyrexnn/Cybermes&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date" />
-    <img alt="Cybermes Star History Chart" src="https://api.star-history.com/svg?repos=Zyrexnn/Cybermes&type=Date" width="100%" />
-  </picture>
-</a>
+[![Star History Chart](https://api.star-history.com/svg?repos=zyrexnn/cybermes&type=Date)](https://star-history.com/#zyrexnn/cybermes&Date)
 
 </div>
 
@@ -473,22 +467,41 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
 
 ## 👥 Contributors
 
-A huge thanks to everyone who has contributed to making **Cybermes** better!
+<div align="center">
 
-<p align="center">
-  <a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes" alt="Cybermes Contributors" />
-  </a>
-</p>
+<p>Thank you to all the amazing people who make <b>Cybermes</b> possible!</p>
 
-| Contributor | Profile | Role / Contribution | GitHub |
-| :---: | :--- | :--- | :--- |
-| <a href="https://github.com/Zyrexnn"><img src="https://github.com/Zyrexnn.png" width="55" style="border-radius:50%;" alt="Zyrexnn"/></a> | **[Zyrexnn](https://github.com/Zyrexnn)** | Project Lead, Core Architecture & Offensive Security Research | [@Zyrexnn](https://github.com/Zyrexnn) |
-| <a href="https://github.com/claude"><img src="https://github.com/claude.png" width="55" style="border-radius:50%;" alt="Claude"/></a> | **[Claude](https://github.com/claude)** | AI Co-Author & Security Architecture Research | [@claude](https://github.com/claude) |
-| <a href="https://github.com/msarg44"><img src="https://github.com/msarg44.png" width="55" style="border-radius:50%;" alt="msarg44"/></a> | **[msarg44](https://github.com/msarg44)** | Playwright PDF Rendering Engine Fix ([#1](https://github.com/Zyrexnn/Cybermes/pull/1)) | [@msarg44](https://github.com/msarg44) |
+<a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes&max=50&columns=12" alt="Cybermes Contributors" />
+</a>
 
-<br>
+<br><br>
 
-<p align="center">
+<table>
+  <tr>
+    <td align="center" width="130px">
+      <a href="https://github.com/Zyrexnn">
+        <img src="https://github.com/Zyrexnn.png" width="75px;" style="border-radius: 50%;" alt="Zyrexnn"/><br />
+        <sub><b>Zyrexnn</b></sub>
+      </a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/claude">
+        <img src="https://github.com/claude.png" width="75px;" style="border-radius: 50%;" alt="Claude"/><br />
+        <sub><b>Claude</b></sub>
+      </a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/msarg44">
+        <img src="https://github.com/msarg44.png" width="75px;" style="border-radius: 50%;" alt="msarg44"/><br />
+        <sub><b>msarg44</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p>
   <i>Want to contribute? Check out our <a href="CONTRIBUTING.md">Contributing Guide</a> and submit a pull request to the <code>dev</code> branch!</i>
 </p>
+
+</div>
