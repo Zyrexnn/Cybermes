@@ -1,10 +1,13 @@
 FROM ubuntu:24.04
 
+ARG TARGETARCH
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV PATH="/usr/local/bin:/workspace/tools/bin:${PATH}"
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
+ENV PATH="/opt/hermes-venv/bin:/usr/local/bin:/workspace/tools/bin:${PATH}"
 ENV HERMES_HOME=/root/.hermes
 
 WORKDIR /workspace
@@ -38,14 +41,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2t64 \
     fonts-liberation \
     xdg-utils \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends google-chrome-stable \
+    acl \
+    && if [ "$TARGETARCH" = "arm64" ]; then \
+         apt-get install -y --no-install-recommends chromium-browser && \
+         ln -sf /usr/bin/chromium-browser /usr/bin/google-chrome-stable; \
+       else \
+         wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
+         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+         apt-get update && \
+         apt-get install -y --no-install-recommends google-chrome-stable; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
-
-ENV CHROME_BIN=/usr/bin/google-chrome-stable
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 # 2. Node.js LTS & MCP servers
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
@@ -54,9 +60,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     npm cache clean --force && \
     rm -rf /var/lib/apt/lists/*
 
-# 3. Fast copy of pre-compiled security tools from host
+# 3. Copy pre-compiled security tools from host
 COPY tools/bin/* /usr/local/bin/
-RUN chmod +x /usr/local/bin/*
+RUN chmod +x /usr/local/bin/* 2>/dev/null || true
 
 # 4. Install Hermes Agent, Playwright & Python security tools
 RUN python3 -m venv /opt/hermes-venv && \
