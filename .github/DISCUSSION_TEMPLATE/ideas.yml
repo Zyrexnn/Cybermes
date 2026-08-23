@@ -1,0 +1,39 @@
+title: "💡 [Idea]: "
+labels: ["enhancement", "idea", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Share your ideas, tool proposals, and feature concepts for Cybermes! 💡
+  - type: input
+    id: idea-title
+    attributes:
+      label: Idea / Feature Proposal
+      description: A concise summary of your idea.
+      placeholder: e.g., Add AI-assisted Nuclei template generator module
+    validations:
+      required: true
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem & Motivation
+      description: What problem does this idea solve or what capability does it enhance?
+      placeholder: Explain why this feature or idea would be valuable for security researchers...
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution / Architecture
+      description: Describe how this could work, proposed CLI flags, APIs, or integration points.
+      placeholder: Outline your proposed implementation or architecture...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or existing tools?
+      placeholder: Describe any workarounds or existing alternatives...
+    validations:
+      required: false

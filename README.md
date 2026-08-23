@@ -8,6 +8,7 @@
 
 [![Release: v1.5.0](https://img.shields.io/badge/Release-v1.5.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm_Noncommercial-blue.svg)](LICENSE)
+[![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
 [![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg)](docs/INSTALL_WINDOWS.md)
@@ -21,7 +22,7 @@
   <i>✅ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
-[Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Documentation](docs/) • [Release Notes](#-release--version-history)
+[Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Discussions & Rules](#-community--discussions) • [Documentation](docs/) • [Release Notes](#-release--version-history)
 
 </div>
 
@@ -56,6 +57,7 @@
   - [🐧 Native Host Setup (Linux/macOS)](#native-host-setup-linuxmacos)
   - [🐳 Docker & Docker Compose (All Platforms)](#docker--docker-compose-all-platforms)
 - [🆘 Getting Help](#%EF%B8%8F-getting-help)
+- [💬 Community & Discussions](#-community--discussions)
 - [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
 - [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
@@ -339,6 +341,33 @@ Install Python 3.11+ from python.org and check "Add Python to PATH" during insta
 
 **Q: Script execution blocked by PowerShell?**
 Run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` once to allow scripts.
+
+---
+
+## 💬 Community & Discussions
+
+We invite security researchers, bug bounty hunters, and developers to collaborate in our **[GitHub Discussions](https://github.com/Zyrexnn/Cybermes/discussions)**!
+
+### 🧭 Discussion Categories
+
+| Category | Description | Direct Link |
+| :--- | :--- | :--- |
+| **💬 Q&A** | Get help with installation, Windows/Docker troubleshooting, and LLM setup | [Go to Q&A](https://github.com/Zyrexnn/Cybermes/discussions/categories/q-a) |
+| **💡 Ideas & RFCs** | Propose new security tools, autonomous agent skills, and architecture features | [Go to Ideas](https://github.com/Zyrexnn/Cybermes/discussions/categories/ideas) |
+| **🚀 Show and Tell** | Share your custom setups, offensive workflows, and sanitized PoC demos | [Go to Show & Tell](https://github.com/Zyrexnn/Cybermes/discussions/categories/show-and-tell) |
+| **📢 General** | Community conversations, security research news, and general feedback | [Go to General](https://github.com/Zyrexnn/Cybermes/discussions/categories/general) |
+
+### 📜 Visitor Rules & Code of Conduct
+
+Before posting, please review the complete **[Community Guidelines (.github/DISCUSSIONS.md)](.github/DISCUSSIONS.md)**:
+
+1. **🛡️ Authorized Research Only**: Discussion must strictly concern authorized security testing, legitimate bug bounty programs, educational concepts, or defensive diagnostics. Never request or share attack vectors targeting unauthorized systems.
+2. **🔒 Zero Sensitive Data**: Sanitize all logs, tokens, API keys, and target URLs. Use RFC 2606 standard domains (`example.com`) and RFC 5737 IPs (`198.51.100.x`).
+3. **🤝 Respectful & Professional**: Maintain a welcoming and constructive atmosphere. Harassment, spam, and malicious activity are strictly prohibited.
+4. **🚦 Where to Post**:
+   - Software bugs in Cybermes → [Open an Issue](https://github.com/Zyrexnn/Cybermes/issues)
+   - Security vulnerabilities within Cybermes itself → [Security Advisory (.github/SECURITY.md)](.github/SECURITY.md)
+   - Questions, ideas & showcases → [GitHub Discussions](https://github.com/Zyrexnn/Cybermes/discussions)
 
 ---
 

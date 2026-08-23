@@ -1,0 +1,39 @@
+title: "🚀 [Show and Tell]: "
+labels: ["show-and-tell", "community", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Show and Tell! 🚀
+        Share your custom scripts, autonomous workflows, PoCs, and Cybermes setups with the community.
+  - type: input
+    id: project-title
+    attributes:
+      label: Title / Project Name
+      description: What are you showcasing?
+      placeholder: e.g., Automated API Fuzzing Pipeline with Cybermes & Telegram Gateway
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description & Workflow
+      description: Explain what you built, how you configured it, and what results or insights you achieved.
+      placeholder: Share your workflow, findings structure, configuration, or performance results...
+    validations:
+      required: true
+  - type: textarea
+    id: links-or-code
+    attributes:
+      label: Code Snippets, Demos, or Links
+      description: Provide sanitized code snippets, architecture diagrams, or links.
+      placeholder: Include code blocks or links here...
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Sanitization Verification
+      options:
+        - label: I confirm that all target data, domains, and tokens in this showcase are sanitized or mock targets.
+          required: true

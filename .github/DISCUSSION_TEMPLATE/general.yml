@@ -1,0 +1,24 @@
+title: "📢 [General]: "
+labels: ["general", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### General Community Discussion 📢
+        Use this space for general discussions, feedback, security news, and community conversations.
+  - type: input
+    id: topic-title
+    attributes:
+      label: Topic Title
+      description: What would you like to discuss?
+      placeholder: e.g., Thoughts on autonomous bug bounty workflows in 2026
+    validations:
+      required: true
+  - type: textarea
+    id: topic-body
+    attributes:
+      label: Discussion Body
+      description: Share your thoughts, observations, or discussion points.
+      placeholder: Write your discussion topic here...
+    validations:
+      required: true

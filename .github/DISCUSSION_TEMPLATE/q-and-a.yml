@@ -1,0 +1,47 @@
+title: "💬 [Q&A]: "
+labels: ["question", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Welcome to Cybermes Q&A Discussions! 👋
+        Please search previous discussions and documentation before creating a new question.
+  - type: input
+    id: question-summary
+    attributes:
+      label: Question Summary
+      description: What is your question or what help do you need?
+      placeholder: e.g., How do I configure Cybermes with a local LM Studio endpoint on Windows?
+    validations:
+      required: true
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic / Category
+      options:
+        - "Agent & LLM Configuration (OmniRoute / LM Studio / OpenRouter)"
+        - "Windows Native Installation & Setup"
+        - "Docker / Container Deployment"
+        - "Security Tools & Toolchain (Nuclei, Katana, ffuf, etc.)"
+        - "MCP (Model Context Protocol) Integration"
+        - "Offensive Workflows & Autonomous Recon"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context & Details
+      description: Provide detailed background, OS environment, steps you've taken, and any relevant error logs (sanitized).
+      placeholder: Describe the problem or question with relevant context...
+    validations:
+      required: true
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Community & Ethical Check
+      options:
+        - label: I have reviewed the [Community Guidelines](.github/DISCUSSIONS.md) and [AGENTS.md](AGENTS.md).
+          required: true
+        - label: I have removed all sensitive credentials, real client targets, and private API keys from this post.
+          required: true
