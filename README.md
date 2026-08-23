@@ -407,7 +407,7 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=zyrexnn/cybermes&type=Date)](https://star-history.com/#zyrexnn/cybermes&Date)
+<img src="assets/star_history.svg" alt="Cybermes Stargazers Growth" width="100%" />
 
 </div>
 
@@ -477,28 +477,30 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
 
 <br><br>
 
-<table>
+<table style="border: none; border-collapse: collapse;">
   <tr>
-    <td align="center" width="130px">
+    <td align="center" width="140px" style="padding: 10px; border: none;">
       <a href="https://github.com/Zyrexnn">
-        <img src="https://github.com/Zyrexnn.png" width="75px;" style="border-radius: 50%;" alt="Zyrexnn"/><br />
-        <sub><b>Zyrexnn</b></sub>
+        <img src="https://github.com/Zyrexnn.png" width="80px" height="80px" style="border-radius: 50%; border: 3px solid #58a6ff; box-shadow: 0 0 15px rgba(88,166,255,0.6);" alt="Zyrexnn"/><br><br>
+        <img src="https://img.shields.io/badge/Lead-Zyrexnn-58a6ff?style=flat-square" alt="Zyrexnn" />
       </a>
     </td>
-    <td align="center" width="130px">
+    <td align="center" width="140px" style="padding: 10px; border: none;">
       <a href="https://github.com/claude">
-        <img src="https://github.com/claude.png" width="75px;" style="border-radius: 50%;" alt="Claude"/><br />
-        <sub><b>Claude</b></sub>
+        <img src="https://github.com/claude.png" width="80px" height="80px" style="border-radius: 50%; border: 3px solid #bc8cff; box-shadow: 0 0 15px rgba(188,140,255,0.6);" alt="Claude"/><br><br>
+        <img src="https://img.shields.io/badge/AI_Research-Claude-bc8cff?style=flat-square" alt="Claude" />
       </a>
     </td>
-    <td align="center" width="130px">
+    <td align="center" width="140px" style="padding: 10px; border: none;">
       <a href="https://github.com/msarg44">
-        <img src="https://github.com/msarg44.png" width="75px;" style="border-radius: 50%;" alt="msarg44"/><br />
-        <sub><b>msarg44</b></sub>
+        <img src="https://github.com/msarg44.png" width="80px" height="80px" style="border-radius: 50%; border: 3px solid #3fb950; box-shadow: 0 0 15px rgba(63,185,80,0.6);" alt="msarg44"/><br><br>
+        <img src="https://img.shields.io/badge/Contributor-msarg44-3fb950?style=flat-square" alt="msarg44" />
       </a>
     </td>
   </tr>
 </table>
+
+<br>
 
 <p>
   <i>Want to contribute? Check out our <a href="CONTRIBUTING.md">Contributing Guide</a> and submit a pull request to the <code>dev</code> branch!</i>
