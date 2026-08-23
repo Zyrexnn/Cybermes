@@ -403,28 +403,21 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 ## 📦 Release & Version History
 
-### **[v1.3.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.3.0)** — *Automated PDF/HTML Reporting, Token Economy & Universal AI Standards*
-* **Automated PDF & HTML Generator**: Built-in `tools/generate_pdf.py` using Playwright Headless Chromium to output print-ready `REPORT.pdf` and standalone `report.html` dashboards automatically.
-* **Smart CLI Output Filter (`tools/smart_pipe.py`)**: Streams top-signal findings to AI context while saving full logs to disk, saving 70–85% token consumption.
-* **Live Docker Permission Daemon**: Real-time permission keeper in `entrypoint.sh` and POSIX default ACLs in `setup.sh` eliminating `NoPermissions` errors permanently.
-* **Universal AI Standards**: Added `AGENTS.md` master directives and `.cursorrules` coding standards for cross-platform AI pair programming.
-* **Zero-Leak Credential Architecture**: Sanitized `.hermes/config.yaml.example` and dynamic environment variable injection via `setup.sh`.
-* **New Offensive Skills**: Added `custom-ai-router-assessment`, `blackbox-web-audit`, and `engagement-deliverables-and-validation`.
+### **[v1.5.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)** — *Windows Native Ecosystem, Automated PowerShell Setup & Multi-Platform Diagnostics*
+* **1-Click PowerShell Installer (`setup_windows.ps1`)**: Automated single-command installer for Windows 10/11 creating Python `venv`, workspace structure, installing requirements, and configuring `.env` / `.hermes/config.yaml`.
+* **Windows Compatibility Diagnostic Tool (`tools/windows_compat_check.py`)**: Automated verification of Python runtime, active virtualenv, workspace directory permissions, security binaries in PATH, and console UTF-8 safety.
+* **Native Execution & Docker Wrappers**: Added `bin/hermes.bat`, `bin/env.bat`, `bin/docker_windows.bat`, and `env.ps1` for frictionless CLI operation across PowerShell and Command Prompt.
+* **Dedicated Windows Guide (`docs/INSTALL_WINDOWS.md`)**: Comprehensive documentation covering PowerShell native setup, WSL2 integration, Docker Desktop, and Windows-specific troubleshooting (ExecutionPolicy, path limits, antivirus exclusions).
+* **Branching Strategy & Contribution Guidelines**: Formalized `dev` branch workflow in [`CONTRIBUTING.md`](CONTRIBUTING.md) and refreshed [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
-### **[v1.2.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.2.0)** — *Target-Scoped Reporting & Native Host Setup*
-* **Target-Scoped Directory Hierarchy**: Organized findings, PoCs, and evidence per target slug (`reports/<target>/findings/`).
-* **Automated Report Aggregator**: Built-in `tools/aggregate_reports.py` compiling `SUMMARY.md` matrices and `metadata.json`.
-* **Native Host Installer**: Automated 1-click installer `setup.sh` with dynamic path resolution.
+### **[v1.4.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.4.0)** — *Toolchain Auto-Updater, Knowledge Search & Crawler Protection*
+* **Offline Knowledge Search Engine**: Added `tools/search_knowledge.py` for rapid query lookups across local *PayloadsAllTheThings*, *HackTricks*, and *Claude-BugHunter* data.
+* **Toolchain & Template Auto-Updater**: Added `tools/update_tools.sh` for continuous synchronization of security tools and wordlists.
+* **Crawler Privacy & Exclusions**: Added `robots.txt` exclusion rules to protect payload databases from scraper indexing.
+* **Licensing Framework**: Transitioned to PolyForm Noncommercial License 1.0.0.
 
-### **[v1.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.1.0)** — *Cybermes Identity & Prompt Architecture Update*
-* **Unified Cybermes Persona**: Streamlined system prompt and SOUL persona with automatic target authorization handling.
-* **Anti-Filter Prompt Architecture**: Comprehensive [Prompt Engineering & Anti-Filter Guide](docs/prompt_guide.md).
-* **Telegram Messaging Gateway**: Remote bot integration with session management.
+> 💡 *For earlier release notes (v1.0.0 – v1.3.0), view the complete [GitHub Releases Archive](https://github.com/Zyrexnn/Cybermes/releases).*
 
-### **[v1.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.0.0)** — *Initial Production Release*
-* **Autonomous Core Architecture**: Multi-step offensive security reasoning loop built upon the Hermes runtime.
-* **50+ Offensive Security Skills**: Bundled playbooks for IDOR/BOLA, SQLi, SSRF, SSTI, SAML, OAuth, and Cloud/K8s.
-* **Offline Knowledge Aggregation**: Embedded knowledge bases from *HackTricks*, *PayloadsAllTheThings*, *Claude-BugHunter*, and *Strix*.
 
 ---
 
