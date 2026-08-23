@@ -472,6 +472,7 @@ def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tup
                     headless=True,
                     args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
                 )
+                page = browser.new_page()
                 try:
                     page.set_content(html_rendered, wait_until="networkidle", timeout=15000)
                 except Exception:
