@@ -1,6 +1,6 @@
 # Stealth Recon — Worked Command Set
 
-Condensed from a live bug-bounty recon of `nurulfikri.ac.id` (76 live subdomains, 146 httpx probes, zero blocks). Default low-noise sequence.
+Condensed from an authorized bug-bounty assessment of a large institutional target (76 live subdomains, 146 httpx probes, zero blocks). Default low-noise sequence.
 
 ## 1. Passive subdomain discovery
 ```bash
@@ -19,7 +19,7 @@ timeout 120 dnsx -l /tmp/subfinder.txt -silent -r 8.8.8.8,1.1.1.1 2>/dev/null | 
 timeout 180 httpx -l /tmp/resolved.txt -silent -t 30 -rate-limit 15 -timeout 8 \
   -ports 80,443 -title -status-code -tech-detect -server -follow-redirects 2>/dev/null | tee /tmp/httpx.txt
 ```
-Mandatory flags: -rate-limit 15, -t 30, -follow-redirects, -tech-detect (reveals Cloudflare Bot Management).
+Mandatory flags: `-rate-limit 15`, `-t 30`, `-follow-redirects`, `-tech-detect` (reveals Cloudflare Bot Management).
 
 ## 4. Passive URL mining (Wayback, external)
 ```bash
@@ -37,10 +37,10 @@ done
 ```
 
 ## WAF-exclusion example
-admisi, asset, aset, lms-ddp showed Cloudflare / Cloudflare Bot Management — header-only, no content scanning.
+Hosts with Cloudflare / Cloudflare Bot Management enabled should receive header-only passive checks, without high-frequency content scanning.
 
 ## Gotchas
 - Versions often DON'T leak in HTML (title-only) — don't burn requests forcing it.
-- nginx/1.14.0 (Ubuntu) default pages = version leak + likely EOL.
-- 502/500 on staging hosts = dead dev infra exposed publicly.
-- gau/crt.sh empty output is NORMAL (external rate-limits), not a failure.
+- `nginx/1.14.0 (Ubuntu)` default pages = version leak + likely EOL.
+- `502`/`500` on staging hosts = dead dev infra exposed publicly.
+- `gau`/`crt.sh` empty output is NORMAL (external rate-limits), not a failure.

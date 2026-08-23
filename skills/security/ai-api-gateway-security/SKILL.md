@@ -30,11 +30,11 @@ This typically surfaces 60+ candidate routes in seconds. Pair with an authentica
 
 ## Known findings & pitfalls
 1. **Info disclosure — `GET /api/status` (Medium, CVSS 5.3).** Unauthenticated JSON leaks `github_client_id`, `telegram_bot_name`, passkey RP config (`passkey_rp_id`, `passkey_origins`), pricing internals (`price`, `stripe_unit_price`, `usd_exchange_rate`, `quota_per_unit`), feature flags, `register_enabled`. Remediation: gate behind auth or strip sensitive keys.
-2. **Registration Flow Weaknesses (Xyrus Router):**
+2. **Registration Flow Weaknesses:**
    - **No CAPTCHA:** Registration form lacks CAPTCHA, enabling automated account creation (bot abuse).
    - **No Email Verification:** Auto-login after registration without email verification, allowing fake account creation.
    - **Weak Password Policy:** Accepts simple passwords (e.g., `TestPass123!`), increasing brute-force risk.
-   - **Test Workflow:** Use browser automation to submit test registrations (e.g., `testuserN@temp-mail.org`) and observe behavior (auto-login, rate-limiting, etc.).
+   - **Test Workflow:** Use browser automation to submit test registrations (e.g., `testuserN@example.com`) and observe behavior (auto-login, rate-limiting, etc.).
 2. **No rate limit on `POST /api/user/login` (Medium, CVSS 5.3).** 6 rapid failures → all HTTP 200, no `429`/`Retry-After`/lockout → brute-force / credential-stuffing risk. `turnstile_check` often `false`.
 3. **Misleading `root_init:false` on `GET /api/setup` (INFO, do NOT report as critical).** Looks like the classic unauthenticated admin-setup CVE, but `POST /api/setup` is guarded ("系统已经初始化完成", `success:false`). PoC to create admin is BLOCKED on patched instances. Verify by attempting login with the attempted creds — expect failure (no artifact created).
 4. **CORS `allow-origin:*` + `allow-credentials:true` (INFO, not exploitable).** Browsers reject wildcard+credentials; no XSS-side data theft. Recommend strict origin allowlist.
@@ -86,7 +86,7 @@ curl -s -X POST "https://TOPUP/api/order/$TOK/bind" -H "Content-Type: applicatio
 `/api/user/subscription`, `/api/user/redeem`, `/api/user/affiliate` exist but return `403 AUTH_INSUFFICIENT_PRIVILEGE` for `group:regular`. Feature-gated correctly — don't report as broken access control unless you can reach them as a normal user.
 
 ### Username ≠ email pitfall
-The router username is **separate** from the login email. `GET /api/user/self` returns both (`username:"Lazarus"` vs `email:"stokjbbotk@gmail.com"`). For `user-check` / topup `username` fields, use the **router username**, not the email.
+The router username is **separate** from the login email. `GET /api/user/self` returns both (`username:"user_demo"` vs `email:"user@example.com"`). For `user-check` / topup `username` fields, use the **router username**, not the email.
 
 ## SPA / Cloudflare false-positive elimination (CRITICAL)
 React SPAs behind Cloudflare serve the same `index.html` for every unknown route. `HTTP 200` does NOT mean the file exists.

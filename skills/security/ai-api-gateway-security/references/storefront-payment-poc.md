@@ -1,6 +1,6 @@
 # Storefront / Payment-Flow PoC Recipes (New API ecosystem)
 
-Concrete recipes distilled from an authorized assessment of `router.juan.web.id` + `topup.juan.web.id` (Midtrans production). Reuse and adapt — do NOT run destructive steps.
+Concrete recipes distilled from an authorized assessment of an AI router storefront deployment (Midtrans production). Reuse and adapt — do NOT run destructive steps.
 
 ## 1. Map the storefront API
 ```bash
@@ -39,12 +39,12 @@ curl -s "https://TOPUP/api/order/$TOK"
 # unknown username must be rejected server-side
 curl -s -X POST https://TOPUP/api/order -H "Content-Type: application/json" \
   -d '{"sku":"subs-1","name":"x","email":"you@test.com","wa":"08123456789","username":"nonexistent_user_xyz_999"}'
-# Expect: {"error":"username tidak ditemukan. Daftar dulu di router.juan.web.id"}
+# Expect: {"error":"username tidak ditemukan. Daftar dulu di router.example.com"}
 ```
 
 ## 5. Coupon / redeem brute (needs valid issuer code)
 ```bash
-for code in PROMO DISKON WELCOME NEW JUAN TEST VIP GRATIS MERDEKA; do
+for code in PROMO DISKON WELCOME NEW TEST VIP GRATIS MERDEKA; do
   curl -s -X POST https://TOPUP/api/coupon/validate -H "Content-Type: application/json" \
     -d "{\"code\":\"$code\",\"sku\":\"payg-5\",\"email\":\"you@test.com\",\"base_amount\":5000}"
 done
@@ -53,13 +53,13 @@ done
 
 ## 6. SQLi smoke test (safe)
 ```bash
-curl -s "https://TOPUP/api/user-check?username=Lazarus'--"
+curl -s "https://TOPUP/api/user-check?username=testuser'--"
 curl -s -X POST https://TOPUP/api/coupon/validate -H "Content-Type: application/json" -d '{"code":"x OR 1=1--"}'
 # Both return graceful "not found" — sanitized.
 ```
 
 ## Username vs email note
-Router `GET /api/user/self` returns BOTH `username:"Lazarus"` (used for topup `username` field) and `email:"stokjbbotk@gmail.com"` (used to LOG IN). Don't confuse them.
+Router `GET /api/user/self` returns BOTH `username:"user_demo"` (used for topup `username` field) and `email:"user@example.com"` (used to LOG IN). Don't confuse them.
 
 ## Test-account cleanup
 If you registered a test account to reach authenticated surfaces, delete it (via `/api/user/manage` as admin, or ask the operator) before closing — non-destructive mandate.

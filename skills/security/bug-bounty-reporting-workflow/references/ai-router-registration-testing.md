@@ -1,13 +1,13 @@
 # AI Router Registration Flow Testing Playbook
 
 ## Purpose
-This document outlines the methodology for testing **registration flows** in AI API gateways (e.g., Xyrus Router, New API, One API) for common weaknesses like missing CAPTCHA, lack of email verification, and weak password policies. This is a **non-destructive** testing approach focused on **read-only validation** of security controls.
+This document outlines the methodology for testing **registration flows** in AI API gateways for common weaknesses like missing CAPTCHA, lack of email verification, and weak password policies. This is a **non-destructive** testing approach focused on **read-only validation** of security controls.
 
 ---
 
 ## Target Scope
-- **AI API Gateways** (e.g., Xyrus Router, New API, One API)
-- **Registration Endpoints** (e.g., `/create-workspace`, `/api/user/register`)
+- **AI API Gateways** (e.g., New API, One API, Next.js AI Routers)
+- **Registration Endpoints** (e.g., `/create-workspace`, `/api/user/register`, `/register`)
 - **Authentication Flows** (e.g., auto-login post-registration, email verification)
 
 ---
@@ -23,8 +23,8 @@ This document outlines the methodology for testing **registration flows** in AI 
   grep -oE '"/api/[a-zA-Z0-9_/{}.-]+"' /tmp/bundle.js | grep -i "register\|signup\|create" | sort -u
   ```
 - **Common Paths:**
-  - `/create-workspace` (Xyrus Router)
-  - `/api/user/register` (New API / One API)
+  - `/create-workspace`
+  - `/api/user/register`
   - `/register`
   - `/signup`
 
@@ -41,14 +41,14 @@ Use **browser automation** to submit test registrations and observe the behavior
 
 ### 3. Test Data for Registration
 Use **dummy data** to avoid impacting real users:
-- **Email:** `testuserN@temp-mail.org` (replace `N` with a unique number)
+- **Email:** `testuserN@example.com` (replace `N` with a unique number)
 - **Username:** `Test User N`
 - **Password:** `TestPass123!` (or a weak password to test policy)
 
-**Example (Xyrus Router):**
+**Example:**
 ```
 Full Name: Test User 1
-Email: testuser1@temp-mail.org
+Email: testuser1@example.com
 Password: TestPass123!
 ```
 
@@ -67,9 +67,9 @@ After submitting the form, check:
 ### 5. Automate Testing for Multiple Accounts
 To test **rate limiting** or **bulk registration**, use a script to create multiple accounts sequentially:
 ```bash
-# Example: Create 10 test accounts with unique emails
-for i in {1..10}; do
-  email="testuser${i}@temp-mail.org"
+# Example: Create test accounts with unique emails
+for i in {1..5}; do
+  email="testuser${i}@example.com"
   curl -s -X POST "https://TARGET/api/user/register" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$email\",\"password\":\"TestPass123!\",\"name\":\"Test User $i\"}" \
@@ -98,79 +98,5 @@ Use this template to document registration flow weaknesses:
 - **Impact:** [What an attacker could do]
 - **Remediation:** [How to fix the issue]
 - **Reproduction Steps:**
-  1. [Step 1]
-  2. [Step 2]
-  3. [Step 3]
+  [Step-by-step reproduction command]
 ```
-
----
-
-## Example Findings
-
-### 1. Missing CAPTCHA in Registration
-- **Severity:** Medium
-- **CVSS:** CVSS 3.1: AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N (4.3)
-- **CWE:** CWE-799 (Missing Rate Limiting)
-- **Description:** The registration form does not include CAPTCHA, allowing automated bots to create accounts at scale.
-- **Evidence:**
-  - Screenshot of registration form (no CAPTCHA field).
-  - Successful registration of 10 test accounts without CAPTCHA.
-- **Impact:** Attackers can create thousands of fake accounts for spam, abuse, or credential stuffing.
-- **Remediation:** Add CAPTCHA (e.g., reCAPTCHA, hCaptcha, or Turnstile) to the registration form.
-- **Reproduction Steps:**
-  1. Navigate to `/create-workspace`.
-  2. Fill in the form with dummy data.
-  3. Submit the form without solving CAPTCHA.
-  4. Observe successful account creation.
-
-### 2. No Email Verification
-- **Severity:** Medium
-- **CVSS:** CVSS 3.1: AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N (5.3)
-- **CWE:** CWE-287 (Improper Authentication)
-- **Description:** Registration completes without email verification, allowing attackers to create accounts with fake or victim email addresses.
-- **Evidence:**
-  - Auto-login to dashboard immediately after registration.
-  - No email received at the provided address.
-- **Impact:** Attackers can impersonate users, create fake accounts, or abuse the system.
-- **Remediation:** Enable email verification and require users to confirm their email before accessing the dashboard.
-- **Reproduction Steps:**
-  1. Register with a dummy email (e.g., `testuser1@temp-mail.org`).
-  2. Observe immediate redirect to the dashboard.
-  3. Confirm no verification email was sent.
-
-### 3. Weak Password Policy
-- **Severity:** Low
-- **CVSS:** CVSS 3.1: AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N (3.7)
-- **CWE:** CWE-521 (Weak Password Requirements)
-- **Description:** The registration form accepts weak passwords (e.g., `TestPass123!`), increasing the risk of brute-force attacks.
-- **Evidence:**
-  - Successful registration with password `TestPass123!`.
-  - No error message about password complexity.
-- **Impact:** Attackers can guess or brute-force passwords more easily.
-- **Remediation:** Enforce a strong password policy (min 12 chars, mixed case, numbers, symbols).
-- **Reproduction Steps:**
-  1. Register with a weak password (e.g., `TestPass123!`).
-  2. Observe successful account creation.
-
----
-
-## Tools
-- **Browser Automation:** Use Hermes `browser_*` tools to interact with registration forms.
-- **cURL:** For API-based registration testing.
-- **Rate Limiting:** Always include delays (`sleep 2`) between requests to avoid triggering WAF/Cloudflare.
-
----
-
-## Safety Notes
-1. **Non-Destructive Testing:** Only test registration flows with **dummy data** (e.g., `testuserN@temp-mail.org`).
-2. **Cleanup:** Delete test accounts after testing if possible.
-3. **Authorization:** Ensure you have **explicit permission** to test registration flows, especially for bulk testing.
-4. **Stealth:** Avoid triggering rate limits or WAF blocks. Use delays between requests.
-
----
-
-## References
-- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-- [CWE-287: Improper Authentication](https://cwe.mitre.org/data/definitions/287.html)
-- [CWE-799: Missing Rate Limiting](https://cwe.mitre.org/data/definitions/799.html)
-- [CWE-521: Weak Password Requirements](https://cwe.mitre.org/data/definitions/521.html)

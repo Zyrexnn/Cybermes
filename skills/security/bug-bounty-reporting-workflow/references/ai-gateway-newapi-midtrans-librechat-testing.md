@@ -1,8 +1,8 @@
 # AI Gateway (New API / One API fork) + Midtrans Storefront + LibreChat — Testing Playbook
 
-Condensed, reusable technique bank from a full authorized non-destructive pentest of
-`router.juan.web.id` (New API fork, Cloudflare-fronted) + `topup.juan.web.id` (Midtrans
-storefront) + `chat.juan.web.id` (LibreChat). All probed at low sequential rate, zero WAF blocks.
+Condensed, reusable technique bank from an authorized non-destructive assessment of an AI Gateway stack:
+`router.example.com` (New API fork, Cloudflare-fronted) + `topup.example.com` (Midtrans
+storefront) + `chat.example.com` (LibreChat). Probed at low sequential rate, zero WAF blocks.
 
 ## 1. New API / One API fork (unified AI API gateway)
 
@@ -26,7 +26,7 @@ Yielded 60+ routes: `/api/status`, `/api/setup`, `/api/user/self`, `/api/user/ma
   Keys are generated via the user Token page; `/api/user/token` GET returns a regenerating
   token-like string per call that is NOT directly usable as a `/v1` Bearer.
 
-**Vuln classes & tests (all confirmed safe on tested instance — reuse the patterns):**
+**Vuln classes & tests (confirmed safe on tested instance — reuse the patterns):**
 | Vector | Test | Expected-secure result |
 |--------|------|------------------------|
 | Unauth admin setup | `GET /api/setup` (note `root_init:false`), then `POST /api/setup {"username","password"}` | GET may report `root_init:false` (cosmetic); POST returns "system already initialized", no account. **Classic One API admin-creation bug — always try the POST.** |
@@ -38,7 +38,7 @@ Yielded 60+ routes: `/api/status`, `/api/setup`, `/api/user/self`, `/api/user/ma
 
 ## 2. Midtrans-backed custom storefront (Node/Express)
 
-Usually a separate subdomain (here `topup.juan.web.id`). Single `app.js` bundle (~30KB).
+Usually a separate subdomain (e.g. `topup.example.com`). Single `app.js` bundle (~30KB).
 Mine: `grep -oE "fetch\('/api/[a-zA-Z0-9_/-]+'" app.js`.
 Endpoints: `GET /api/skus`, `POST /api/coupon/validate`, `GET /api/user-check?username=`,
 `POST /api/order`, `GET /api/order/:token`, `POST /api/order/:token/bind`.
@@ -58,7 +58,7 @@ POST /api/order/:token/bind {transaction_id, transaction_status, fraud_status, p
 - **Price/quota tampering:** `amount_rp`/`fee_rp`/`quota` come from server via `sku`; client only
   sends `sku`. Cannot tamper. **No finding.**
 - **IDOR topup to victim:** `POST /api/order` with subs sku + fake `username` →
-  rejected `"username tidak ditemukan"` (server-side). **No finding.**
+  rejected `"username not found"` (server-side). **No finding.**
 - **Coupon/redeem:** `POST /api/coupon/validate {"code",...}` needs valid issuer code; common
   guesses all "not found". Brute-forcing requires rate-limit testing. **No finding** unless a real code leaks.
 - **Catalog leak:** `GET /api/skus` (no auth) discloses products/prices/quotas → **Low** (public storefront).
@@ -73,13 +73,12 @@ Protected routes return `401 No auth token`.
 - `GET /api/config` (no auth) → discloses `registrationEnabled`, login methods, build `commit`. **Low** (LibreChat exposes by design).
 - `/api/auth/register` exists; requires email verification + **rate-limited**
   ("Too many accounts created, please try again after 60 minutes"). Open-but-verified registration
-  is NOT a直接 finding. Deep authed testing needs a verified account.
+  is NOT a finding. Deep authed testing needs a verified account.
 - Unauth file read: `/api/files`, `/api/messages`, `/api/conversations` → `401`. Static traversal
   (`/assets/../../etc/passwd`) → SPA fallback HTML, not real file. **No finding.**
 
 ## 4. Generic lessons reinforced
-- **Cloudflare-fronted + low-rate sequential curl = safe.** No block observed on SIN edge. Stay
-  sequential, ~1 req per endpoint.
+- **Cloudflare-fronted + low-rate sequential curl = safe.** Stay sequential, ~1 req per endpoint.
 - **"No PoC, no finding":** test every suspected critical (unauth admin, payment bypass, IDOR)
   with a real request and prove it safe — report the negative result too (shows coverage).
 - **Eliminate SPA fallback false-positives** via `content-type` + byte-size, never by status code alone.

@@ -30,7 +30,7 @@ See `references/stealth-recon.md` for the exact command set and `references/kata
 5. **Panel version confirmation:** ONE slow `curl --max-time 15 -A "Mozilla/5.0"` per host, sequential, `sleep 1` between — never a burst.
 
 ## WAF-exclusion rule (critical)
-If httpx tech-detect shows `Cloudflare` + `Cloudflare Bot Management`, do **header-only / passive checks** on that host. Do NOT run katana/ffuf/arjun against it. Bot Management is the fastest path to a block. (In the nurulfikri session: `admisi`, `asset`, `aset`, `lms-ddp` were Bot-Managed and excluded from content scanning.)
+If httpx tech-detect shows `Cloudflare` + `Cloudflare Bot Management`, do **header-only / passive checks** on that host. Do NOT run katana/ffuf/arjun against it. Bot Management is the fastest path to a block. (Sensitive / Bot-Managed subdomains like admissions, enterprise assets, or core LMS should be excluded from aggressive content scanning.)
 
 ## Abort / back-off signals
 - HTTP `429` or a JS challenge page → STOP active scanning on that host, fall back to passive-only.
@@ -40,7 +40,7 @@ If httpx tech-detect shows `Cloudflare` + `Cloudflare Bot Management`, do **head
 - **katana `-silent` discards ALL results.** In v1.7.0, `-silent` routes crawl output to **stderr**; `katana ... -silent > file 2>/dev/null` yields a 0-byte file (exit 0, looks fine). Fix: use katana's own `-o file` (no `-silent`), OR drop `-silent` and capture stdout (`> out.txt 2>err.txt`). Full repro in `references/katana_pitfalls.md`.
 - **Headless katana empty.** `-jc -kf all` needs Chromium; absent → exit 0, 0 endpoints. Use standard HTTP crawl (`-d 2 -rate-limit 8 -delay 1000`) unless Chromium is confirmed present.
 - **Background katana SIGINT truncation.** A background `katana ... > file` whose parent shell gets SIGINT truncates output ("Ctrl+C pressed" in stderr). Wrap as `setsid bash -c 'katana ... > file 2>err.txt; echo DONE >> file'` so the child survives the parent signal group.
-- Recover subdomains missed by subfinder from crawl links (Moodle/OJS/SaaS hosts referenced inside page HTML, e.g. `elena`, `lppm`, `journal`).
+- Recover subdomains missed by subfinder from crawl links (Moodle/OJS/SaaS hosts referenced inside page HTML, e.g. `lms`, `research`, `journal`).
 
 ## Read-only default-credential validation (extends F-01 panel exposure)
 When a panel is publicly reachable (HTTP 200 login), validate auth strength WITHOUT brute force:

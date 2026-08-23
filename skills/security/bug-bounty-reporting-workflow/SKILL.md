@@ -31,7 +31,7 @@ User instruction (verbatim, Session 2026-08-16): "jangan sampe ke block cloudfla
 - **Skip Cloudflare-Bot-Management hosts:** If tech-detect shows `Cloudflare` + `Cloudflare Bot Management`, do NOT fuzz/brute those hosts — passive enumeration only. Active fuzzing there is what triggers blocks.
 - **Background long crawls:** `katana` at depth ≥2 exceeds the 180s foreground tool cap. Run it with `terminal(background=true, notify_on_complete=true)` and poll, rather than foreground.
 - **Detect & back off:** If you see `429`/`403`/`000`/empty responses mid-scan, stop that host and note it as a control — do not retry aggressively.
-- See `references/stealthy-recon-recipe.md` for the exact command sequence that completed cleanly against nurulfikri.ac.id (80 subdomains, 76 live, 0 blocks).
+- See `references/stealthy-recon-recipe.md` for the exact command sequence that completed cleanly against large targets (80 subdomains, 76 live, 0 blocks).
 
 ## Engagement Workflow (Quick Check → Deep Dive)
 
@@ -88,36 +88,35 @@ After ANY CORS header, send 3+ origins + `null` AND always grep for `access-cont
 ## Target-Class Testing Playbooks (updated 2026-08-18)
 For specific app classes seen in the wild, see:
 - `references/ai-gateway-newapi-midtrans-librechat-testing.md` — playbooks covering AI Gateway, New API, One API, Midtrans-backed storefronts, and LibreChat.
-- `references/ai-router-assessment-xyrus.md` — case study for xyrusrouter.xyz (Vercel + Railway split architecture).
-- `references/ai-router-assessment-heraxles.md` — case study for heraxles.my.id (Cloudflare-protected AI Router).
+- `references/ai-gateway-control-plane-assessment.md` — case study for AI router and gateway (Vercel + Railway split architecture).
+- `references/ai-router-architecture-assessment.md` — case study for Cloudflare-protected AI Gateway & Router.
 - `references/ai-router-testing-playbook.md` — standardized testing methodology for AI Router services.
 
 Playbooks cover:
-- **AI Gateway / Router (Xyrus Router, New API, One API, Heraxles)**:
+- **AI Gateway / Router**:
   - **Information Disclosure:** Check `GET /api/v1/models` (or `/v1/models`). It frequently lacks auth and leaks the model catalog + pricing multipliers.
   - **Admin Endpoint Discovery:** Test `/admin/`, `/admin`, `/account/admin/`, `/dashboard/` for exposed admin panels.
   - **Infra Split:** Distinguish between the Control Plane (Dashboard) and Data Plane (Gateway). Keys may be scope-limited. Check backend domains like `*.railway.app` or `*.vercel.app` revealed in JS or docs.
   - **CORS:** Permissive `*` on login/landing pages is common.
-  - **Registration Flow Testing:** For gateways with user registration (e.g., Xyrus Router), see `references/ai-router-registration-testing.md` for a detailed playbook on testing CAPTCHA, email verification, password policies, and rate limiting.
+  - **Registration Flow Testing:** For gateways with user registration, see `references/ai-router-registration-testing.md` for a detailed playbook on testing CAPTCHA, email verification, password policies, and rate limiting.
 - **Midtrans-backed storefront**: the `POST /api/order` → `snap_token` → `POST /api/order/:token/bind` flow, and the payment-bypass test (fake `settlement` status is rejected because the server re-verifies with Midtrans).
 - **LibreChat**: `/api/config` disclosure, verified+rate-limited registration, 401 on protected routes.
 - **Vercel Targets:** Generally more permissive for active scanning than Cloudflare; less prone to aggressive bot-management blocks, but still respect rate limits.
-- **AI Router (Heraxles)**: Admin endpoints under `/account/admin/*` with detailed error messages; missing rate limiting on all endpoints; see `references/ai-router-assessment-heraxles.md`.
-- **AI Router Testing Insight**: Test both GET and POST methods on admin endpoints as they may return different error messages (GET: "Method Not Allowed", POST: detailed validation errors). Also test with and without trailing slashes as behavior may differ (`/admin` vs `/admin/`).
+- **AI Router Admin Endpoints**: Admin endpoints under `/account/admin/*` with detailed error messages; missing rate limiting on all endpoints; see `references/ai-router-architecture-assessment.md`.
 - **AI Router Testing Insight**: Test both GET and POST methods on admin endpoints as they may return different error messages (GET: "Method Not Allowed", POST: detailed validation errors). Also test with and without trailing slashes as behavior may differ (`/admin` vs `/admin/`).
 - **AI Router Testing Playbook:** Standardized test cases for AI Router services; see `references/ai-router-testing-playbook.md`.
 
 ## Responsible Disclosure Contact Discovery (find WHERE to send it)
 Before submitting, locate the disclosure channel. Passive recon only — no scanning:
 1. **`security.txt` (RFC 9116):** `curl https://<target>/.well-known/security.txt` (+ http variant). A 200 with `Contact:` + `Expires:` is the ideal channel. A WordPress 404 page here means "none configured".
-2. **Footer / contact-page email harvest:** `curl` the homepage + 1–2 hub subdomains (e.g. `lppm`, `pmb`, `cdc`) and `grep -oiE "[a-z0-9._%+-]+@[a-z0-9.-]+\.(ac\.id|go\.id|com|org|net|id)"`. Common hits: `info@`, `<unit>@` per subdomain. (nurulfikri yielded `info@`, `lppm@`, `pmb@`.)
+2. **Footer / contact-page email harvest:** `curl` the homepage + 1–2 hub subdomains (e.g. `dept`, `admissions`, `career`) and `grep -oiE "[a-z0-9._%+-]+@[a-z0-9.-]+\.(ac\.id|go\.id|edu|com|org|net|id)"`. Common hits: `info@`, `<unit>@` per subdomain.
 3. **No disclosure page?** Send to the institution's general `info@` address, subject "Security Vulnerability Report — <target>", request acknowledgement within 72h.
 4. **Escalation (Indonesia):** For `.ac.id` / `.go.id`, the registrar is **PANDI / ID Registry**; if no response, escalate via registrar abuse channel or the institution's official social media.
 5. Record discovered contacts in a "Responsible Disclosure Contact" appendix in the report.
 
 ## Output Location & file resilience
 - `/workspace` is often non-writable. Fall back to `~/reports/bug-bounty-<target>.md` (home).
-- **Pick ONE canonical path** and write only there. In the nurulfikri session the report silently scattered to `~/Documents/`, `~/Downloads/`, `~/Desktop/` AND `~/reports/` — and `~/reports/` later showed 0 bytes while `~/Documents/` held the real file (a copy had been edited, the rest drifted). Avoid this: after the final edit, `cp` the single canonical file to any other location the user expects; never edit multiple copies separately (they diverge silently).
+- **Pick ONE canonical path** and write only there. Avoid file drift across directories: after the final edit, `cp` the single canonical file to any other location the user expects; never edit multiple copies separately (they diverge silently).
 
 ## Pitfalls
 - Don't trust Nuclei/automated output as "confirmed" — always manually validate (curl/browser) before reporting.
@@ -127,10 +126,9 @@ Before submitting, locate the disclosure channel. Passive recon only — no scan
 - WordPress REST API user enumeration may be WAF-blocked (HTTP 000 / empty) — that's a control, not a dead end; note it.
 - JS bundle recon is the highest-yield passive step for SPA targets — see `references/js-bundle-api-endpoint-discovery.md`. Never `cat` a minified bundle; write to file and `grep`. Endpoint *discovery* is informational; only report *exposure* if 401 is bypassed or CORS/IDOR applies.
 - **Run heavy scanners in background.** Nuclei with broad `-tags` (e.g. `cors,misconfig,exposure`) and `arjun` parameter-mining reliably exceed the 180s foreground tool cap and time out. Launch them with `terminal(background=true, notify_on_complete=true)` and poll, exactly like katana. Use narrow templates (e.g. `-tags cors`) or specific template paths to keep foreground scans fast. `arjun` uses `-d <ms>` for delay (NOT `--delay`), and pair with `-t 2 -q` for low-rate stealth.
-- **Do a Round-2 deep-dive after Round-1 validation.** The first pass confirms obvious findings but misses variants: CORS wildcard `*` vs static-origin, multi-host CORS sweeps (misconfig copy-pasted across dev/uat), Okta/OAuth config disclosure via unauthenticated `/sso/redirect`, and missing-authZ routes that return SPA HTML (200) instead of 401. Each was found only in round 2 of the monash.edu assessment.
-- **Test both GET and POST methods on admin endpoints.** Different HTTP methods may return different error messages and validation details. Found during heraxles.my.id assessment where GET returned "Method Not Allowed" but POST returned detailed field validation errors (e.g., `{"type":"missing","loc":["body","days"],"msg":"Field required"}`).
-- **Test with and without trailing slashes.** Endpoints with and without trailing slashes may behave differently (307 redirects vs 404). Found during heraxles.my.id assessment where `/admin` returned 405 but `/admin/` returned 404.
-- **Test both GET and POST methods on admin endpoints.** Different HTTP methods may return different error messages and validation details. Found during heraxles.my.id assessment where GET returned "Method Not Allowed" but POST returned detailed field validation errors.
+- **Do a Round-2 deep-dive after Round-1 validation.** The first pass confirms obvious findings but misses variants: CORS wildcard `*` vs static-origin, multi-host CORS sweeps (misconfig copy-pasted across dev/uat), Okta/OAuth config disclosure via unauthenticated `/sso/redirect`, and missing-authZ routes that return SPA HTML (200) instead of 401.
+- **Test both GET and POST methods on admin endpoints.** Different HTTP methods may return different error messages and validation details (e.g., GET returned "Method Not Allowed" but POST returned detailed field validation errors).
+- **Test with and without trailing slashes.** Endpoints with and without trailing slashes may behave differently (307 redirects vs 404).
 
 ## Independent Re-Validation Standard (anti-inflation, mandatory on user request)
 

@@ -86,6 +86,15 @@ counter. Compare to `date -u` for lock-window duration. **Always run (c) before 
   with distinct no-key vs bad-key message). Flag CORS `*` only if a valid key can reach a browser
   context; if frontend proxies server-side, it's low-risk. Info/Low.
 
+## Phase 7 — Platform variants: Moodle (and classic PHP form-logins)
+
+Moodle logins are form-POST with a `MoodleSession` cookie, not JSON APIs — adapt Phase 1:
+
+- **CSRF token (`logintoken`) may not block scripts**: POSTing `/login/index.php` with an EMPTY `logintoken` field was processed normally in the wild (303 → form re-render "Invalid login"). Test once with an empty value; don't assume the token defeats scripted probes.
+- **Rate-limit probe shape**: 8 failed POSTs, fake username (`rateprobe_nonexistent`), 0.3 s interval → alternating 303/200 with "Invalid login" each time and zero throttle/lockout/captcha keywords = NO rate-limit observed up to N attempts. Report as a bounded lower bound (Medium when accounts are students/staff: credential stuffing path); never claim "unlimited". Stop at the first throttle signal or ~8 attempts, whichever first.
+- **Parallel surface**: `/login/token.php` (mobile web service, JSON) processes bad credentials too — run the same gap check; it's what mobile-app stuffing actually hits.
+- **forgot-password is NOT an enum oracle here**: valid and invalid usernames both return 200 with generic text; only sesskey/random-token bytes differ between bodies. Hash-diff full bodies and inspect diff fragments before claiming enumeration — status-code equality proves nothing (opposite of the JSON-API differential in Phase 3).
+
 ## Reporting
 - Score lockout by scope: GLOBAL → Critical; per-account → High/Medium; per-IP → Low.
 - Always include the resetTime comparison as evidence for a global finding.

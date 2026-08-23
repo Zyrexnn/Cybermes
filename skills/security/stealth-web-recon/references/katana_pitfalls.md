@@ -1,4 +1,4 @@
-# katana Pitfalls — verified reproduction (nurulfikri session)
+# katana Pitfalls — Verified Reproduction & Workarounds
 
 ## 1. `-silent` routes results to stderr (v1.7.0) — THE big one
 **Symptom:** `katana ... -silent > out.txt 2>/dev/null` produces a 0-byte `out.txt` even though the target is crawlable. Looked like a successful empty crawl; wasted two full crawl runs.

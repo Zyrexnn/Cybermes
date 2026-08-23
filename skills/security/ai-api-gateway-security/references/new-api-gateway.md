@@ -2,7 +2,7 @@
 
 Companion detail for the `ai-api-gateway-security` skill.
 
-## Reproduction recipes (from real assessment, 2026-08-17, router.juan.web.id)
+## Reproduction recipes (from authorized assessment)
 
 ### R1. Confirm SPA fallback (eliminate false positives)
 ```bash
@@ -41,7 +41,7 @@ curl -s -X POST https://TARGET/api/setup \
 ```
 
 ## Ecosystem subdomains seen
-- `topup.juan.web.id` (auto top-up), `chat.juan.web.id` (web chat GUI), `router.juan.web.id` (base API, `/v1`).
+- `topup.example.com` (auto top-up), `chat.example.com` (web chat GUI), `router.example.com` (base API, `/v1`).
 - Notice endpoint: `GET /api/notice` returns markdown with Telegram channel links and base API URL — useful for mapping the ecosystem.
 
 ## Config flags worth noting from /api/status

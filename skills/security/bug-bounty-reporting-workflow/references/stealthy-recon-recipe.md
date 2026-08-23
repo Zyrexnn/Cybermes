@@ -1,6 +1,6 @@
-# Stealthy Recon Recipe (validated clean — 0 blocks)
+# Stealthy Recon Recipe (Validated Clean Execution)
 
-Validated against `nurulfikri.ac.id` (Session 2026-08-16): 80 subdomains → 76 live → 146 httpx probes, plus katana crawl. **No WAF/Cloudflare blocks, no 429s.** The user's standing rule: "jangan sampe ke block cloudflare dan sejenis nya" (never trip WAF/Cloudflare).
+Validated against large institutional web targets: 80 subdomains → 76 live → 146 httpx probes, plus katana crawl. **No WAF/Cloudflare blocks, no 429s.** Standard rule: low-noise, rate-controlled scanning that avoids tripping automated rate limits and WAF blocks.
 
 ## Golden rules
 1. Passive-first. No HTTP to target until DNS is resolved.
@@ -12,7 +12,7 @@ Validated against `nurulfikri.ac.id` (Session 2026-08-16): 80 subdomains → 76 
 ```bash
 # 1) Passive subdomain discovery (no hits to target)
 subfinder -d <target> -silent -recursive > subfinder.txt
-# (crt.sh was rate-limited/empty this session — retry with backoff if needed)
+# (crt.sh may be rate-limited/empty — retry with backoff if needed)
 # curl -sS "https://crt.sh/?q=%25.<target>&output=json"
 
 # 2) DNS resolve only (safe, no HTTP)
@@ -40,6 +40,7 @@ timeout 540 katana -list targets.txt -jc -kf all -d 2 -c 10 -delay 1200 \
 - Admin/internal panels on public IP (Adminer, n8n, Uptime Kuma, Nginx Proxy Manager, DocuSeal, Proxmox, Portainer, Nessus) → exposure finding (verify auth before severity).
 - Outdated server banner (e.g. `nginx/1.14.0 (Ubuntu)`) → version disclosure + EOL.
 - Status `502`/`500`/`default page` on staging hosts → large attack surface.
+- Missing security headers on main web properties (HSTS, CSP, X-Frame-Options).
 
 ## Rate-limit cheat-sheet (ceilings, not targets)
 | Tool  | Flag                          | Value |

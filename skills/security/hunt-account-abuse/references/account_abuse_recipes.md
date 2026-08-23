@@ -1,6 +1,6 @@
 # Non-ATO Account-Abuse — Verified Reproduction Recipes
 
-Condensed from a live assessment of `https://xyrusrouter.xyz` (Next.js/Vercel AI gateway).
+Condensed from an authorized assessment of a Next.js/Vercel AI gateway.
 All requests below were executed; responses are real, not hypothetical.
 
 ## A. Per-Email Account-Lockout DoS (verified High)

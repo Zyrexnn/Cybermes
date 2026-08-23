@@ -1,7 +1,7 @@
 # AI Router Testing Playbook
 
 ## Purpose
-Standardized testing methodology for AI Router/Gateway services (Xyrus Router, Heraxles, New API, One API, etc.).
+Standardized testing methodology for AI Router/Gateway services (New API, One API, Next.js AI Gateways, etc.).
 
 ## Target Classification
 AI Router services typically have:
@@ -205,5 +205,5 @@ curl --max-time 15 -A "Mozilla/5.0"  # Always use browser UA
 - **Browser Testing:** Browser MCP for JavaScript-heavy sites
 
 ## Case Studies
-- **xyrusrouter.xyz:** See `references/ai-router-assessment-xyrus.md`
-- **heraxles.my.id:** See `references/ai-router-assessment-heraxles.md`
+- **AI Gateway Control Plane:** See `references/ai-gateway-control-plane-assessment.md`
+- **AI Router Architecture:** See `references/ai-router-architecture-assessment.md`
