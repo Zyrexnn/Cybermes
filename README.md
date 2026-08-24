@@ -7,7 +7,7 @@
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
 [![Release: v1.5.0](https://img.shields.io/badge/Release-v1.5.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)
-[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm_Noncommercial-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
@@ -463,9 +463,9 @@ To safely verify Cybermes capabilities in an isolated environment:
 ---
 
 ## ⚖️ License
-
-This project is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**. Free for personal, research, education, and noncommercial use. Commercial use is strictly prohibited without explicit permission.
-
+ 
+This project is licensed under the **[Apache License 2.0](LICENSE)**. Free for personal, research, academic, and commercial use under the terms of the license.
+ 
 Third-party research materials, datasets, and upstream tools incorporated or referenced within this repository retain their respective original licenses (see [ATTRIBUTION.md](ATTRIBUTION.md) for full details).
 
 ---
