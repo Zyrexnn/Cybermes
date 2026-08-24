@@ -105,10 +105,10 @@ Perform authorized URL and content discovery for https://{TARGET_URL}:
 
 ```text
 Under authorized scope for https://{TARGET_URL}:
-1. Download and parse client-side JavaScript assets for exposed credentials, API keys, and internal URLs.
+1. Download and parse client-side JavaScript assets for exposed credentials, API keys, and internal URLs using secret_scan.
 2. Mine unlinked and hidden parameters on target endpoints using arjun.
 3. Review SPA client-side routing definitions for undocumented privileged views.
-4. Document all discovered parameters and sensitive artifacts in output/secrets_audit.md.
+4. Document all discovered parameters and sensitive artifacts in reports/{TARGET_SLUG}/evidence/secrets_audit.md.
 ```
 
 ---
@@ -159,7 +159,7 @@ Execute an end-to-end authorized security assessment on target https://{TARGET_U
 2. Verify every prospective finding programmatically to ensure ZERO false positives.
 3. For each validated vulnerability, generate:
    - Reproduction steps with complete HTTP request/response proofs.
-   - A standalone Python PoC script in reports/.
+   - A standalone Python PoC script in reports/{TARGET_SLUG}/pocs/.
    - CVSS v3.1 vector calculation and severity categorization.
    - Comprehensive remediation guidance tailored for development teams.
 ```
@@ -190,7 +190,7 @@ Assess http://127.0.0.1:8888 under authorized scope rules in scope.yaml. Verify 
 
 ### Host CLI Execution:
 ```bash
-./hermes "Under authorized scope in scope.yaml, perform Phase 1 recon on target http://localhost:8888 and save summary to output/"
+./hermes "Under authorized scope in scope.yaml, perform Phase 1 recon on target http://localhost:8888 and save summary to reports/"
 ```
 
 ### Docker Container Execution:
