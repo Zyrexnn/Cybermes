@@ -96,3 +96,63 @@ Running `smart_pipe`, `search_knowledge`, `secret_scan`, or `aggregate_reports` 
    ```
 3. **Running inside Docker**:
    When building Docker images on ARM64 (e.g. Apple Silicon M-series) or AMD64, Docker will automatically recompile Go binaries to match your CPU architecture natively during `docker compose build`.
+
+---
+
+## 6. Windows Defender / Antivirus Automatically Deletes Payload Files
+
+### Symptoms:
+Running `git status` shows deleted files in `knowledge/PayloadsAllTheThings`, `skills/`, or `tools/sqlmap/sqlmap.py`, or skills fail to execute with file-not-found errors.
+
+### Resolutions:
+1. **Add Cybermes Workspace Directory to Windows Defender Exclusions**:
+   - Open **Windows Security** > **Virus & threat protection**.
+   - Under **Virus & threat protection settings**, click **Manage settings**.
+   - Scroll down to **Exclusions** > **Add or remove exclusions**.
+   - Click **Add an exclusion** > **Folder** > Select your `Cybermes` folder.
+2. **Restore missing files via Git**:
+   ```powershell
+   git checkout -- .
+   ```
+3. **Audit skill completeness**:
+   ```powershell
+   python tools\validate_skills.py
+   ```
+
+---
+
+## 7. Docker Bind-Mount Traps (`auth.json` or `config.yaml` Created as Directory)
+
+### Symptoms:
+Docker fails on container startup with: `Is a directory: '/root/.hermes/auth.json'` or Hermes crashes reading config.
+
+### Resolutions:
+1. **Ensure setup script ran before running Docker**:
+   - On Linux/macOS: Run `./setup.sh`
+   - On Windows: Run `.\setup_windows.ps1`
+2. **Remove incorrectly created directory on host and create file**:
+   ```bash
+   rm -rf .hermes/auth.json
+   echo "{}" > .hermes/auth.json
+   ```
+
+---
+
+## 8. PDF Generation / Playwright Headless Export Errors
+
+### Symptoms:
+Running `python tools/generate_pdf.py <TARGET_SLUG>` warns `PDF export via Playwright failed`.
+
+### Resolutions:
+1. **Generate HTML dashboard directly (No Chromium required)**:
+   ```bash
+   python tools/generate_pdf.py <TARGET_SLUG> --no-pdf
+   ```
+2. **Install Chromium browser for Playwright**:
+   ```bash
+   playwright install chromium
+   ```
+3. **Install Linux system dependencies for Chromium (if on headless Linux)**:
+   ```bash
+   playwright install-deps chromium
+   ```

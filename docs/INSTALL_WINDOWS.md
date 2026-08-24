@@ -63,6 +63,15 @@ This automated script will:
 - Initialize folder structures (`reports/`, `recon/`, `output/`, `logs/`, etc.).
 - Prepare `.env` and `.hermes/config.yaml`.
 
+> [!TIP]
+> **Windows Defender Exclusions & Recon Tools**:
+> - To automatically download Windows binaries (`subfinder.exe`, `httpx.exe`, `katana.exe`, `nuclei.exe`), run:
+>   ```powershell
+>   powershell -ExecutionPolicy Bypass -File tools\update_tools.ps1
+>   ```
+> - If Windows Defender blocks research payloads, add the Cybermes folder to exclusions:
+>   *Windows Security > Virus & threat protection > Virus & threat protection settings > Exclusions > Add an exclusion (Folder)*.
+
 ### Step 5: Configure API Keys
 Open and edit the `.env` file with your preferred editor (Notepad, VS Code, etc.):
 ```powershell
