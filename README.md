@@ -59,7 +59,6 @@
   - [🐳 Docker & Docker Compose (All Platforms)](#docker--docker-compose-all-platforms)
 - [🆘 Getting Help](#%EF%B8%8F-getting-help)
 - [💬 Community & Discussions](#-community--discussions)
-- [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
 - [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
 - [📈 Star History](#-star-history)
@@ -73,44 +72,80 @@
 ## 🏛️ Architecture & Core Engine
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             CYBERMES ENGINE v2.0.0                               │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│  [ Operator Prompt / Target Queue ]  ──>  [ Direct Operator Authorization Hook ] │
-│                                                          │                       │
-│                                                          ▼                       │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                       Hermes Autonomous Reasoning Loop                     │  │
-│  │  - Context Window Memory       - Streamlined Autoload (Godmode Orchestrator)│  │
-│  │  - Action Planning & Recovery  - Decision Confidence & CVSS v3.1 Grading   │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│          │                                                │                      │
-│          ▼                                                ▼                      │
-│  ┌───────────────────────────────┐              ┌─────────────────────────────┐  │
-│  │      50+ Security Skills      │              │   Curated Knowledge Base    │  │
-│  │  - Next.js AI Router Audits   │              │  - PayloadsAllTheThings     │  │
-│  │  - IDOR / BOLA / Auth Bypass  │ <──────────> │  - HackTricks Wiki          │  │
-│  │  - Business Logic & Race Cond │              │  - Claude-BugHunter         │  │
-│  │  - DOM XSS / SSRF / Injection │              │  - Strix Multi-Agent DB     │  │
-│  └───────────────────────────────┘              └─────────────────────────────┘  │
-│          │                                                │                      │
-│          ▼                                                ▼                      │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                      Security Toolchain & MCP Layer                        │  │
-│  │  • Recon: subfinder, amass, httpx, nmap                                    │  │
-│  │  • Content & Endpoint Mining: katana, gau, waybackurls, arjun              │  │
-│  │  • High-Throughput Go Pipe: smart_pipe (Captures raw, emits top-signal)    │  │
-│  │  • Fuzzing & Exploitation: ffuf, sqlmap, dalfox, nuclei                    │  │
-│  │  • MCP Bridge: Puppeteer Browser, Filesystem, mcp-server-fetch             │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│                                          │                                       │
-│                                          ▼                                       │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                  Automated Multi-Format Reporting Pipeline                 │  │
-│  │  ├── SUMMARY.md (Aggregated Markdown)    ├── report.html (Interactive UI)  │  │
-│  │  ├── metadata.json (Structured Metrics)  ├── REPORT.pdf (Print-Ready PDF)  │  │
-│  │  └── pocs/poc_<vuln>.py (Standalone Reproducible Python Scripts)           │  │
-│  └──────────────────────────────────────────────�1. **High-Throughput Stream Filter (`smart_pipe`)**:
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                      CYBERMES ENGINE v2.0.0                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  [ Operator Prompt / Target Queue ]  ────────>  [ Direct Operator Authorization Hook ]           │
+│                                                                │                                 │
+│                                                                ▼                                 │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                              Hermes Autonomous Reasoning Loop                              │  │
+│  │  • Context Window Memory Management         • Streamlined Autoload (Godmode Orchestrator)  │  │
+│  │  • Action Planning & Self-Healing Recovery  • Decision Confidence & CVSS v3.1 Scoring      │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────────┘  │
+│                 │                                                             │                  │
+│                 ▼                                                             ▼                  │
+│  ┌─────────────────────────────────────────┐          ┌───────────────────────────────────────┐  │
+│  │           50+ Security Skills           │          │         Curated Knowledge Base        │  │
+│  │  • Next.js / AI Router Audits           │          │  • PayloadsAllTheThings Database      │  │
+│  │  • IDOR / BOLA / Auth Bypass Playbooks  │ <──────> │  • HackTricks Privilege Wiki          │  │
+│  │  • Race Condition & Logic Flaw Tests    │          │  • Claude-BugHunter Methodologies     │  │
+│  │  • DOM XSS, SSRF & Injection Matrices   │          │  • Sub-50ms Search (search_knowledge) │  │
+│  └─────────────────────────────────────────┘          └───────────────────────────────────────┘  │
+│                 │                                                             │                  │
+│                 ▼                                                             ▼                  │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                             Security Toolchain & Native Go Core                            │  │
+│  │  • High-Throughput Stream Filter : smart_pipe (Zero-allocation Shannon entropy scoring)    │  │
+│  │  • Concurrent Secret Scanner     : secret_scan (48-pattern multithreaded credential miner) │  │
+│  │  • Knowledge Base Engine         : search_knowledge (Instant offline payload retrieval)    │  │
+│  │  • Recon & Discovery Toolchain   : subfinder, httpx, nmap, katana, gau, ffuf, nuclei       │  │
+│  │  • MCP Client-Side Bridge        : Puppeteer (Headless Browser DOM) & Fetch (Clean MD)     │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                │                                                 │
+│                                                ▼                                                 │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                             Target Deliverables & Multi-Format Pipeline                    │  │
+│  │  • Executive PDF Deliverable : REPORT.pdf (Print-ready CVSS scorecards & risk badges)      │  │
+│  │  • Interactive Dashboard     : report.html (Standalone UI with Dark/Light styling)         │  │
+│  │  • Index & Metadata          : SUMMARY.md & metadata.json (Auto-indexed via aggregator)    │  │
+│  │  • Reproducible Exploits     : pocs/poc_<vuln_name>.py (Deterministic Python verification) │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📑 Automated Executive Reporting (PDF & HTML)
+
+Cybermes features an integrated **Playwright Chromium PDF & HTML generator** (`tools/generate_pdf.py`) and native **Go Report Aggregator** (`aggregate_reports`). Whenever an assessment completes or `aggregate_reports <TARGET_SLUG>` is executed, Cybermes produces four structured deliverable formats simultaneously:
+
+```text
+reports/<TARGET_SLUG>/
+├── SUMMARY.md          # Consolidated executive summary & findings matrix
+├── metadata.json       # Structured JSON metrics for CI/CD & automation
+├── report.html         # Interactive standalone dashboard with Dark/Light styling
+├── REPORT.pdf          # Executive PDF deliverable with CVSS risk badges
+├── findings/           # Granular vulnerability writeups (LOW, MED, HIGH, CRIT only)
+├── pocs/               # Minimal-impact reproducible Python proof-of-concept scripts
+└── evidence/           # Raw HTTP traces, screenshot dumps, and recon_notes.md
+```
+
+### ✨ PDF & HTML Report Highlights:
+* **Executive Summary & Risk Score Bar**: Visual breakdown of Critical, High, Medium, Low, and Informational findings.
+* **Findings Matrix Table**: Color-coded severity badges with CVSS v3.1 vector strings, CWE classifications, and affected endpoints.
+* **Vulnerability Breakdown**: Detailed markdown findings rendered into clean typography with reproducible request/response proofs.
+* **Print-Ready CSS Paging**: Optimized margins, headers, page numbers, and breaks for direct PDF export.
+
+---
+
+## 🧠 Token Economy & Smart Output Filtering
+
+Traditional AI security agents quickly exhaust context windows and suffer from attention degradation when reading thousands of raw terminal lines from tools like `katana` or `ffuf`. 
+
+Cybermes solves this with a two-tiered token optimization architecture:
+
+1. **High-Throughput Stream Filter (`smart_pipe`)**:
    - Built in pure Go for zero-latency stdout streaming.
    - Intercepts tool streams and dumps **100% of raw logs** to `recon/<TARGET_SLUG>/<tool>_raw.txt`.
    - Filters out static asset clutter (`.png`, `.css`, `.woff`) and 404 noise.
