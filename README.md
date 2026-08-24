@@ -9,9 +9,10 @@
 [![Release: v2.0.0](https://img.shields.io/badge/Release-v2.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.0.0)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
-[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
-[![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg)](docs/INSTALL_WINDOWS.md)
+[![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
+[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
+[![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg?logo=windows&logoColor=white)](docs/INSTALL_WINDOWS.md)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
 [![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
 [![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
@@ -19,8 +20,7 @@
 
 <p align="center">
   <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, token-efficient context management, and automated executive PDF/HTML report generation.<br><br>
-  <i>�
- Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
+  <i>⚡ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
 [Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Discussions & Rules](#-community--discussions) • [Documentation](docs/) • [Release Notes](#-release--version-history)
