@@ -7,6 +7,21 @@ BIN_DIR="$SCRIPT_DIR/bin"
 
 mkdir -p "$BIN_DIR"
 
+# Detect OS (Linux / Darwin/macOS)
+RAW_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+case "$RAW_OS" in
+    darwin*)
+        PD_OS="macOS"
+        ;;
+    linux*)
+        PD_OS="linux"
+        ;;
+    *)
+        PD_OS="linux"
+        ;;
+esac
+
+# Detect Architecture (amd64 / arm64)
 ARCH="$(uname -m)"
 case "$ARCH" in
     x86_64|amd64)
@@ -25,8 +40,13 @@ download_pd_tool() {
     local tool_name="$2"
     local api_url="https://api.github.com/repos/projectdiscovery/${repo}/releases/latest"
     
+    # Match both linux and macOS patterns (e.g., _linux_amd64, _macOS_arm64, _darwin_amd64)
     local latest_url
-    latest_url=$(curl -sL "$api_url" | grep -o "https://[^\"]*${tool_name}[^\"]*linux_${PD_ARCH}\.\(zip\|tar\.gz\)" | head -n 1 || true)
+    latest_url=$(curl -sL "$api_url" | grep -io "https://[^\"]*${tool_name}[^\"]*\(linux\|macos\|darwin\)[^\"]*${PD_ARCH}\.\(zip\|tar\.gz\)" | grep -i "${PD_OS}" | head -n 1 || true)
+    
+    if [ -z "$latest_url" ]; then
+        latest_url=$(curl -sL "$api_url" | grep -io "https://[^\"]*${tool_name}[^\"]*${PD_OS}[^\"]*${PD_ARCH}\.\(zip\|tar\.gz\)" | head -n 1 || true)
+    fi
 
     if [ -n "$latest_url" ]; then
         local tmp_dir
@@ -45,11 +65,11 @@ download_pd_tool() {
         fi
         rm -rf "$tmp_dir"
     else
-        echo "ℹ️  Could not resolve release for $tool_name (linux/$PD_ARCH). Skipped."
+        echo "ℹ️  Could not resolve release binary for $tool_name (${PD_OS}/${PD_ARCH}). Skipped."
     fi
 }
 
-echo "⬇️  Downloading ProjectDiscovery security toolchain (linux/$PD_ARCH)..."
+echo "⬇️  Downloading ProjectDiscovery security toolchain (${PD_OS}/${PD_ARCH})..."
 TOOLS=("subfinder:subfinder" "httpx:httpx" "katana:katana" "nuclei:nuclei")
 for item in "${TOOLS[@]}"; do
     IFS=":" read -r repo binary <<< "$item"
