@@ -185,7 +185,9 @@ All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 | **search_knowledge** | Fast Offline Payload & CheatSheet Search | `search_knowledge "<query>"` |
 | **aggregate_reports** | Automated Report Aggregator & Indexer | `aggregate_reports <TARGET_SLUG>` |
 | **generate_pdf.py**| Automated PDF/HTML Generator | `python3 tools/generate_pdf.py <TARGET_SLUG>` |
-| **update_tools.sh** | Toolchain & Template Auto-Updater | `./tools/update_tools.sh` |
+| **update_tools.sh** | Toolchain & Template Auto-Updater (Linux/macOS) | `./tools/update_tools.sh` |
+| **update_tools.ps1**| Toolchain & Template Auto-Updater (Windows) | `powershell -File tools/update_tools.ps1` |
+| **validate_skills.py**| Skill Pack Integrity & Health Auditor | `python tools/validate_skills.py` |
 | **windows_compat_check.py** | Windows System Diagnostics | `python tools\windows_compat_check.py` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
@@ -553,7 +555,7 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
 <br>
 
 <p>
-  <i>Want to contribute? Check out our <a href="CONTRIBUTING.md">Contributing Guide</a> and submit a pull request to the <code>dev</code> branch!</i>
+  <i>Want to contribute? Check out our <a href="CONTRIBUTING.md">Contributing Guide</a>, review our <a href="CODE_OF_CONDUCT.md">Code of Conduct</a>, and submit a pull request to the <code>dev</code> branch!</i>
 </p>
 
 </div>
