@@ -1,4 +1,4 @@
-<#
+﻿<#
 =============================================================================
 Cybermes Windows Automated Setup & Installer
 Prepares local Windows environment, Python venv, dependencies & MCP tools
@@ -20,21 +20,24 @@ Write-Host "Directory: $CYBERMES_DIR" -ForegroundColor Gray
 Write-Host ""
 
 # 1. Check Python 3.10+
-$pythonCmd = $null
+$pythonExe = $null
+$pythonArgs = @()
 if (Get-Command python -ErrorAction SilentlyContinue) {
-    $pythonCmd = "python"
+    $pythonExe = "python"
 } elseif (Get-Command py -ErrorAction SilentlyContinue) {
-    $pythonCmd = "py -3"
+    $pythonExe = "py"
+    $pythonArgs = @("-3")
 }
 
-if (-not $pythonCmd) {
+if (-not $pythonExe) {
     Write-Host "❌ Error: Python is not installed or not in PATH." -ForegroundColor Red
     Write-Host "Please install Python 3.11+ from https://www.python.org/ and check 'Add Python to PATH'." -ForegroundColor Yellow
     exit 1
 }
 
-$pyVer = & $pythonCmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-Write-Host "✓ Found Python $pyVer ($pythonCmd)" -ForegroundColor Green
+$pythonCommandDisplay = (@($pythonExe) + $pythonArgs) -join " "
+$pyVer = & $pythonExe @pythonArgs -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+Write-Host "✓ Found Python $pyVer ($pythonCommandDisplay)" -ForegroundColor Green
 
 # 2. Check Node.js / npm (Optional for MCP servers)
 if ((Get-Command node -ErrorAction SilentlyContinue) -and (Get-Command npm -ErrorAction SilentlyContinue)) {
@@ -55,7 +58,7 @@ if ((Get-Command node -ErrorAction SilentlyContinue) -and (Get-Command npm -Erro
 Write-Host ""
 Write-Host "📦 Setting up Python virtual environment (venv)..." -ForegroundColor Cyan
 if (-not (Test-Path "$CYBERMES_DIR\venv")) {
-    & $pythonCmd -m venv "$CYBERMES_DIR\venv"
+    & $pythonExe @pythonArgs -m venv "$CYBERMES_DIR\venv"
 }
 
 $venvPython = "$CYBERMES_DIR\venv\Scripts\python.exe"
