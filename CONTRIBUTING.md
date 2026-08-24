@@ -86,5 +86,10 @@ git push origin feat/your-feature-name
 
 ---
 
+## 📜 Code of Conduct
+Please review and adhere to our [Code of Conduct](CODE_OF_CONDUCT.md) in all project spaces, issues, PRs, and community discussions.
+
+---
+
 ## 👥 Recognition
 All accepted contributors are listed in [`CONTRIBUTORS.md`](CONTRIBUTORS.md) and credited in release changelogs. Thank you for making Cybermes better!
