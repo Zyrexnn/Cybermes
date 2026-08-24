@@ -45,7 +45,7 @@ jobs:
 
       - name: Verify Python Script Compilation
         run: |
-          python3 -m py_compile tools/generate_pdf.py tools/windows_compat_check.py mock_vulnerable_app.py
+          python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py
 
       - name: Validate Skills Integrity
         run: |
