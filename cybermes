@@ -7,6 +7,18 @@ export HERMES_HOME="$CYBERMES_DIR/.hermes"
 export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
 umask 0002
 
+# Auto-load root .env if present
+if [ -f "$CYBERMES_DIR/.env" ]; then
+    set -a
+    source "$CYBERMES_DIR/.env"
+    set +a
+    # Ensure Hermes home has access to the .env file
+    mkdir -p "$CYBERMES_DIR/.hermes"
+    if [ ! -f "$CYBERMES_DIR/.hermes/.env" ]; then
+        cp "$CYBERMES_DIR/.env" "$CYBERMES_DIR/.hermes/.env" 2>/dev/null || true
+    fi
+fi
+
 if [ -f "$CYBERMES_DIR/venv/bin/hermes" ]; then
     source "$CYBERMES_DIR/venv/bin/activate"
     exec "$CYBERMES_DIR/venv/bin/hermes" "$@"

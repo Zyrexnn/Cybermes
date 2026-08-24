@@ -1,19 +1,12 @@
 model:
-  default: hermes
-  provider: 9router
+  default: anthropic/claude-3-7-sonnet
+  provider: openrouter
   context_length: 128000
   temperature: 0.2
   max_tokens: 4096
-custom_providers:
-  - name: 9router
-    base_url: http://localhost:20128/v1
-    api_key: your_api_key_here
 auxiliary:
   compression:
     context_length: 65536
-fallback_providers:
-  - provider: copilot
-    model: gpt-4o
 agent:
   name: Cybermes
   system_prompt: |
@@ -44,16 +37,16 @@ agent:
        - Access Control & Logic Analysis: IDOR, session testing, privilege verification
        - Reporting: Structured markdown report with CVSS scoring and remediation guidance.
 workspace:
-  root: /home/ikhsan/Documents/Cybermes
-  targets: /home/ikhsan/Documents/Cybermes/targets
-  recon: /home/ikhsan/Documents/Cybermes/recon
-  output: /home/ikhsan/Documents/Cybermes/output
-  reports: /home/ikhsan/Documents/Cybermes/reports
-  logs: /home/ikhsan/Documents/Cybermes/logs
-  knowledge: /home/ikhsan/Documents/Cybermes/knowledge
-  wordlists: /home/ikhsan/Documents/Cybermes/tools/wordlists
+  root: .
+  targets: targets
+  recon: recon
+  output: output
+  reports: reports
+  logs: logs
+  knowledge: knowledge
+  wordlists: tools/wordlists
 skills:
-  directory: /home/ikhsan/Documents/Cybermes/skills
+  directory: skills
   autoload:
     - autonomous-godmode-hunter
 mcp_servers:
@@ -71,9 +64,7 @@ mcp_servers:
     args:
       - -y
       - '@modelcontextprotocol/server-filesystem'
-      - '/home/ikhsan/Documents/Cybermes'
-      - '/home/ikhsan/Documents/Cybermes/knowledge'
-      - '/home/ikhsan/Documents/Cybermes/tools'
+      - .
 approvals:
   mode: 'off'
 hooks_auto_accept: true

@@ -37,16 +37,22 @@ HERMES_YOLO_MODE=1                 # Enables autonomous execution of security to
 
 ---
 
-## 🚀 3. Running the Gateway in Docker
+## 🚀 3. Running the Gateway
 
-### Start Gateway Container
+### Option A: Docker (Background Container)
 ```bash
 docker compose up -d
+docker compose logs -f
 ```
 
-### Inspect Connection Logs
+### Option B: Native Host (Linux / macOS / Windows)
+Configure your `.env` file, then run:
 ```bash
-docker compose logs -f
+# Linux / macOS
+./cybermes gateway run
+
+# Windows PowerShell
+.\cybermes.bat gateway run
 ```
 
 Upon successful connection, the log stream will indicate:
@@ -58,7 +64,10 @@ Upon successful connection, the log stream will indicate:
 
 ### Restart Gateway
 ```bash
+# Docker
 docker compose restart
+
+# Native Host: Ctrl+C and rerun ./cybermes gateway run
 ```
 
 ---

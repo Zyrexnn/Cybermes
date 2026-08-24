@@ -75,6 +75,18 @@ if ((-not (Test-Path "$CYBERMES_DIR\.env")) -and (Test-Path "$CYBERMES_DIR\.env.
     Write-Host "✓ Generated default .env file" -ForegroundColor Green
 }
 
+if ((Test-Path "$CYBERMES_DIR\.env") -and (-not (Test-Path "$CYBERMES_DIR\.hermes\.env"))) {
+    Copy-Item -Path "$CYBERMES_DIR\.env" -Destination "$CYBERMES_DIR\.hermes\.env" -ErrorAction SilentlyContinue
+}
+
+# Sanitize directory traps
+if ((Test-Path "$CYBERMES_DIR\.hermes\config.yaml" -PathType Container)) {
+    Remove-Item -Path "$CYBERMES_DIR\.hermes\config.yaml" -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ((Test-Path "$CYBERMES_DIR\.hermes\auth.json" -PathType Container)) {
+    Remove-Item -Path "$CYBERMES_DIR\.hermes\auth.json" -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 if ((-not (Test-Path "$CYBERMES_DIR\.hermes\config.yaml")) -and (Test-Path "$CYBERMES_DIR\.hermes\config.yaml.example")) {
     Copy-Item -Path "$CYBERMES_DIR\.hermes\config.yaml.example" -Destination "$CYBERMES_DIR\.hermes\config.yaml"
     Write-Host "✓ Initialized .hermes/config.yaml" -ForegroundColor Green

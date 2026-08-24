@@ -91,11 +91,11 @@ python tools\doctor.py --fix
 You can launch assessments directly using the wrapper:
 ```powershell
 # Using the root launcher
-.\cybermes.bat "Assess http://127.0.0.1:8888"
+.\cybermes.bat "Assess https://example.com"
 
 # Or load the environment in your active PowerShell session
 . .\env.ps1
-cybermes "Assess http://127.0.0.1:8888"
+cybermes "Assess https://example.com"
 ```
 
 
@@ -127,8 +127,8 @@ chmod +x setup.sh
 ### Step 4: Configure and Run
 ```bash
 nano .env
-source env.sh
-./hermes "Assess http://127.0.0.1:8888"
+python3 tools/doctor.py
+./cybermes "Assess https://example.com"
 ```
 
 ---

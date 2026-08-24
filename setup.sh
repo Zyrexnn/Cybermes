@@ -61,6 +61,18 @@ if [ ! -f "$CYBERMES_DIR/.env" ] && [ -f "$CYBERMES_DIR/.env.example" ]; then
     echo "✓ Initialized .env from .env.example"
 fi
 
+if [ -f "$CYBERMES_DIR/.env" ] && [ ! -f "$CYBERMES_DIR/.hermes/.env" ]; then
+    cp "$CYBERMES_DIR/.env" "$CYBERMES_DIR/.hermes/.env" 2>/dev/null || true
+fi
+
+# Sanitize directory traps if any exist
+if [ -d "$CYBERMES_DIR/.hermes/config.yaml" ]; then
+    rm -rf "$CYBERMES_DIR/.hermes/config.yaml"
+fi
+if [ -d "$CYBERMES_DIR/.hermes/auth.json" ]; then
+    rm -rf "$CYBERMES_DIR/.hermes/auth.json"
+fi
+
 if [ ! -f "$CYBERMES_DIR/.hermes/config.yaml" ] && [ -f "$CYBERMES_DIR/.hermes/config.yaml.example" ]; then
     cp "$CYBERMES_DIR/.hermes/config.yaml.example" "$CYBERMES_DIR/.hermes/config.yaml"
     echo "✓ Initialized .hermes/config.yaml"
@@ -105,6 +117,7 @@ echo "========================================================"
 echo ""
 echo "Quick Start:"
 echo "  1. Configure your API keys:  nano .env"
-echo "  2. Run assessment:           ./cybermes \"Assess http://target.com\""
-echo "  3. Run doctor diagnostics:   python3 tools/doctor.py"
+echo "  2. Verify environment:       python3 tools/doctor.py"
+echo "  3. Configure LLM model:      ./cybermes model"
+echo "  4. Run assessment:           ./cybermes \"Assess https://example.com\""
 echo ""

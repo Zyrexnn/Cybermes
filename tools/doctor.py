@@ -111,11 +111,30 @@ def check_config(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]
     print_header("3. Configuration & Credentials")
     passed, warns, fails = 0, 0, 0
     env_file = root_dir / ".env"
-    config_file = root_dir / ".hermes/config.yaml"
+    hermes_dir = root_dir / ".hermes"
+    config_file = hermes_dir / "config.yaml"
+    auth_file = hermes_dir / "auth.json"
+    hermes_env_file = hermes_dir / ".env"
 
-    if env_file.exists():
+    # 1. Root .env validation
+    if env_file.is_file():
         print_status("ok", "Environment File (.env)", "Present")
         passed += 1
+        # Sanity check OpenRouter Base URL
+        try:
+            env_content = env_file.read_text(encoding="utf-8", errors="ignore")
+            for line in env_content.splitlines():
+                line = line.strip()
+                if line.startswith("OPENROUTER_BASE_URL=") and not line.startswith("#"):
+                    val = line.split("=", 1)[1].strip()
+                    if "localhost" in val or "127.0.0.1" in val:
+                        print_status("warn", "OPENROUTER_BASE_URL", f"Points to {val} (overrides official endpoint)")
+                        warns += 1
+        except Exception:
+            pass
+    elif env_file.is_dir():
+        print_status("fail", "Environment File (.env)", "Path is a directory, expected file")
+        fails += 1
     else:
         if auto_fix and (root_dir / ".env.example").exists():
             shutil.copy(root_dir / ".env.example", env_file)
@@ -125,18 +144,60 @@ def check_config(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]
             print_status("warn", "Environment File (.env)", "Missing (Copy from .env.example)")
             warns += 1
 
-    if config_file.exists():
+    # 2. .hermes/config.yaml validation (Docker directory trap protection)
+    if config_file.is_dir():
+        print_status("fail", "Config File (.hermes/config.yaml)", "Directory trap detected!")
+        if auto_fix:
+            shutil.rmtree(config_file)
+            if (hermes_dir / "config.yaml.example").exists():
+                shutil.copy(hermes_dir / "config.yaml.example", config_file)
+            print_status("fixed", "Config File (.hermes/config.yaml)", "Purged directory & restored file")
+            passed += 1
+        else:
+            fails += 1
+    elif config_file.is_file():
         print_status("ok", "Config File (.hermes/config.yaml)", "Present")
         passed += 1
     else:
-        if auto_fix and (root_dir / ".hermes/config.yaml.example").exists():
-            config_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(root_dir / ".hermes/config.yaml.example", config_file)
+        if auto_fix and (hermes_dir / "config.yaml.example").exists():
+            hermes_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(hermes_dir / "config.yaml.example", config_file)
             print_status("fixed", "Config File (.hermes/config.yaml)", "Generated from example")
             passed += 1
         else:
             print_status("warn", "Config File (.hermes/config.yaml)", "Missing")
             warns += 1
+
+    # 3. .hermes/auth.json validation
+    if auth_file.is_dir():
+        print_status("fail", "Auth File (.hermes/auth.json)", "Directory trap detected!")
+        if auto_fix:
+            shutil.rmtree(auth_file)
+            auth_file.write_text("{}", encoding="utf-8")
+            print_status("fixed", "Auth File (.hermes/auth.json)", "Purged directory & restored valid JSON")
+            passed += 1
+        else:
+            fails += 1
+    elif auth_file.is_file():
+        print_status("ok", "Auth File (.hermes/auth.json)", "Present")
+        passed += 1
+    else:
+        if auto_fix:
+            hermes_dir.mkdir(parents=True, exist_ok=True)
+            auth_file.write_text("{}", encoding="utf-8")
+            print_status("fixed", "Auth File (.hermes/auth.json)", "Initialized with empty JSON")
+            passed += 1
+        else:
+            print_status("warn", "Auth File (.hermes/auth.json)", "Missing")
+            warns += 1
+
+    # 4. .hermes/.env synchronization
+    if auto_fix and env_file.is_file() and not hermes_env_file.exists():
+        try:
+            shutil.copy(env_file, hermes_env_file)
+            print_status("fixed", "Hermes Internal Env (.hermes/.env)", "Synced from root .env")
+        except Exception:
+            pass
 
     return passed, warns, fails
 

@@ -205,7 +205,7 @@ Get Cybermes up and running in under a minute:
 git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
 cp .env.example .env && nano .env
 docker compose up -d
-docker compose exec cybermes cybermes "Assess http://127.0.0.1:8888"
+docker compose exec cybermes cybermes "Assess https://example.com"
 ```
 
 ### Option B: Linux / macOS Host (One Command) 🐧
@@ -213,7 +213,7 @@ docker compose exec cybermes cybermes "Assess http://127.0.0.1:8888"
 git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
 ./setup.sh
 nano .env
-./cybermes "Assess http://127.0.0.1:8888"
+./cybermes "Assess https://example.com"
 ```
 
 ### Option C: Windows Host (Native PowerShell) 💻
@@ -221,8 +221,15 @@ nano .env
 git clone https://github.com/Zyrexnn/Cybermes.git; cd Cybermes
 .\setup_windows.ps1
 notepad .env
-.\cybermes.bat "Assess http://127.0.0.1:8888"
+.\cybermes.bat "Assess https://example.com"
 ```
+
+> [!TIP]
+> **Testing Locally?** You can test against the included mock vulnerable application:
+> ```bash
+> python3 examples/mock_vulnerable_app.py   # Starts local test server on :8888
+> ./cybermes "Assess http://127.0.0.1:8888" # In a new terminal tab
+> ```
 
 ---
 
@@ -256,7 +263,7 @@ notepad .env
 python tools\doctor.py
 
 # 5. Launch an assessment
-.\cybermes.bat "Assess http://127.0.0.1:8888"
+.\cybermes.bat "Assess https://example.com"
 ```
 
 👉 **See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for step-by-step walkthrough**
@@ -280,7 +287,7 @@ nano .env
 python3 tools/doctor.py
 
 # 5. Launch an assessment
-./cybermes "Assess http://127.0.0.1:8888"
+./cybermes "Assess https://example.com"
 ```
 
 ---
@@ -302,7 +309,7 @@ nano .env
 docker compose up -d
 
 # 4. Execute assessment
-docker compose exec cybermes cybermes "Assess http://127.0.0.1:8888"
+docker compose exec cybermes cybermes "Assess https://example.com"
 ```
 
 ---

@@ -15,17 +15,34 @@ fix_permissions() {
 mkdir -p /workspace/reports /workspace/recon /workspace/output /workspace/logs /workspace/targets /root/.hermes/skills
 fix_permissions
 
+# Sanitize directory bind-mount traps
+if [ -d /root/.hermes/config.yaml ]; then
+    rm -rf /root/.hermes/config.yaml
+fi
+if [ -d /root/.hermes/auth.json ]; then
+    rm -rf /root/.hermes/auth.json
+fi
+
 # Initialize configuration files if missing
-if [ ! -f /root/.hermes/config.yaml ] && [ -f /workspace/.hermes/config.yaml.example ]; then
-    cp /workspace/.hermes/config.yaml.example /root/.hermes/config.yaml
+if [ ! -f /root/.hermes/config.yaml ]; then
+    if [ -f /workspace/.hermes/config.yaml.example ]; then
+        cp /workspace/.hermes/config.yaml.example /root/.hermes/config.yaml
+    elif [ -f /root/.hermes/config.yaml.example ]; then
+        cp /root/.hermes/config.yaml.example /root/.hermes/config.yaml
+    fi
 fi
 
 if [ ! -f /root/.hermes/auth.json ]; then
     echo "{}" > /root/.hermes/auth.json
 fi
 
-if [ ! -f /root/.hermes/.env ] && [ -f /workspace/.env ]; then
-    cp /workspace/.env /root/.hermes/.env
+if [ -f /workspace/.env ]; then
+    set -a
+    source /workspace/.env
+    set +a
+    if [ ! -f /root/.hermes/.env ]; then
+        cp /workspace/.env /root/.hermes/.env 2>/dev/null || true
+    fi
 fi
 
 if [ -d /workspace/skills ]; then
