@@ -19,7 +19,7 @@ $arch = if ([System.Environment]::Is64BitOperatingSystem) {
     "386"
 }
 
-Write-Host "🔄 [Cybermes Windows Updater] Architecture: windows/$arch" -ForegroundColor Cyan
+Write-Host "🔄 Downloading ProjectDiscovery tools (windows/$arch)..." -ForegroundColor Cyan
 
 function Install-PDTool {
     param(
@@ -27,11 +27,9 @@ function Install-PDTool {
         [string]$ToolName
     )
 
-    Write-Host "📦 Checking $ToolName ($Repo)..." -ForegroundColor Gray
     $apiUrl = "https://api.github.com/repos/projectdiscovery/$Repo/releases/latest"
-
     try {
-        $headers = @{ "User-Agent" = "Cybermes-Updater" }
+        $headers = @{ "User-Agent" = "Cybermes-Installer" }
         $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers -TimeoutSec 15
         
         $asset = $release.assets | Where-Object { 
@@ -39,14 +37,13 @@ function Install-PDTool {
         } | Select-Object -First 1
 
         if (-not $asset) {
-            Write-Host "   ℹ️ Release asset not found for $ToolName (windows/$arch)" -ForegroundColor DarkYellow
+            Write-Host "ℹ️  Asset not found for $ToolName (windows/$arch)" -ForegroundColor DarkYellow
             return
         }
 
         $tempZip = Join-Path $env:TEMP "$ToolName-$arch.zip"
         $tempExtract = Join-Path $env:TEMP "$ToolName-extract"
 
-        Write-Host "   ⬇️ Downloading $($asset.name)..." -ForegroundColor Gray
         Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $tempZip -UseBasicParsing
 
         if (Test-Path $tempExtract) {
@@ -58,13 +55,13 @@ function Install-PDTool {
         if ($exeFile) {
             $destFile = Join-Path $BinDir "$ToolName.exe"
             Copy-Item -Path $exeFile.FullName -Destination $destFile -Force
-            Write-Host "   ✅ Installed: $destFile" -ForegroundColor Green
+            Write-Host "✓ Installed $ToolName -> $destFile" -ForegroundColor Green
         }
 
         Remove-Item -Path $tempZip -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
     } catch {
-        Write-Host "   [!] Failed to update $ToolName : $_" -ForegroundColor DarkYellow
+        Write-Host "⚠️  Failed downloading $ToolName : $_" -ForegroundColor DarkYellow
     }
 }
 
@@ -81,13 +78,11 @@ foreach ($t in $tools) {
 
 $nucleiExe = Join-Path $BinDir "nuclei.exe"
 if (Test-Path $nucleiExe) {
-    Write-Host "📜 Updating Nuclei community templates..." -ForegroundColor Cyan
+    Write-Host "📜 Updating Nuclei templates..." -ForegroundColor Cyan
     try {
         & $nucleiExe -update-templates -silent
-        Write-Host "✅ Nuclei templates updated." -ForegroundColor Green
+        Write-Host "✓ Nuclei templates updated" -ForegroundColor Green
     } catch {
-        Write-Host "   [!] Template update skipped or failed." -ForegroundColor DarkYellow
+        Write-Host "ℹ️  Template update skipped" -ForegroundColor DarkYellow
     }
 }
-
-Write-Host "✨ [Cybermes Windows Updater] Toolchain update completed." -ForegroundColor Green
