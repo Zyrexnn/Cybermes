@@ -117,3 +117,18 @@ Verifies the integrity of all 200+ skill folders in `skills/`:
 python tools/validate_skills.py
 ```
 Reports total loaded skills, active skills, and highlights any missing or corrupted `SKILL.md` definitions.
+
+---
+
+## 🩺 8. Universal Health Check & Auto-Repair (`doctor.py`)
+
+Inspects environment health across Windows, Linux, and macOS, and auto-repairs missing directories, toolchains, and configurations:
+
+```bash
+# Check environment state
+python tools/doctor.py
+
+# Automatically fix missing directories, tools, and configs
+python tools/doctor.py --fix
+```
+
