@@ -540,6 +540,12 @@ Cybermes stands on the shoulders of giants in the open-source and offensive secu
         <img src="https://img.shields.io/badge/Contributor-msarg44-3fb950?style=flat-square" alt="msarg44" />
       </a>
     </td>
+    <td align="center" width="140px" style="padding: 10px; border: none;">
+      <a href="https://github.com/Mortify4315">
+        <img src="https://github.com/Mortify4315.png" width="80px" height="80px" style="border-radius: 50%; border: 3px solid #f0883e; box-shadow: 0 0 15px rgba(240,136,62,0.6);" alt="Mortify4315"/><br><br>
+        <img src="https://img.shields.io/badge/Contributor-Mortify4315-f0883e?style=flat-square" alt="Mortify4315" />
+      </a>
+    </td>
   </tr>
 </table>
 

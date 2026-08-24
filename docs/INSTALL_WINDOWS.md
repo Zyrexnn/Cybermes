@@ -39,6 +39,14 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 ### Step 3: Clone Cybermes Repository
+
+> [!TIP]
+> **Windows Long Path Support**: The repository contains extensive offensive security knowledge bases with deep file paths that can exceed the traditional Windows `MAX_PATH` (260 chars) limit. Before cloning, enable long path support in Git:
+> ```powershell
+> git config --global core.longpaths true
+> ```
+> *(Tip: Choosing a short root directory such as `C:\Cybermes` or `C:\src\Cybermes` also prevents path issues).*
+
 ```powershell
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
