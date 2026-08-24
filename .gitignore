@@ -1,21 +1,38 @@
 # =============================================================================
-# Cybermes Git Ignore Rules
+# Cybermes Comprehensive Git Ignore Rules
 # =============================================================================
 
-# 1. Hermes Agent Local State, Data & Sessions
+# 1. Credentials, Environment Files & Secrets (STRICT - NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+auth.json
+*.auth.json
+.hermes/auth.json
+.hermes/.env
+.hermes/sessions/
+.hermes/history/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+*Secret*
+*Credentials*
+*Setup Prompt*.md
+*Prompt*.md
+
+# 2. Hermes Agent Local State, Data & Sessions
 .hermes/*
 !.hermes/config.yaml.example
 !.hermes/SOUL.md
 *.db
 *.sqlite*
-*.lock
-!uv.lock
-!package-lock.json
-!yarn.lock
-!pnpm-lock.yaml
 gateway-starts.log
 
-# 2. Python Virtual Environments, Distributions & Bytecode
+# 3. Python Virtual Environments, Bytecode & Build Artifacts
 venv/
 .venv/
 env/
@@ -30,25 +47,21 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+.hypothesis/
 
-# 3. Environment Variables, Secret Credentials & Private Prompts
-.env
-.env.*
-!.env.example
-auth.json*
-*.pem
-*.key
-*.p12
-*.pfx
-*Setup Prompt*.md
-*Prompt*.md
-
-# 4. Compiled Binary Security Tools (Download via setup/docker)
+# 4. Compiled Binaries & Executables
 tools/bin/*
 !tools/bin/.gitkeep
 !tools/bin/nmap
+bin/*.exe
+*.exe
+*.dll
+*.dylib
+*.bin
 
-# 5. Runtime Logs, Reconnaissance Dumps & Dynamic Outputs
+# 5. Assessment Deliverables, Recon Dumps, Logs & Targets
 logs/*
 !logs/.gitkeep
 output/*
@@ -57,31 +70,43 @@ recon/*
 !recon/.gitkeep
 targets/*
 !targets/.gitkeep
+reports/*
+!reports/.gitkeep
+*.log
+*.out
+
+# 6. Skills Local Cache & Dynamic State
 skills/.usage.json
 skills/.curator_state
 skills/.*
 skills/**/references/*kompas*
 skills/security/recon-output-triage/
 *kompas*
-reports/*
-!reports/.gitkeep
-*.log
 
-# 6. IDE, Editor & OS Artifacts
+# 7. Node, Browser, Playwright & Temp Files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+chrome/
+playwright-report/
+test-results/
+*.tmp
+*.bak
+.tmp_*
+.mdbook-build.*
+
+# 8. OS & IDE Configuration Files
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# 7. Node, Browser & Temporary Files
-node_modules/
-npm-debug.log*
-chrome/
-playwright-report/
-*.tmp
-*.bak
-.mdbook-build.*
-.tmp_*
+*.suo
+*.user
+.gemini/
+.claude/
