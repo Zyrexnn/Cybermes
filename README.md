@@ -446,7 +446,16 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 ## 📦 Release & Version History
  
+### **[v2.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.1.0)** — *Frictionless Setup, Universal Toolchain & Health-Check Engine*
+* **60-Second Fast Track Installation**: Single-command automated installers (`setup.sh` and `setup_windows.ps1`) for Linux, macOS (Intel & Apple Silicon M-series), and Windows PowerShell.
+* **Universal System Doctor (`tools/doctor.py`)**: Cross-platform environment diagnostic utility featuring `--fix` flag to automatically inspect system health and auto-repair missing tools, folders, and configs.
+* **Automated ProjectDiscovery Toolchain**: Integrated auto-downloading for `subfinder`, `httpx`, `katana`, `nuclei`, and automatic Nuclei template synchronization across `amd64` and `arm64` architectures.
+* **Pre-built GHCR Container Pipeline**: Automated multi-arch Docker image publishing (`ghcr.io/zyrexnn/cybermes:latest` and `ghcr.io/zyrexnn/cybermes:v2.1.0`) with resilient directory bind mounts.
+* **Standardized Python Package (PEP 621)**: Added `pyproject.toml` support for standard editable installs (`pip install -e .`).
+* **Unified CLI Entrypoints & Clean Layout**: Standardized primary launchers (`cybermes`, `cybermes.bat`, `cybermes.ps1`), relocated mock targets to `examples/`, and eliminated redundant wrapper scripts.
+
 ### **[v2.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.0.0)** — *The High-Performance Native Go Core Architecture*
+
 * **Native Go Core Toolchain (`pkg/*` & `cmd/*`)**: Complete refactoring of core performance bottlenecks into zero-external-dependency, compiled Go binaries (`tools/bin/*`):
   * `smart_pipe`: High-throughput, zero-allocation stdout streaming and Shannon entropy filtering.
   * `secret_scan`: 48-pattern credential scanner with concurrent worker pools.
