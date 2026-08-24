@@ -17,12 +17,13 @@ services:
       - ./tools:/workspace/tools
       - ./scope.yaml:/workspace/scope.yaml
       - ./entrypoint.sh:/workspace/entrypoint.sh
-      - ./.hermes/auth.json:/root/.hermes/auth.json:ro
-      - ./.hermes/config.yaml:/root/.hermes/config.yaml:ro
-      - ./.hermes/.env:/root/.hermes/.env:ro
+      - ./.hermes/auth.json:/root/.hermes/auth.json
+      - ./.hermes/config.yaml:/root/.hermes/config.yaml
+      - ./.hermes/.env:/root/.hermes/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: hermes gateway run
     restart: unless-stopped
     environment:
       - PUPPETEER_HEADLESS=true
       - NODE_OPTIONS=--no-warnings
-    network_mode: host

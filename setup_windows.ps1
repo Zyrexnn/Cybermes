@@ -1,4 +1,4 @@
-﻿<#
+<#
 =============================================================================
 Cybermes Windows Automated Setup & Installer
 Prepares local Windows environment, Python venv, dependencies & MCP tools
@@ -103,6 +103,12 @@ if ((-not (Test-Path "$CYBERMES_DIR\.env")) -and (Test-Path "$CYBERMES_DIR\.env.
 if ((-not (Test-Path "$CYBERMES_DIR\.hermes\config.yaml")) -and (Test-Path "$CYBERMES_DIR\.hermes\config.yaml.example")) {
     Copy-Item -Path "$CYBERMES_DIR\.hermes\config.yaml.example" -Destination "$CYBERMES_DIR\.hermes\config.yaml"
     Write-Host "✓ Initialized .hermes/config.yaml from .hermes/config.yaml.example" -ForegroundColor Green
+}
+
+$authJsonPath = "$CYBERMES_DIR\.hermes\auth.json"
+if (-not (Test-Path $authJsonPath)) {
+    "{}" | Out-File -FilePath $authJsonPath -Encoding utf8
+    Write-Host "✓ Initialized empty .hermes/auth.json" -ForegroundColor Green
 }
 
 # 7. Compile Go Core Tools (if Go is available on Windows)

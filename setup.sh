@@ -87,6 +87,11 @@ if [ ! -f "$CYBERMES_DIR/.hermes/config.yaml" ] && [ -f "$CYBERMES_DIR/.hermes/c
     echo "✓ Initialized .hermes/config.yaml from .hermes/config.yaml.example"
 fi
 
+if [ ! -f "$CYBERMES_DIR/.hermes/auth.json" ]; then
+    echo "{}" > "$CYBERMES_DIR/.hermes/auth.json"
+    echo "✓ Initialized empty .hermes/auth.json"
+fi
+
 # 8. Compile High-Performance Go Core Tools (if Go compiler present)
 if command -v go >/dev/null 2>&1; then
     echo "⚡ Compiling Cybermes High-Performance Go Tools into tools/bin/..."
