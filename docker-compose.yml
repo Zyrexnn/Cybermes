@@ -1,10 +1,10 @@
 services:
-  hermes-cybermes:
+  cybermes:
     build:
       context: .
       dockerfile: Dockerfile
-    image: cybermes-hermes:latest
-    container_name: cybermes-hermes-agent
+    image: ghcr.io/zyrexnn/cybermes:latest
+    container_name: cybermes-agent
     stdin_open: true
     tty: true
     volumes:
@@ -13,17 +13,16 @@ services:
       - ./output:/workspace/output
       - ./reports:/workspace/reports
       - ./logs:/workspace/logs
-      - ./skills:/root/.hermes/skills
+      - ./skills:/workspace/skills
       - ./tools:/workspace/tools
-      - ./scope.yaml:/workspace/scope.yaml
-      - ./entrypoint.sh:/workspace/entrypoint.sh
-      - ./.hermes/auth.json:/root/.hermes/auth.json
-      - ./.hermes/config.yaml:/root/.hermes/config.yaml
-      - ./.hermes/.env:/root/.hermes/.env
+      - ./.hermes:/root/.hermes
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: hermes gateway run
+    command: cybermes gateway run
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       - PUPPETEER_HEADLESS=true
       - NODE_OPTIONS=--no-warnings
