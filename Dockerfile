@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     gnupg \
+    golang-go \
     ripgrep \
     nmap \
     python3 \
@@ -75,6 +76,13 @@ RUN python3 -m venv /opt/hermes-venv && \
 
 # 5. Copy Workspace, skills, and configuration
 COPY . /workspace/
+
+# Build Go native tools from source inside container (ensuring arch compatibility)
+RUN go build -ldflags="-s -w" -o /usr/local/bin/smart_pipe /workspace/cmd/smart_pipe && \
+    go build -ldflags="-s -w" -o /usr/local/bin/secret_scan /workspace/cmd/secret_scan && \
+    go build -ldflags="-s -w" -o /usr/local/bin/search_knowledge /workspace/cmd/search_knowledge && \
+    go build -ldflags="-s -w" -o /usr/local/bin/aggregate_reports /workspace/cmd/aggregate_reports && \
+    chmod +x /usr/local/bin/smart_pipe /usr/local/bin/secret_scan /usr/local/bin/search_knowledge /usr/local/bin/aggregate_reports
 
 # Setup Hermes configuration directories
 RUN mkdir -p /root/.hermes/skills /workspace/reports /workspace/recon /workspace/targets /workspace/output /workspace/logs && \

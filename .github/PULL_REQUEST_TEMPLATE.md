@@ -13,10 +13,9 @@
 
 ## 🧪 Verification & Testing
 
-<!-- Describe how you verified and tested your changes (e.g. commands run, outputs observed). -->
-- [ ] Code passes syntax and compilation checks (`python3 -m py_compile ...`)
+- [ ] Code passes test and compilation checks (`go test ./pkg/... -v`, `python3 -m py_compile ...`)
 - [ ] Tested locally on target / mock application
-- [ ] No regression on existing tools (`smart_pipe.py`, `aggregate_reports.py`, etc.)
+- [ ] No regression on existing core tools (`smart_pipe`, `secret_scan`, `search_knowledge`, `aggregate_reports`, etc.)
 
 ---
 

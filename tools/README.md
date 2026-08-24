@@ -4,11 +4,27 @@ This directory contains security tools, wordlists, and integration utilities use
 
 ## Directory Structure
 
-- `bin/`: Pre-compiled binary tools and wrappers (`nmap`, `subfinder`, `httpx`, `nuclei`, `katana`, `ffuf`, `dalfox`, `amass`, `gau`, etc.).
+- `bin/`: Pre-compiled binary tools and wrappers (`smart_pipe`, `secret_scan`, `search_knowledge`, `aggregate_reports`, `nmap`, `subfinder`, `httpx`, `nuclei`, `katana`, `ffuf`, `dalfox`, `amass`, `gau`, etc.).
 - `sqlmap/`: Integrated SQL injection testing engine.
 - `strix/`: Autonomous penetration testing and multi-agent coordination framework.
 - `wordlists/`: Curated directory, parameter, and endpoint discovery wordlists (`raft-medium-directories.txt`, `burp-parameter-names.txt`, `common.txt`).
 
-## Pre-compiled Binaries in Docker
+## High-Performance Go Core Tools (`cmd/` & `pkg/`)
 
-In containerized deployments (`Dockerfile`), security tool binaries are automatically packaged or pulled into `/usr/local/bin` during build. For host development, place your platform-specific binaries into `tools/bin/` and source `env.sh`.
+The native Go pipeline tools are maintained in the root `pkg/` and `cmd/` directories:
+- `cmd/smart_pipe`: High-throughput recon stream filter & token economy engine.
+- `cmd/secret_scan`: 48-pattern credential and token miner.
+- `cmd/search_knowledge`: Sub-50ms offline knowledge & payload search engine.
+- `cmd/aggregate_reports`: Finding aggregator and `SUMMARY.md` / `metadata.json` indexer.
+
+To recompile all Go tools to `tools/bin/`:
+```bash
+go build -ldflags="-s -w" -o tools/bin/smart_pipe ./cmd/smart_pipe
+go build -ldflags="-s -w" -o tools/bin/secret_scan ./cmd/secret_scan
+go build -ldflags="-s -w" -o tools/bin/search_knowledge ./cmd/search_knowledge
+go build -ldflags="-s -w" -o tools/bin/aggregate_reports ./cmd/aggregate_reports
+```
+
+## Pre-compiled Binaries in Docker & Host
+
+In containerized deployments (`Dockerfile`), Go tools and external security tool binaries are compiled and placed into `/usr/local/bin` during build. For host development, run `./setup.sh` or `setup_windows.ps1` to compile tools into `tools/bin/` and source `env.sh` (or `env.ps1`).

@@ -24,5 +24,5 @@
 
 # 4. REPORT AGGREGATION
 - After writing or modifying finding files in `reports/<TARGET_SLUG>/findings/`, always execute:
-  `python3 tools/aggregate_reports.py <TARGET_SLUG>`
+  `aggregate_reports <TARGET_SLUG>`
   to keep `SUMMARY.md` and `metadata.json` synchronized.

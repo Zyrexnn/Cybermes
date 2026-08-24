@@ -56,4 +56,4 @@ for i in range(1,a.attempts+1):
 ## Coverage gaps to record (not "clean" results)
 - SQLi: sqlmap install broken in that env (`python` missing / "missing modules") -> note as gap.
 - dalfox/katana flag drift across versions -> verify with `--help`.
-- aggregate_reports.py expected `/workspace/reports/<target>`; copy there first.
+- `aggregate_reports` expected `reports/<target>`; copy there first.

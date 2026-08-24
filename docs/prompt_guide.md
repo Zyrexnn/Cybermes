@@ -58,7 +58,7 @@ All outputs are organized per target slug in `reports/<TARGET_SLUG>/`:
 - Informational & recon observations: `reports/<TARGET_SLUG>/evidence/recon_notes.md`
 - Standalone PoC verification scripts: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
 - Evidence traces and screenshots: `reports/<TARGET_SLUG>/evidence/`
-- Consolidated index: `reports/<TARGET_SLUG>/SUMMARY.md` (aggregated automatically via `tools/aggregate_reports.py`)
+- Consolidated index: `reports/<TARGET_SLUG>/SUMMARY.md` (aggregated automatically via `aggregate_reports`)
 
 ---
 

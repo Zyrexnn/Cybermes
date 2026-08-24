@@ -6,12 +6,13 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v1.5.0](https://img.shields.io/badge/Release-v1.5.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)
+[![Release: v2.0.0](https://img.shields.io/badge/Release-v2.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.0.0)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
-[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](docker-compose.yml)
-[![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg)](docs/INSTALL_WINDOWS.md)
+[![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
+[![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
+[![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg?logo=windows&logoColor=white)](docs/INSTALL_WINDOWS.md)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
 [![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
 [![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
@@ -19,7 +20,7 @@
 
 <p align="center">
   <b>Cybermes</b> is an enterprise-grade, autonomous security research agent designed for high-signal reconnaissance, attack surface discovery, authenticated vulnerability research, zero-false-positive exploit validation, token-efficient context management, and automated executive PDF/HTML report generation.<br><br>
-  <i>✅ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
+  <i>⚡ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
 [Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Discussions & Rules](#-community--discussions) • [Documentation](docs/) • [Release Notes](#-release--version-history)
@@ -33,7 +34,7 @@
 | Traditional Security Scanners ❌ | Cybermes Autonomous Agent 🛡️ |
 | :--- | :--- |
 | **Noisy & Speculative**: Dumps hundreds of unverified alerts based on simple regex. | **Zero-False-Positive Gate**: Requires deterministic HTTP proof, status codes, and standalone Python PoC scripts before reporting. |
-| **Context Window Bloat**: Dumps 5,000+ raw output lines into LLM context, causing hallucinations. | **Smart Output Filter & Token Economy**: Compresses verbose logs by 70–85% with `smart_pipe.py` and native Markdown MCP converters. |
+| **Context Window Bloat**: Dumps 5,000+ raw output lines into LLM context, causing hallucinations. | **Smart Output Filter & Token Economy**: Compresses verbose logs by 70–85% with high-throughput native Go `smart_pipe` and Markdown MCP converters. |
 | **Markdown-Only Deliverables**: Leaves users with raw markdown files scattered across directories. | **End-to-End Automated PDF/HTML Engine**: Generates pixel-perfect executive PDF reports (`REPORT.pdf`) and interactive HTML dashboards. |
 | **Fragile File Permissions**: Docker and root processes create locked files (`NoPermissions`). | **Live Background Permission Daemon**: Integrated POSIX ACLs and live permission keeper guaranteeing `-rw-rw-rw-` open access. |
 | **Single-Phase Execution**: Scans without understanding application logic or multi-step auth. | **Autonomous Reasoning Loop**: Mines JS bundles, tests multi-account auth matrices, and validates complex business logic. |
@@ -73,7 +74,7 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                             CYBERMES ENGINE v1.5.0                               │
+│                             CYBERMES ENGINE v2.0.0                               │
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │  [ Operator Prompt / Target Queue ]  ──>  [ Direct Operator Authorization Hook ] │
 │                                                          │                       │
@@ -98,7 +99,7 @@
 │  │                      Security Toolchain & MCP Layer                        │  │
 │  │  • Recon: subfinder, amass, httpx, nmap                                    │  │
 │  │  • Content & Endpoint Mining: katana, gau, waybackurls, arjun              │  │
-│  │  • Smart Token Pipe: tools/smart_pipe.py (Captures raw, emits top-signal)  │  │
+│  │  • High-Throughput Go Pipe: smart_pipe (Captures raw, emits top-signal)    │  │
 │  │  • Fuzzing & Exploitation: ffuf, sqlmap, dalfox, nuclei                    │  │
 │  │  • MCP Bridge: Puppeteer Browser, Filesystem, mcp-server-fetch             │  │
 │  └────────────────────────────────────────────────────────────────────────────┘  │
@@ -109,45 +110,11 @@
 │  │  ├── SUMMARY.md (Aggregated Markdown)    ├── report.html (Interactive UI)  │  │
 │  │  ├── metadata.json (Structured Metrics)  ├── REPORT.pdf (Print-Ready PDF)  │  │
 │  │  └── pocs/poc_<vuln>.py (Standalone Reproducible Python Scripts)           │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📑 Automated Executive Reporting (PDF & HTML)
-
-Cybermes v1.5.0 features an integrated **Playwright Chromium PDF & HTML generator** (`tools/generate_pdf.py`). Whenever an assessment completes or `python3 tools/aggregate_reports.py <TARGET_SLUG>` is executed, Cybermes produces four structured deliverable formats simultaneously:
-
-```text
-reports/<TARGET_SLUG>/
-├── SUMMARY.md          # Consolidated executive summary & findings matrix
-├── metadata.json       # Structured JSON metrics for CI/CD & automation
-├── report.html         # Interactive standalone dashboard with Dark/Light styling
-├── REPORT.pdf          # Executive PDF deliverable with CVSS risk badges
-├── findings/           # Granular vulnerability writeups (LOW, MED, HIGH, CRIT only)
-├── pocs/               # Minimal-impact reproducible Python proof-of-concept scripts
-└── evidence/           # Raw HTTP traces, screenshot dumps, and recon_notes.md
-```
-
-### ✨ PDF & HTML Report Highlights:
-* **Executive Summary & Risk Score Bar**: Visual breakdown of Critical, High, Medium, Low, and Informational findings.
-* **Findings Matrix Table**: Color-coded severity badges with CVSS v3.1 vector strings, CWE classifications, and affected endpoints.
-* **Syntax-Highlighted Proof Boxes**: Clean monospaced HTTP Request/Response proofs and Python PoC snippets.
-* **Print-Ready Page Breaks**: CSS `@media print` rules ensure tables and vulnerability chapters never get awkwardly split across pages.
-
----
-
-## 🧠 Token Economy & Smart Output Filtering
-
-Traditional AI security agents quickly exhaust context windows and suffer from attention degradation when reading thousands of raw terminal lines from tools like `katana` or `ffuf`. 
-
-Cybermes solves this with a two-tiered token optimization architecture:
-
-1. **Smart CLI Output Filter (`tools/smart_pipe.py`)**:
+│  └──────────────────────────────────────────────�1. **High-Throughput Stream Filter (`smart_pipe`)**:
+   - Built in pure Go for zero-latency stdout streaming.
    - Intercepts tool streams and dumps **100% of raw logs** to `recon/<TARGET_SLUG>/<tool>_raw.txt`.
    - Filters out static asset clutter (`.png`, `.css`, `.woff`) and 404 noise.
-   - Streams only the **top 30–50 high-signal findings** (HTTP 200/301/403, unique parameters, API routes) to the AI context.
+   - Streams only the **top 30–50 high-signal findings** (HTTP 200/301/403, unique parameters, API routes, high Shannon entropy secrets) to the AI context.
    - **Result**: Saves **70%–85% token consumption** per recon phase.
 
 2. **Native Markdown MCP Fetch (`mcp-server-fetch`)**:
@@ -166,21 +133,23 @@ Cybermes is built for seamless collaboration across all modern AI developer ecos
 
 ## 🧰 Available Toolchain & MCP Bridge
 
-All tools are pre-configured and accessible across host and Docker environments:
+All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 
 | Tool | Primary Purpose | Standard Syntax |
 | :--- | :--- | :--- |
 | **subfinder** | Passive Subdomain Discovery | `subfinder -d <target> -silent` |
 | **httpx** | Probing & Tech Detection | `httpx -silent -status-code -title -tech-detect` |
 | **katana** | Crawler & SPA Endpoint Miner | `katana -u <url> -silent -depth 3` |
-| **smart_pipe.py** | Smart Filter & Token Saver | `<tool_cmd> \| python3 tools/smart_pipe.py --target <SLUG> --tool <NAME>` |
+| **smart_pipe** | Stream Output Filter & Token Saver | `<tool_cmd> \| smart_pipe --target <SLUG> --tool <NAME>` |
 | **ffuf** | Directory & Parameter Fuzzing | `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -mc 200,301,302,403` |
 | **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -silent` |
 | **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
 | **dalfox** | XSS Scanner & Parameter Analyzer | `dalfox url <url> --silence` |
+| **secret_scan** | 48-Pattern Secret & Credential Miner | `secret_scan <target_files_or_dirs>` |
+| **search_knowledge** | Fast Offline Payload & CheatSheet Search | `search_knowledge "<query>"` |
+| **aggregate_reports** | Automated Report Aggregator & Indexer | `aggregate_reports <TARGET_SLUG>` |
 | **generate_pdf.py**| Automated PDF/HTML Generator | `python3 tools/generate_pdf.py <TARGET_SLUG>` |
 | **update_tools.sh** | Toolchain & Template Auto-Updater | `./tools/update_tools.sh` |
-| **search_knowledge.py** | Offline Payload & CheatSheet Search | `python3 tools/search_knowledge.py "<query>"` |
 | **windows_compat_check.py** | Windows System Diagnostics | `python tools\windows_compat_check.py` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
@@ -267,7 +236,7 @@ Cybermes provides a single-command automated installer for Linux and macOS:
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 
-# 2. Run the automated installer (sets up venv, Playwright, MCPs, ACLs, and tools)
+# 2. Run the automated installer (sets up venv, compiles native Go tools, Playwright, MCPs, and ACLs)
 ./setup.sh
 
 # 3. Configure your API keys in .env
@@ -443,6 +412,16 @@ To safely verify Cybermes capabilities in an isolated environment:
 ---
 
 ## 📦 Release & Version History
+ 
+### **[v2.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.0.0)** — *The High-Performance Native Go Core Architecture*
+* **Native Go Core Toolchain (`pkg/*` & `cmd/*`)**: Complete refactoring of core performance bottlenecks into zero-external-dependency, compiled Go binaries (`tools/bin/*`):
+  * `smart_pipe`: High-throughput, zero-allocation stdout streaming and Shannon entropy filtering.
+  * `secret_scan`: 48-pattern credential scanner with concurrent worker pools.
+  * `search_knowledge`: Sub-50ms offline knowledge & payload search across local security wikis.
+  * `aggregate_reports`: Resilient markdown matrix generator and structured metadata indexer.
+* **Elimination of Python Script Latency**: Deleted deprecated utility wrappers (`smart_pipe.py`, `search_knowledge.py`, `aggregate_reports.py`) in favor of unified single-binary tools exposed directly on `$PATH`.
+* **Multi-Platform Native Builder**: Automated Go tool compilation integrated into `setup.sh` (Linux/macOS), `setup_windows.ps1` (Windows native `.exe`), and `Dockerfile` (Multi-arch AMD64/ARM64 container builds).
+* **Modernized Directives**: Standardized `AGENTS.md`, `.cursorrules`, and 50+ offensive skill playbooks for binary-native execution.
 
 ### **[v1.5.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v1.5.0)** — *Windows Native Ecosystem, Automated PowerShell Setup & Multi-Platform Diagnostics*
 * **1-Click PowerShell Installer (`setup_windows.ps1`)**: Automated single-command installer for Windows 10/11 creating Python `venv`, workspace structure, installing requirements, and configuring `.env` / `.hermes/config.yaml`.

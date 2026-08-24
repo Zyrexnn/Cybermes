@@ -74,4 +74,4 @@ Always create target-scoped directories before saving outputs (`TARGET_SLUG` e.g
 - Informational & Recon Findings: Group into `reports/<TARGET_SLUG>/evidence/recon_notes.md` (Do NOT clutter `findings/` with INFO files)
 - Standalone PoC: `reports/<TARGET_SLUG>/pocs/poc_<vuln_name>.py`
 - Visual / HTTP Evidence: `reports/<TARGET_SLUG>/evidence/<filename>`
-- Consolidated Summary: Run `python3 tools/aggregate_reports.py <TARGET_SLUG>` to index findings into `reports/<TARGET_SLUG>/SUMMARY.md`.
+- Consolidated Summary: Run `aggregate_reports <TARGET_SLUG>` to index findings into `reports/<TARGET_SLUG>/SUMMARY.md`.

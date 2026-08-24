@@ -102,7 +102,21 @@ if ((-not (Test-Path "$CYBERMES_DIR\.hermes\config.yaml")) -and (Test-Path "$CYB
     Write-Host "✓ Initialized .hermes/config.yaml from .hermes/config.yaml.example" -ForegroundColor Green
 }
 
-# 7. Configure dynamically in .hermes/config.yaml & sync .env using Python
+# 7. Compile Go Core Tools (if Go is available on Windows)
+if (Get-Command go -ErrorAction SilentlyContinue) {
+    Write-Host "⚡ Compiling Cybermes High-Performance Go Tools into tools\bin\..." -ForegroundColor Cyan
+    try {
+        & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\smart_pipe.exe" "$CYBERMES_DIR\cmd\smart_pipe"
+        & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\secret_scan.exe" "$CYBERMES_DIR\cmd\secret_scan"
+        & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\search_knowledge.exe" "$CYBERMES_DIR\cmd\search_knowledge"
+        & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\aggregate_reports.exe" "$CYBERMES_DIR\cmd\aggregate_reports"
+        Write-Host "✓ Built smart_pipe.exe, secret_scan.exe, search_knowledge.exe, aggregate_reports.exe" -ForegroundColor Green
+    } catch {
+        Write-Host "  [!] Note: Could not build Go binaries automatically on Windows; continuing..." -ForegroundColor DarkYellow
+    }
+}
+
+# 8. Configure dynamically in .hermes/config.yaml & sync .env using Python
 & $venvPython -c @"
 import os
 import re

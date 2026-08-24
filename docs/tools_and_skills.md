@@ -23,7 +23,11 @@ All native binary security tools reside in `/workspace/tools/bin` and are automa
 | **Exploitation & Scanning** | `nuclei` | Fast, community-driven template vulnerability scanner |
 | | `sqlmap` | Automated SQL injection detection and database takeover |
 | | `dalfox` | High-performance parameter analysis and XSS scanner |
-| **Utilities** | `rg` (ripgrep) | Ultra-fast regex searching through source dumps and JS bundles |
+| **Utilities & Streaming** | `smart_pipe` | High-throughput recon stream filter & token economy engine |
+| | `secret_scan` | 48-pattern credential & sensitive token scanner |
+| | `search_knowledge` | Sub-millisecond offline knowledge & payload search engine |
+| | `aggregate_reports` | Automated finding aggregator & executive summary indexer |
+| | `rg` (ripgrep) | Ultra-fast regex searching through source dumps and JS bundles |
 
 ---
 
@@ -51,16 +55,16 @@ Operators can prompt the agent to utilize specific methodologies:
 
 ---
 
-## 📊 4. Automated Report Aggregator (`tools/aggregate_reports.py`)
+## 📊 4. Automated Report Aggregator (`aggregate_reports`)
 
 Cybermes includes a built-in report aggregator that automatically parses individual vulnerability reports and generates an executive summary:
 
 ```bash
 # Aggregate findings for a specific target:
-python3 tools/aggregate_reports.py <TARGET_SLUG>
+aggregate_reports <TARGET_SLUG>
 
 # Aggregate findings across all tested targets:
-python3 tools/aggregate_reports.py --all
+aggregate_reports --all
 ```
 
 Outputs generated in `reports/<TARGET_SLUG>/`:

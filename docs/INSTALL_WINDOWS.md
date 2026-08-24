@@ -22,6 +22,8 @@ This guide provides step-by-step instructions for running **Cybermes** on **Wind
    - ⚠️ **Important**: Check the box **"Add Python to PATH"** during installation.
 3. **Node.js (Optional, for Browser MCP & Puppeteer)**:
    - Download LTS from [nodejs.org](https://nodejs.org/).
+4. **Go 1.22+ (Optional, for Native Go Core Tools)**:
+   - Download from [go.dev](https://go.dev/dl/). If present, `setup_windows.ps1` will automatically compile native Windows `.exe` tools (`smart_pipe.exe`, `secret_scan.exe`, `search_knowledge.exe`, `aggregate_reports.exe`).
 
 ---
 
