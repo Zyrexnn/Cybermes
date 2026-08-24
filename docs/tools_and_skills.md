@@ -70,3 +70,50 @@ aggregate_reports --all
 Outputs generated in `reports/<TARGET_SLUG>/`:
 - `SUMMARY.md`: Consolidated vulnerability matrix with severity badges, CVSS scores, and links.
 - `metadata.json`: Machine-readable metadata and counts for programmatic integrations and dashboards.
+
+---
+
+## 📑 5. Automated PDF & HTML Deliverable Generator (`generate_pdf.py`)
+
+Transforms structured markdown reports into an executive PDF report and interactive HTML dashboard:
+
+```bash
+# Generate PDF & HTML dashboard for a specific target:
+python tools/generate_pdf.py <TARGET_SLUG>
+
+# Generate for all targets:
+python tools/generate_pdf.py --all
+
+# Generate HTML only without Chromium PDF export:
+python tools/generate_pdf.py --no-pdf
+```
+
+Outputs generated in `reports/<TARGET_SLUG>/`:
+- `report.html`: Standalone interactive HTML dashboard with Dark/Light theme toggle.
+- `REPORT.pdf`: Executive printable PDF with CVSS badges, risk charts, and PoC breakdown.
+
+---
+
+## 🔄 6. Toolchain & Template Auto-Updaters
+
+Automates downloading and updating ProjectDiscovery binaries (`subfinder`, `httpx`, `katana`, `nuclei`) and Nuclei templates:
+
+* **Linux & macOS / Container**:
+  ```bash
+  ./tools/update_tools.sh
+  ```
+* **Windows (PowerShell)**:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File tools\update_tools.ps1
+  ```
+
+---
+
+## 🔍 7. Skill Pack Integrity Auditor (`validate_skills.py`)
+
+Verifies the integrity of all 200+ skill folders in `skills/`:
+
+```bash
+python tools/validate_skills.py
+```
+Reports total loaded skills, active skills, and highlights any missing or corrupted `SKILL.md` definitions.
