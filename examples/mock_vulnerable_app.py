@@ -1,3 +1,8 @@
+"""
+Cybermes Mock Vulnerable Web Target
+Used for safe local validation of IDOR, information disclosure, and reporting pipelines.
+"""
+
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import urllib.parse
@@ -9,7 +14,7 @@ DOCUMENTS = {
 
 class VulnerableHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        pass # Suppress default server logs
+        pass
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -40,7 +45,6 @@ class VulnerableHandler(BaseHTTPRequestHandler):
         elif path.startswith("/api/documents/"):
             doc_id = path.split("/")[-1]
             if doc_id in DOCUMENTS:
-                # Deliberate IDOR: No authorization header verification
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
