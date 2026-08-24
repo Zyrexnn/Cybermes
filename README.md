@@ -6,7 +6,7 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v2.0.0](https://img.shields.io/badge/Release-v2.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.0.0)
+[![Release: v2.1.0](https://img.shields.io/badge/Release-v2.1.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.1.0)
 [![The New 100](https://www.theagenticleaderboard.com/badges/new/cybermes.svg)](https://www.theagenticleaderboard.com)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
