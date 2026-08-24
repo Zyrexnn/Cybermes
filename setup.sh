@@ -87,17 +87,26 @@ if [ ! -f "$CYBERMES_DIR/.hermes/config.yaml" ] && [ -f "$CYBERMES_DIR/.hermes/c
     echo "✓ Initialized .hermes/config.yaml from .hermes/config.yaml.example"
 fi
 
-# 8. Set execute permissions
+# 8. Compile High-Performance Go Core Tools (if Go compiler present)
+if command -v go >/dev/null 2>&1; then
+    echo "⚡ Compiling Cybermes High-Performance Go Tools into tools/bin/..."
+    go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/smart_pipe" "$CYBERMES_DIR/cmd/smart_pipe" 2>/dev/null || true
+    go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/secret_scan" "$CYBERMES_DIR/cmd/secret_scan" 2>/dev/null || true
+    go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/search_knowledge" "$CYBERMES_DIR/cmd/search_knowledge" 2>/dev/null || true
+    go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/aggregate_reports" "$CYBERMES_DIR/cmd/aggregate_reports" 2>/dev/null || true
+    echo "✓ Built smart_pipe, secret_scan, search_knowledge, aggregate_reports binaries"
+fi
+
+# 9. Set execute permissions
 chmod +x "$CYBERMES_DIR/hermes" \
          "$CYBERMES_DIR/bin/hermes" \
-         "$CYBERMES_DIR/env.sh" \
-         "$CYBERMES_DIR/tools/aggregate_reports.py" 2>/dev/null || true
+         "$CYBERMES_DIR/env.sh" 2>/dev/null || true
 
 if [ -d "$CYBERMES_DIR/tools/bin" ]; then
     chmod +x "$CYBERMES_DIR"/tools/bin/* 2>/dev/null || true
 fi
 
-# 9. Configure dynamically in .hermes/config.yaml & sync .env
+# 10. Configure dynamically in .hermes/config.yaml & sync .env
 python3 - <<PYEOF
 import os
 import re
