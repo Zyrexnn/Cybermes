@@ -192,126 +192,134 @@ All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
 
-🪟 **Windows Users**: Run `.\\bin\\hermes.bat` instead of `./hermes` and use `setup_windows.ps1` for installation.
+🪟 **Windows Users**: Run `.\cybermes.bat` (or `.\hermes.bat`) and use `.\setup_windows.ps1` for installation.
 
 ---
 
-## 🚀 Installation & Quick Start
+## 🚀 60-Second Fast Track Quickstart
 
-Choose your installation method based on your operating system and preferences:
+Get Cybermes up and running in under a minute:
 
-| Method | OS | Difficulty | Performance | Best For |
-|--------|----|------------|-------------|----------|
-| **Native Setup** | Linux/macOS | ⭐ Easy | ⭐⭐⭐⭐⭐ | Linux users |
-| **PowerShell Setup** | Windows 10/11 | ⭐ Easy | ⭐⭐⭐⭐ | Beginners, easy setup |
-| **WSL2 Setup** | Windows → Linux | ⭐⭐ Medium | ⭐⭐⭐⭐⭐ | Power users |
-| **Docker Desktop** | Windows/Linux/Mac | ⭐ Easy | ⭐⭐⭐⭐ | Isolated environments |
+### Option A: Docker (Zero Local Setup) 🐳
+```bash
+git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
+cp .env.example .env && nano .env
+docker compose up -d
+docker compose exec cybermes cybermes "Assess http://127.0.0.1:8888"
+```
 
----
+### Option B: Linux / macOS Host (One Command) 🐧
+```bash
+git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
+./setup.sh
+nano .env
+./cybermes "Assess http://127.0.0.1:8888"
+```
 
-### 💻 Installing on Windows
-
-#### Method 1A: PowerShell Native Setup (RECOMMENDED) ⭐
-
-Perfect for Windows beginners who want easy setup without virtualization:
-
+### Option C: Windows Host (Native PowerShell) 💻
 ```powershell
-# 1. Clone the repository
-git clone https://github.com/Zyrexnn/Cybermes.git
-cd Cybermes
-
-# 2. Run automated installer (one command!)
+git clone https://github.com/Zyrexnn/Cybermes.git; cd Cybermes
 .\setup_windows.ps1
-
-# 3. Configure API keys
 notepad .env
-
-# 4. Launch an assessment
-.\bin\hermes.bat "Assess http://127.0.0.1:8888"
+.\cybermes.bat "Assess http://127.0.0.1:8888"
 ```
 
-👉 **See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for detailed instructions**
+---
 
-#### Method 1B: WSL2 + Linux Subsystem (Best Performance)
+## 📑 Installation Guide & Methods
 
-For Windows power users who prefer Linux environment:
+Choose your preferred deployment method:
 
-```powershell
-# Enable WSL2 (run once as Administrator)
-wsl --install
+| Method | OS | Setup Time | Performance | Best For |
+|--------|----|------------|-------------|----------|
+| **PowerShell Native** | Windows 10/11 | ~1 min | ⭐⭐⭐⭐⭐ | Windows host, direct hardware access |
+| **Native Host** | Linux/macOS | ~1 min | ⭐⭐⭐⭐⭐ | Linux & macOS native environments |
+| **Docker (GHCR)** | All Platforms | <30 sec | ⭐⭐⭐⭐ | Zero-pollution isolated environment |
+| **WSL2** | Windows → Linux | ~2 min | ⭐⭐⭐⭐⭐ | Windows power users |
 
-# Then follow Linux instructions below
-```
+---
 
-#### Method 1C: Docker Desktop (Easiest Isolation)
-
-Fully isolated environment perfect for beginners:
+### 💻 Installing on Windows (Native PowerShell)
 
 ```powershell
 # 1. Clone repository
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 
-# 2. Configure environment
-copy .env.example .env
+# 2. Run automated installer (installs venv, Go tools & ProjectDiscovery binaries)
+.\setup_windows.ps1
+
+# 3. Configure your API keys
 notepad .env
 
-# 3. Start containers
-.\bin\docker_windows.bat up
+# 4. Verify system health
+python tools\doctor.py
 
-# 4. Execute commands
-docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
+# 5. Launch an assessment
+.\cybermes.bat "Assess http://127.0.0.1:8888"
 ```
+
+👉 **See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for step-by-step walkthrough**
 
 ---
 
 ### 🐧 Native Host Setup (Linux/macOS)
 
-Cybermes provides a single-command automated installer for Linux and macOS:
-
 ```bash
-# 1. Clone the repository
+# 1. Clone repository
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 
-# 2. Run the automated installer (sets up venv, compiles native Go tools, Playwright, MCPs, and ACLs)
+# 2. Run automated installer
 ./setup.sh
 
-# 3. Configure your API keys in .env
+# 3. Configure API keys in .env
 nano .env
 
-# 4. Activate the environment
-source env.sh
+# 4. Verify system health
+python3 tools/doctor.py
 
 # 5. Launch an assessment
-./hermes "Assess http://127.0.0.1:8888 and generate full report."
+./cybermes "Assess http://127.0.0.1:8888"
 ```
 
 ---
 
-### 🐳 Docker & Docker Compose (All Platforms)
+### 🐳 Docker & Docker Compose (Pre-built GHCR)
 
-Run Cybermes inside a fully isolated, rootless-friendly container:
+Run Cybermes inside a container with pre-packaged tools:
 
 ```bash
 # 1. Clone and navigate to repository
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 
-# 2. Copy and edit environment variables
+# 2. Configure environment variables
 cp .env.example .env
 nano .env
 
-# 3. Start Cybermes container
+# 3. Start container
 docker compose up -d
 
-# 4. Execute commands inside container
-docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
+# 4. Execute assessment
+docker compose exec cybermes cybermes "Assess http://127.0.0.1:8888"
 ```
 
 ---
 
-## 🆘 Getting Help
+## 🆘 Getting Help & System Doctor
+
+### Health Check & Auto-Repair Tool
+
+Cybermes includes a universal diagnostic tool (`tools/doctor.py`) to verify and auto-repair your environment:
+
+```bash
+# Run diagnostics check
+python tools/doctor.py
+
+# Automatically repair missing folders, download missing tools & templates
+python tools/doctor.py --fix
+```
 
 ### Quick Links
 
@@ -321,22 +329,8 @@ docker compose exec hermes-cybermes hermes "Assess http://127.0.0.1:8888"
 - **[GitHub Discussions](https://github.com/Zyrexnn/Cybermes/discussions)** - Ask questions, share experiences
 - **[Release Notes](https://github.com/Zyrexnn/Cybermes/releases)** - Latest updates and features
 
-### Diagnostic Tools
-
-Run these to check your setup:
-
-```bash
-# Check system compatibility (Windows)
-python tools\windows_compat_check.py
-
-# Check environment status (Windows)
-.\bin\env.bat status
-
-# Test Docker connectivity
-docker compose ps
-```
-
 ### Common Questions
+
 
 **Q: Which installation method should I choose?**
 - **Windows Beginner**: Use PowerShell Native Setup (`setup_windows.ps1`)
@@ -422,14 +416,15 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 1. **Start the local vulnerable test target:**
    ```bash
-   python3 mock_vulnerable_app.py
+   python3 examples/mock_vulnerable_app.py
    ```
    *Server listens on `http://127.0.0.1:8888`.*
 
 2. **Instruct Cybermes to assess the target:**
    ```bash
-   ./hermes "Assess http://127.0.0.1:8888 and generate structured reports."
+   ./cybermes "Assess http://127.0.0.1:8888 and generate structured reports."
    ```
+
 
 3. **Inspect the generated PDF and HTML deliverables:**
    ```bash

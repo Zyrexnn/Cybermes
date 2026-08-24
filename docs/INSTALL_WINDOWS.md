@@ -80,21 +80,24 @@ notepad .env
 Provide your LLM API credentials (e.g. `ROUTER_API_KEY`, `OPENROUTER_API_KEY`, or local endpoint).
 
 ### Step 6: Verify Your System Setup
-Run the diagnostic script to ensure everything is operational:
+Run the diagnostic script to ensure everything is operational (or use `--fix` to auto-repair missing tools/folders):
 ```powershell
-python tools\windows_compat_check.py
+python tools\doctor.py
+# Or auto-repair:
+python tools\doctor.py --fix
 ```
 
 ### Step 7: Launch Cybermes
-You can launch assessments directly using either wrapper:
+You can launch assessments directly using the wrapper:
 ```powershell
-# Using the root wrapper
-.\hermes.bat "Assess http://127.0.0.1:8888"
+# Using the root launcher
+.\cybermes.bat "Assess http://127.0.0.1:8888"
 
 # Or load the environment in your active PowerShell session
 . .\env.ps1
-hermes "Assess http://127.0.0.1:8888"
+cybermes "Assess http://127.0.0.1:8888"
 ```
+
 
 ---
 

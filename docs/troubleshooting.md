@@ -156,3 +156,18 @@ Running `python tools/generate_pdf.py <TARGET_SLUG>` warns `PDF export via Playw
    ```bash
    playwright install-deps chromium
    ```
+
+---
+
+## 9. Quick Diagnostic & Auto-Repair (`doctor.py`)
+
+Whenever you experience issues with missing tools, missing workspace folders, or configuration files, run the built-in doctor:
+
+```bash
+# Check system state
+python tools/doctor.py
+
+# Auto-repair directories, missing toolchains, and config templates
+python tools/doctor.py --fix
+```
+
