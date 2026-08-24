@@ -69,3 +69,30 @@ VS Code or host text editor reports `Unable to open file (NoPermissions (FileSys
    ```bash
    sudo chown -R $USER:$USER recon/ output/ reports/ logs/
    ```
+
+---
+
+## 5. High-Performance Go Core Tools (`tools/bin/*`) Missing or Architecture Mismatch
+
+### Symptoms:
+Running `smart_pipe`, `search_knowledge`, `secret_scan`, or `aggregate_reports` returns `command not found` or `cannot execute binary file: Exec format error`.
+
+### Resolutions:
+1. **Rebuild all Go tools locally**:
+   Ensure you have Go installed (`go version`), then recompile directly from the root workspace:
+   ```bash
+   go build -ldflags="-s -w" -o tools/bin/smart_pipe ./cmd/smart_pipe
+   go build -ldflags="-s -w" -o tools/bin/secret_scan ./cmd/secret_scan
+   go build -ldflags="-s -w" -o tools/bin/search_knowledge ./cmd/search_knowledge
+   go build -ldflags="-s -w" -o tools/bin/aggregate_reports ./cmd/aggregate_reports
+   chmod +x tools/bin/*
+   ```
+2. **Ensure `tools/bin` is in your `$PATH`**:
+   Source the environment loader:
+   ```bash
+   source env.sh
+   # Or on Windows PowerShell:
+   . .\env.ps1
+   ```
+3. **Running inside Docker**:
+   When building Docker images on ARM64 (e.g. Apple Silicon M-series) or AMD64, Docker will automatically recompile Go binaries to match your CPU architecture natively during `docker compose build`.

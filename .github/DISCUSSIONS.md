@@ -16,7 +16,7 @@ Please choose the most appropriate category when creating a new discussion:
 | **Ideas** | 💡 | Feature requests, proposals for new security tools, AI skills, and architectural enhancements. |
 | **Show and Tell** | 🚀 | Share your custom scripts, autonomous workflows, sanitized PoCs, benchmark results, and success stories. |
 | **General** | 📢 | Open community chats, security news, offensive agent research, and general feedback. |
-| **Announcements** | 📣 | Official updates, release highlights (v1.5.0+), and project roadmaps posted by maintainers. |
+| **Announcements** | 📣 | Official updates, release highlights (v2.0.0+), and project roadmaps posted by maintainers. |
 
 ---
 

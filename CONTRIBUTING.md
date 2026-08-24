@@ -53,6 +53,14 @@ git checkout -b fix/your-fix-name
 ```
 
 ### 3. Make and Verify Changes
+* Run Go test suite for core packages:
+  ```bash
+  go test ./pkg/... -v
+  ```
+* Ensure all Go CLI tools compile cleanly:
+  ```bash
+  go build ./cmd/...
+  ```
 * Ensure Python scripts compile and pass linting:
   ```bash
   python3 -m py_compile tools/<your_script>.py

@@ -236,7 +236,7 @@ Cybermes provides a single-command automated installer for Linux and macOS:
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 
-# 2. Run the automated installer (sets up venv, Playwright, MCPs, ACLs, and tools)
+# 2. Run the automated installer (sets up venv, compiles native Go tools, Playwright, MCPs, and ACLs)
 ./setup.sh
 
 # 3. Configure your API keys in .env
