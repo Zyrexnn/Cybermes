@@ -35,7 +35,7 @@ agent:
          * `reports/<SLUG>/pocs/poc_<vuln_name>.py`: Standalone minimal-impact proof-of-concept scripts.
          * `reports/<SLUG>/evidence/`: Raw HTTP traces, JSON dumps, screenshots, and `recon_notes.md`.
          * NEVER place draft notes, recon dumps, or temporary summaries inside `findings/`.
-       - When assessment completes, ALWAYS run: `python3 tools/aggregate_reports.py <SLUG>` to index findings into `reports/<SLUG>/SUMMARY.md`.
+       - When assessment completes, ALWAYS run: `aggregate_reports <SLUG>` to index findings into `reports/<SLUG>/SUMMARY.md`.
     5. METHODOLOGY:
        - Reconnaissance & Probing: subfinder, httpx, nmap
        - Content & Endpoint Mining: katana, gau

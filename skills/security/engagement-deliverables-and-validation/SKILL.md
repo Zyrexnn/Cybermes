@@ -28,11 +28,10 @@ User corrections, verbatim: "taro di folder report bro kan udah ada contohnya" a
 - Write ONE canonical copy; `cp` (never independently edit) if the user wants it elsewhere.
 
 ### Aggregator overwrite trap
-`/workspace/tools/aggregate_reports.py <target>` regenerates `SUMMARY.md` +
-`metadata.json` from `findings/*.md` on every run and silently discards hand-written
+`aggregate_reports <target>` regenerates `SUMMARY.md` +
+`metadata.json` from `findings/*.md` on every run while preserving custom
 analysis sections (bypass matrices, IDOR methodology, narrative). Order of operations:
-run aggregator FIRST → then append analysis sections via targeted patches → do NOT
-re-run the aggregator afterward without re-checking your sections survived.
+run aggregator FIRST → then append analysis sections via targeted patches.
 
 ### Complete-disclosure reporting (hard user requirement, comprehensive audit pass)
 User corrections, verbatim: "jangan ada yang di sembunyikan ini untuk evaluasi" and

@@ -68,7 +68,7 @@ When reporting auth-logic bugs, also note (and rate separately) the surrounding 
 ## Tooling notes
 - `sqlmap` may fail in minimal envs (`python` binary missing -> `ln -sf $(which python3) /usr/local/bin/python`; or "missing modules" -> treat as coverage gap, not "no SQLi").
 - `dalfox`/`katana` flags differ by version — verify with `--help` rather than assuming (`-l`/`-L` not valid in some builds; use `dalfox url <url>` or pipe).
-- Aggregate report tooling (e.g. `aggregate_reports.py`) often expects a fixed reports path (e.g. `/workspace/reports/<target>`) — copy findings there before running.
+- Aggregate report tooling (`aggregate_reports`) expects a fixed reports path (e.g. `reports/<target>`) — copy findings there before running.
 
 ## Related Skills
 - **hunt-ato** — covers full account-TAKEOVER paths only (reset poisoning, JWT forgery, OAuth, IDOR email-change). Use it when the impact is taking over account B. This skill covers the abuse/availability/logic flaws that fall short of takeover.

@@ -97,7 +97,7 @@ Concrete actionable guidance for engineers:
 4. **Summary Aggregation**:
    After writing findings, always trigger the report aggregator to refresh `SUMMARY.md` and `metadata.json`:
    ```bash
-   python3 tools/aggregate_reports.py <TARGET_SLUG>
+   aggregate_reports <TARGET_SLUG>
    ```
 5. **Anti-Hallucination Gate**:
    Only generate a finding report if a real HTTP request/response or command execution log successfully confirmed the vulnerability. Never create speculative reports.

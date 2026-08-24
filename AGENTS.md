@@ -55,7 +55,7 @@ reports/<TARGET_SLUG>/
 - **`pocs/` Directory**:
   - Self-contained minimal-impact scripts: `pocs/poc_<vuln_name>.py`.
 - **Aggregation**:
-  - Always run `python3 tools/aggregate_reports.py <TARGET_SLUG>` after completing tests to update `SUMMARY.md`.
+  - Always run `aggregate_reports <TARGET_SLUG>` after completing tests to update `SUMMARY.md`.
 
 ---
 
@@ -70,10 +70,13 @@ All pre-compiled security binaries are located in `tools/bin/` and exposed on yo
 | **katana** | Crawler & SPA Endpoint Miner | `katana -u <url> -silent -depth 3` |
 | **gau** | Wayback / AlienVault URL Mining | `gau <target> --threads 5` |
 | **ffuf** | Directory & Parameter Fuzzing | `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -mc 200,301,302,403` |
+| **smart_pipe**| Stream Output Filter & Token Saver| `<tool_cmd> \| smart_pipe --target <SLUG> --tool <NAME>` |
 | **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -silent` |
 | **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
 | **dalfox** | XSS Scanner & Parameter Analyzer| `dalfox url <url> --silence` |
-| **search_knowledge**| Offline Payload & CheatSheet Search | `python3 tools/search_knowledge.py "<query>" --limit 3` |
+| **secret_scan**| 48-Pattern Secret & Credential Miner| `secret_scan <target_file_or_dir>` or `cat blob \| secret_scan` |
+| **search_knowledge**| Offline Payload & CheatSheet Search | `search_knowledge "<query>" --limit 3` |
+| **aggregate_reports**| Automated Report Aggregator & Indexer| `aggregate_reports <TARGET_SLUG>` |
 | **Puppeteer MCP** | Browser Automation & DOM Audit | Use `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate` |
 
 ---
