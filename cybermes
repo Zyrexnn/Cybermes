@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CYBERMES_DIR="$SCRIPT_DIR"
 export HERMES_HOME="$CYBERMES_DIR/.hermes"
 export PATH="$CYBERMES_DIR/tools/bin:$CYBERMES_DIR/bin:$CYBERMES_DIR/venv/bin:$PATH"
@@ -8,6 +10,10 @@ umask 0002
 if [ -f "$CYBERMES_DIR/venv/bin/hermes" ]; then
     source "$CYBERMES_DIR/venv/bin/activate"
     exec "$CYBERMES_DIR/venv/bin/hermes" "$@"
-else
+elif command -v hermes >/dev/null 2>&1; then
     exec hermes "$@"
+else
+    echo "❌ Error: Hermes Agent executable not found."
+    echo "👉 Run './setup.sh' to initialize the environment."
+    exit 1
 fi
