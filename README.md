@@ -14,6 +14,7 @@
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
 [![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg?logo=windows&logoColor=white)](docs/INSTALL_WINDOWS.md)
+[![MCP Server: Zero--Go Ready](https://img.shields.io/badge/MCP%20Server-npx%20ready-blue.svg)](docs/MCP_SETUP.md)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
 [![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
 [![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
@@ -24,7 +25,7 @@
   <i>⚡ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
-[Quick Start](#-installation--quick-start) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Discussions & Rules](#-community--discussions) • [Documentation](docs/) • [Release Notes](#-release--version-history)
+[Quick Start](#-installation--quick-start) • [MCP Setup](docs/MCP_SETUP.md) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Roadmap](docs/MCP_ROADMAP.md) • [Documentation](docs/) • [Release Notes](#-release--version-history)
 
 </div>
 
@@ -189,8 +190,15 @@ All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 | **update_tools.ps1**| Toolchain & Template Auto-Updater (Windows) | `powershell -File tools/update_tools.ps1` |
 | **validate_skills.py**| Skill Pack Integrity & Health Auditor | `python tools/validate_skills.py` |
 | **windows_compat_check.py** | Windows System Diagnostics | `python tools\windows_compat_check.py` |
+| **cybermes-mcp** | Native High-Speed Go MCP Server (10 Tools) | `npx -y @zyrexnn/cybermes-mcp` or `./tools/bin/cybermes-mcp.exe` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
+
+> ⚡ **Connect AI Assistants (Claude Desktop, Cursor, Windsurf, Cline)**:
+> ```bash
+> npx -y @zyrexnn/cybermes-mcp
+> ```
+> *See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for 1-click JSON configurations.*
 
 🪟 **Windows Users**: Run `.\cybermes.bat` (or `.\hermes.bat`) and use `.\setup_windows.ps1` for installation.
 

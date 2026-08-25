@@ -33,12 +33,17 @@ All native binary security tools reside in `/workspace/tools/bin` and are automa
 
 ## 🔌 2. Model Context Protocol (MCP) Servers
 
-Cybermes natively integrates MCP servers for client-side evaluation and structured system access:
+Cybermes natively integrates MCP servers for client-side evaluation, structured system access, and external AI assistant integration:
 
-1. **Browser MCP (`@modelcontextprotocol/server-puppeteer`)**:
+1. **Cybermes Native MCP Server (`@zyrexnn/cybermes-mcp`)**:
+   * High-speed, Go-native JSON-RPC 2.0 MCP server exposing **10 specialized security tools**, 2 resources, and 2 prompts.
+   * Compatible with **all AI providers** (Claude, GPT-4o, DeepSeek, Gemini, Llama) and clients (OpenCode, Kilo, Cursor, Claude Desktop, Windsurf, Cline, Continue.dev, Zed).
+   * Instant Zero-Go execution: `npx -y @zyrexnn/cybermes-mcp`.
+   * See [docs/MCP_SETUP.md](MCP_SETUP.md) for 1-click configuration templates.
+2. **Browser MCP (`@modelcontextprotocol/server-puppeteer`)**:
    * Launches headless Chromium in container isolation.
    * Performs DOM tree inspection, automated button clicks, form submissions, and screenshot PoC generation.
-2. **Filesystem MCP (`@modelcontextprotocol/server-filesystem`)**:
+3. **Filesystem MCP (`@modelcontextprotocol/server-filesystem`)**:
    * Provides structured read/write access to `/workspace` targets, logs, and reporting artifacts.
 
 ---
