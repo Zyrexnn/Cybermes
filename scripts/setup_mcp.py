@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 scripts/setup_mcp.py — Cybermes MCP Server Multi-Client Auto-Installer & Config Injector
 
@@ -24,7 +24,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-VERSION = "2.1.0"
+VERSION = "3.0.0"
 CYBERMES_ROOT = Path(__file__).resolve().parent.parent
 
 

@@ -6,7 +6,7 @@
 
 ### **Autonomous Offensive Security, Bug Bounty & Red Teaming Agent Framework**
 
-[![Release: v2.1.0](https://img.shields.io/badge/Release-v2.1.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.1.0)
+[![Release: v3.0.0](https://img.shields.io/badge/Release-v3.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases/tag/v3.0.0)
 [![The New 100](https://www.theagenticleaderboard.com/badges/new/cybermes.svg)](https://www.theagenticleaderboard.com)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Discussions: Active](https://img.shields.io/badge/Discussions-Join%20Community-blue.svg)](https://github.com/Zyrexnn/Cybermes/discussions)
@@ -75,7 +75,7 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                      CYBERMES ENGINE v2.1.0                                      │
+│                                      CYBERMES ENGINE v3.0.0                                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │  [ Operator Prompt / Target Queue ]  ────────>  [ Direct Operator Authorization Hook ]           │
 │                                                                │                                 │
@@ -487,6 +487,15 @@ To safely verify Cybermes capabilities in an isolated environment:
 
 ## 📦 Release & Version History
  
+### **[v3.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v3.0.0)** — *Go-Native MCP Server, Scope Guard, SPA Crawler & Zero-Go NPX Distribution*
+* **Native Model Context Protocol (MCP) Server (`pkg/mcp`)**: Standalone, high-throughput Go-native MCP server exposing 10 comprehensive offensive security tools, resources, and pre-engineered prompts via standard JSON-RPC over `stdio`.
+* **Universal Multi-Client Auto-Injector (`scripts/setup_mcp.py` & `npx cybermes-mcp install`)**: Automated 1-click configuration injector with multi-client auto-discovery supporting **Cursor**, **Claude Desktop**, **Windsurf**, **OpenCode**, **VS Code / Cline**, **Roo Code**, and **Zed**.
+* **Zero-Go NPX Launcher (`@zyrexnn/cybermes-mcp`)**: Instant, zero-installation execution across Linux, macOS, and Windows with intelligent platform-aware GitHub Release binary downloading and SHA-256 integrity verification.
+* **Scope Guard Engine (`pkg/scope`)**: Strict out-of-scope protection engine supporting wildcard domain rules (`*.target.com`), exact host matching, and IPv4/IPv6 CIDR range validations.
+* **Dual-Engine HTTP Inspector (`pkg/probe`)**: High-speed network and web prober combining raw TLS handshake analysis, HTTP fingerprinting, and technology detection.
+* **SPA Endpoint Crawler (`pkg/crawl`)**: Smart single-page application crawler featuring token-budget-aware output streaming via `smart_pipe`.
+* **Automated Multi-Platform CI/CD**: Matrix cross-compilation pipeline generating native release binaries (`linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, `windows/arm64`) and automated NPM package releases.
+
 ### **[v2.1.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v2.1.0)** — *Frictionless Setup, Universal Toolchain & Health-Check Engine*
 * **60-Second Fast Track Installation**: Single-command automated installers (`setup.sh` and `setup_windows.ps1`) for Linux, macOS (Intel & Apple Silicon M-series), and Windows PowerShell.
 * **Universal System Doctor (`tools/doctor.py`)**: Cross-platform environment diagnostic utility featuring `--fix` flag to automatically inspect system health and auto-repair missing tools, folders, and configs.

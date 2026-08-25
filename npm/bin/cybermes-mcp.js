@@ -11,7 +11,7 @@ const os = require('os');
 const https = require('https');
 const { spawn } = require('child_process');
 
-const VERSION = require('../package.json').version || '2.1.0';
+const VERSION = require('../package.json').version || '3.0.0';
 const REPO = 'Zyrexnn/Cybermes';
 
 // ============================================================================
