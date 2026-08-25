@@ -69,14 +69,29 @@ download_pd_tool() {
     fi
 }
 
+WITH_NUCLEI=false
+for arg in "$@"; do
+    if [ "$arg" == "--with-nuclei" ] || [ "$arg" == "-nuclei" ]; then
+        WITH_NUCLEI=true
+    fi
+done
+
 echo "⬇️  Downloading ProjectDiscovery security toolchain (${PD_OS}/${PD_ARCH})..."
-TOOLS=("subfinder:subfinder" "httpx:httpx" "katana:katana" "nuclei:nuclei")
+TOOLS=("subfinder:subfinder" "httpx:httpx" "katana:katana")
+
+if [ "$WITH_NUCLEI" = true ]; then
+    echo "📦 Nuclei included as requested (--with-nuclei)..."
+    TOOLS+=("nuclei:nuclei")
+else
+    echo "ℹ️  Nuclei skipped by default (On-Demand / Optional). Pass --with-nuclei to install."
+fi
+
 for item in "${TOOLS[@]}"; do
     IFS=":" read -r repo binary <<< "$item"
     download_pd_tool "$repo" "$binary"
 done
 
-if [ -f "$BIN_DIR/nuclei" ]; then
+if [ "$WITH_NUCLEI" = true ] && [ -f "$BIN_DIR/nuclei" ]; then
     echo "📜 Updating Nuclei community templates..."
     "$BIN_DIR/nuclei" -update-templates -silent 2>/dev/null || true
 fi

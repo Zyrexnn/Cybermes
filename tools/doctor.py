@@ -211,21 +211,25 @@ def check_tools(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]:
         os.environ["PATH"] = f"{tools_bin}{sep}{os.environ.get('PATH', '')}"
 
     tools = [
-        ("smart_pipe", "Stream Output Filter"),
-        ("secret_scan", "Secret Scanner"),
-        ("search_knowledge", "Offline Knowledge Search"),
-        ("aggregate_reports", "Report Aggregator"),
-        ("subfinder", "Subdomain Discovery"),
-        ("httpx", "HTTP Prober"),
-        ("katana", "Web Crawler"),
-        ("nuclei", "Vulnerability Scanner"),
+        ("smart_pipe", "Stream Output Filter", False),
+        ("secret_scan", "Secret Scanner", False),
+        ("search_knowledge", "Offline Knowledge Search", False),
+        ("aggregate_reports", "Report Aggregator", False),
+        ("subfinder", "Subdomain Discovery", False),
+        ("httpx", "HTTP Prober", False),
+        ("katana", "Web Crawler", False),
+        ("nuclei", "Vulnerability Scanner", True),
     ]
 
     missing_tools = []
-    for name, desc in tools:
+    for name, desc, is_optional in tools:
         found = shutil.which(name) or (sys.platform == "win32" and shutil.which(f"{name}.exe"))
         if found:
-            print_status("ok", f"Tool: {name}", desc)
+            opt_tag = " [Optional]" if is_optional else ""
+            print_status("ok", f"Tool: {name}{opt_tag}", desc)
+            passed += 1
+        elif is_optional:
+            print_status("ok", f"Tool: {name} (Optional)", "Available on-demand")
             passed += 1
         else:
             print_status("warn", f"Tool: {name}", f"{desc} not found")
