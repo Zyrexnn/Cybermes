@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$BinDir = (Join-Path $PSScriptRoot "bin")
+    [string]$BinDir = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +10,17 @@ try {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
 } catch {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+}
+
+if ([string]::IsNullOrWhiteSpace($BinDir)) {
+    $scriptDir = $PSScriptRoot
+    if (-not $scriptDir) {
+        $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    }
+    if (-not $scriptDir) {
+        $scriptDir = (Get-Location).Path
+    }
+    $BinDir = Join-Path $scriptDir "bin"
 }
 
 if (-not (Test-Path $BinDir)) {
@@ -26,7 +37,7 @@ $arch = if ([System.Environment]::Is64BitOperatingSystem) {
     "386"
 }
 
-Write-Host "🔄 Downloading ProjectDiscovery tools (windows/$arch)..." -ForegroundColor Cyan
+Write-Host "[*] Downloading ProjectDiscovery tools (windows/$arch)..." -ForegroundColor Cyan
 
 function Install-PDTool {
     param(
@@ -44,7 +55,7 @@ function Install-PDTool {
         } | Select-Object -First 1
 
         if (-not $asset) {
-            Write-Host "ℹ️  Asset not found for $ToolName (windows/$arch)" -ForegroundColor DarkYellow
+            Write-Host "[!] Asset not found for $ToolName (windows/$arch)" -ForegroundColor DarkYellow
             return
         }
 
@@ -62,13 +73,13 @@ function Install-PDTool {
         if ($exeFile) {
             $destFile = Join-Path $BinDir "$ToolName.exe"
             Copy-Item -Path $exeFile.FullName -Destination $destFile -Force
-            Write-Host "✓ Installed $ToolName -> $destFile" -ForegroundColor Green
+            Write-Host "[+] Installed $ToolName -> $destFile" -ForegroundColor Green
         }
 
         Remove-Item -Path $tempZip -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
     } catch {
-        Write-Host "⚠️  Failed downloading $ToolName : $_" -ForegroundColor DarkYellow
+        Write-Host "[!] Failed downloading $ToolName : $_" -ForegroundColor DarkYellow
     }
 }
 
@@ -85,11 +96,11 @@ foreach ($t in $tools) {
 
 $nucleiExe = Join-Path $BinDir "nuclei.exe"
 if (Test-Path $nucleiExe) {
-    Write-Host "📜 Updating Nuclei templates..." -ForegroundColor Cyan
+    Write-Host "[*] Updating Nuclei templates..." -ForegroundColor Cyan
     try {
         & $nucleiExe -update-templates -silent
-        Write-Host "✓ Nuclei templates updated" -ForegroundColor Green
+        Write-Host "[+] Nuclei templates updated" -ForegroundColor Green
     } catch {
-        Write-Host "ℹ️  Template update skipped" -ForegroundColor DarkYellow
+        Write-Host "[!] Template update skipped" -ForegroundColor DarkYellow
     }
 }

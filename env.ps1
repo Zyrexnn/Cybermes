@@ -32,6 +32,6 @@ if (Test-Path $activateScript) {
     & $activateScript
 }
 
-Write-Host "✓ Cybermes Environment Activated: $ScriptDir" -ForegroundColor Green
+Write-Host "[+] Cybermes Environment Activated: $ScriptDir" -ForegroundColor Green
 Write-Host "  Tools added to PATH: tools\bin, bin, venv\Scripts" -ForegroundColor Gray
 Write-Host "  You can now run 'hermes' directly in this session." -ForegroundColor Cyan

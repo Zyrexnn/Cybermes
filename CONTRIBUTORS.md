@@ -13,6 +13,8 @@ We would like to express our gratitude to everyone who helps build, research, ma
 ### 🛡️ Community & Code Contributors
 - **[msarg44](https://github.com/msarg44)** — Playwright PDF rendering engine fix (#1)
 - **[Mortify4315](https://github.com/Mortify4315)** — Windows Python launcher fallback fix & long path docs (#4, #5)
+- **[xsoft](https://github.com/xsoft)** — Linux setup audit, Docker config mounts & workflow diagnostic report (#7)
+- **[Muzakie-ID](https://github.com/Muzakie-ID)** — Windows PowerShell setup & script parser bug report (#10)
 
 *Want to see your name here? Contribute a bug fix, new security skill, or documentation improvement via a Pull Request to the `dev` branch!*
 
