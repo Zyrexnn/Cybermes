@@ -19,10 +19,8 @@ auth.json
 *.pfx
 *.crt
 *.csr
-*Secret*
-*Credentials*
-*Setup Prompt*.md
-*Prompt*.md
+*credentials*.json
+*secrets*.json
 
 # 2. Hermes Agent Local State, Data & Sessions
 .hermes/*
