@@ -186,7 +186,7 @@ function getTargetDefinition(useLocal, localBinPath, workspaceRoot) {
   }
   return {
     command: 'npx',
-    args: ['-y', '@zyrexnn/cybermes-mcp'],
+    args: ['-y', 'cybermes-mcp'],
   };
 }
 
@@ -809,7 +809,7 @@ async function runStatus() {
   }
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('💡 Run `npx @zyrexnn/cybermes-mcp install` to automatically configure un-wired clients.\n');
+  console.log('💡 Run `npx cybermes-mcp install` to automatically configure un-wired clients.\n');
 }
 
 function printHelp() {
@@ -818,7 +818,7 @@ function printHelp() {
 https://github.com/${REPO}
 
 USAGE:
-  npx @zyrexnn/cybermes-mcp [command] [options]
+  npx cybermes-mcp [command] [options]
 
 COMMANDS:
   (no command)      Start the Cybermes MCP Server over stdio (JSON-RPC 2.0)
@@ -835,13 +835,13 @@ OPTIONS for 'install':
 
 EXAMPLES:
   # 1-Click universal auto-injection for all detected AI clients:
-  npx -y @zyrexnn/cybermes-mcp install
+  npx -y cybermes-mcp install
 
   # Test what will change without touching disk:
-  npx -y @zyrexnn/cybermes-mcp install --dry-run
+  npx -y cybermes-mcp install --dry-run
 
   # Check configuration status across your IDEs:
-  npx -y @zyrexnn/cybermes-mcp status
+  npx -y cybermes-mcp status
 `);
 }
 

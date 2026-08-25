@@ -233,14 +233,14 @@ All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 | **update_tools.ps1**| Toolchain & Template Auto-Updater (Windows) | `powershell -File tools/update_tools.ps1` |
 | **validate_skills.py**| Skill Pack Integrity & Health Auditor | `python tools/validate_skills.py` |
 | **windows_compat_check.py** | Windows System Diagnostics | `python tools\windows_compat_check.py` |
-| **cybermes-mcp** | Native High-Speed Go MCP Server (10 Tools) | `npx -y @zyrexnn/cybermes-mcp` or `./tools/bin/cybermes-mcp.exe` |
+| **cybermes-mcp** | Native High-Speed Go MCP Server (10 Tools) | `npx -y cybermes-mcp` or `./tools/bin/cybermes-mcp.exe` |
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
 
 > ⚡ **1-Click MCP Auto-Connect (Claude Desktop, Cursor, OpenCode, Windsurf, Cline, Zed)**:
 > ```bash
 > # Universal 1-Click Auto-Installer:
-> npx -y @zyrexnn/cybermes-mcp install
+> npx -y cybermes-mcp install
 > 
 > # Or for local offline environments:
 > python scripts/setup_mcp.py
@@ -288,7 +288,7 @@ Choose your preferred deployment method to get Cybermes running in under a minut
 | **💻 Windows (PowerShell)** | `.\setup_windows.ps1` | Native execution on Windows 10/11 ([Windows Guide](docs/INSTALL_WINDOWS.md)) |
 | **🐧 Linux / macOS** | `./setup.sh` | Automated environment, virtualenv & Go toolchain build |
 | **🐳 Docker (All OS)** | `docker compose up -d` | Zero-pollution isolated environment |
-| **🔌 MCP Only (AI Clients)** | `npx -y @zyrexnn/cybermes-mcp install` | 1-Click universal AI assistant integration ([MCP Guide](docs/MCP_SETUP.md)) |
+| **🔌 MCP Only (AI Clients)** | `npx -y cybermes-mcp install` | 1-Click universal AI assistant integration ([MCP Guide](docs/MCP_SETUP.md)) |
 
 ---
 
@@ -490,7 +490,7 @@ To safely verify Cybermes capabilities in an isolated environment:
 ### **[v3.0.0](https://github.com/Zyrexnn/Cybermes/releases/tag/v3.0.0)** — *Go-Native MCP Server, Scope Guard, SPA Crawler & Zero-Go NPX Distribution*
 * **Native Model Context Protocol (MCP) Server (`pkg/mcp`)**: Standalone, high-throughput Go-native MCP server exposing 10 comprehensive offensive security tools, resources, and pre-engineered prompts via standard JSON-RPC over `stdio`.
 * **Universal Multi-Client Auto-Injector (`scripts/setup_mcp.py` & `npx cybermes-mcp install`)**: Automated 1-click configuration injector with multi-client auto-discovery supporting **Cursor**, **Claude Desktop**, **Windsurf**, **OpenCode**, **VS Code / Cline**, **Roo Code**, and **Zed**.
-* **Zero-Go NPX Launcher (`@zyrexnn/cybermes-mcp`)**: Instant, zero-installation execution across Linux, macOS, and Windows with intelligent platform-aware GitHub Release binary downloading and SHA-256 integrity verification.
+* **Zero-Go NPX Launcher (`cybermes-mcp`)**: Instant, zero-installation execution across Linux, macOS, and Windows with intelligent platform-aware GitHub Release binary downloading and SHA-256 integrity verification.
 * **Scope Guard Engine (`pkg/scope`)**: Strict out-of-scope protection engine supporting wildcard domain rules (`*.target.com`), exact host matching, and IPv4/IPv6 CIDR range validations.
 * **Dual-Engine HTTP Inspector (`pkg/probe`)**: High-speed network and web prober combining raw TLS handshake analysis, HTTP fingerprinting, and technology detection.
 * **SPA Endpoint Crawler (`pkg/crawl`)**: Smart single-page application crawler featuring token-budget-aware output streaming via `smart_pipe`.

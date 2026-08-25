@@ -10,7 +10,7 @@ Cybermes includes an intelligent, non-destructive **Universal Auto-Injector** th
 
 ### Instant Global Installation (Zero-Go NPX)
 ```bash
-npx -y @zyrexnn/cybermes-mcp install
+npx -y cybermes-mcp install
 ```
 
 ### Or via Local Repository Setup:
@@ -21,12 +21,12 @@ python scripts/setup_mcp.py
 ### Auto-Installer Options:
 | Flag | Description | Example |
 | :--- | :--- | :--- |
-| `--dry-run` | Preview configuration changes without touching disk | `npx @zyrexnn/cybermes-mcp install --dry-run` |
-| `--status` | Display discovery matrix & wiring status for all AI clients | `npx @zyrexnn/cybermes-mcp status` |
+| `--dry-run` | Preview configuration changes without touching disk | `npx cybermes-mcp install --dry-run` |
+| `--status` | Display discovery matrix & wiring status for all AI clients | `npx cybermes-mcp status` |
 | `--local` | Wire directly to local compiled binary (`tools/bin/cybermes-mcp`) | `python scripts/setup_mcp.py --local` |
-| `--clients=` | Target specific clients (comma-separated) | `npx @zyrexnn/cybermes-mcp install --clients=cursor,claude-desktop` |
-| `--uninstall`| Cleanly remove Cybermes from all client configs | `npx @zyrexnn/cybermes-mcp uninstall` |
-| `--force` | Generate config files even if AI client is not yet detected | `npx @zyrexnn/cybermes-mcp install --force` |
+| `--clients=` | Target specific clients (comma-separated) | `npx cybermes-mcp install --clients=cursor,claude-desktop` |
+| `--uninstall`| Cleanly remove Cybermes from all client configs | `npx cybermes-mcp uninstall` |
+| `--force` | Generate config files even if AI client is not yet detected | `npx cybermes-mcp install --force` |
 
 ---
 
@@ -35,7 +35,7 @@ python scripts/setup_mcp.py
 If you prefer manual configuration, Node.js (v18+) automatically downloads the verified binary from GitHub Releases:
 
 ```bash
-npx -y @zyrexnn/cybermes-mcp
+npx -y cybermes-mcp
 ```
 
 ---
@@ -48,7 +48,7 @@ Add to your OpenCode configuration (`opencode.json` or `~/.config/opencode/confi
   "mcp_servers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -64,7 +64,7 @@ In **Kilo MCP Settings** or in `.kilo/mcp.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -78,7 +78,7 @@ In **Kilo MCP Settings** or in `.kilo/mcp.json`:
 3. Configure:
    - **Name**: `cybermes`
    - **Type**: `command`
-   - **Command**: `npx -y @zyrexnn/cybermes-mcp`
+   - **Command**: `npx -y cybermes-mcp`
 
 Or add `.cursor/mcp.json` to your project workspace root:
 ```json
@@ -86,7 +86,7 @@ Or add `.cursor/mcp.json` to your project workspace root:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -105,7 +105,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -121,7 +121,7 @@ Add to `~/.codeium/windsurf/mcp_config.json` or workspace `mcp_config.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -137,7 +137,7 @@ Open the MCP Servers extension tab, select **Edit Settings**, and add:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"],
+      "args": ["-y", "cybermes-mcp"],
       "disabled": false,
       "autoApprove": [
         "cybermes_search_knowledge",
@@ -165,7 +165,7 @@ Add to `~/.continue/config.json`:
         "transport": {
           "type": "stdio",
           "command": "npx",
-          "args": ["-y", "@zyrexnn/cybermes-mcp"]
+          "args": ["-y", "cybermes-mcp"]
         }
       }
     ]
@@ -183,7 +183,7 @@ Add to `~/.config/zed/settings.json`:
   "context_servers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -195,7 +195,7 @@ Add to `~/.config/zed/settings.json`:
 Run via CLI or add to `~/.claude.json`:
 
 ```bash
-claude mcp add cybermes npx -- -y @zyrexnn/cybermes-mcp
+claude mcp add cybermes npx -- -y cybermes-mcp
 ```
 Or in `~/.claude.json`:
 ```json
@@ -203,7 +203,7 @@ Or in `~/.claude.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -218,7 +218,7 @@ Add to `~/.hermes/config.yaml` or `.hermes/config.yaml`:
 mcp_servers:
   cybermes:
     command: "npx"
-    args: ["-y", "@zyrexnn/cybermes-mcp"]
+    args: ["-y", "cybermes-mcp"]
 ```
 
 ---
@@ -229,7 +229,7 @@ Add to `~/.codex/config.toml`:
 ```toml
 [mcp_servers.cybermes]
 command = "npx"
-args = ["-y", "@zyrexnn/cybermes-mcp"]
+args = ["-y", "cybermes-mcp"]
 ```
 
 ---
@@ -242,7 +242,7 @@ Add to your Antigravity MCP settings or configuration JSON:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }

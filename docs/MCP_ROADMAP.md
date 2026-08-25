@@ -41,10 +41,10 @@ This document records the completed milestones, active architectural capabilitie
 | **Prompt** | `cybermes_hunt` & `cybermes_triage` | Zero-false-positive reasoning workflow templates for AI agents. |
 
 ### 3. Zero-Go NPX Distribution & Multi-Platform CI/CD (Phase 3)
-- **NPM Package**: `@zyrexnn/cybermes-mcp` (`npm/package.json` & `npm/bin/cybermes-mcp.js`).
+- **NPM Package**: `cybermes-mcp` (`npm/package.json` & `npm/bin/cybermes-mcp.js`).
 - **1-Click Universal Auto-Injector Engine**: Instant multi-client discovery, non-destructive config injection, and backup rotation via:
   ```bash
-  npx -y @zyrexnn/cybermes-mcp install
+  npx -y cybermes-mcp install
   ```
 - **Local Python Setup Tool**: `scripts/setup_mcp.py` for local and air-gapped developer environments.
 - **Automated Multi-Platform CI/CD**: GitHub Actions workflow (`.github/workflows/mcp-release.yml`) cross-compiling Go binaries for Windows AMD64, Linux AMD64, macOS ARM64 (Apple Silicon), and macOS AMD64 (Intel), complete with SHA256 checksums and automated npm publishing.

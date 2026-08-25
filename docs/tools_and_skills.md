@@ -35,10 +35,10 @@ All native binary security tools reside in `/workspace/tools/bin` and are automa
 
 Cybermes natively integrates MCP servers for client-side evaluation, structured system access, and external AI assistant integration:
 
-1. **Cybermes Native MCP Server (`@zyrexnn/cybermes-mcp`)**:
+1. **Cybermes Native MCP Server (`cybermes-mcp`)**:
    * High-speed, Go-native JSON-RPC 2.0 MCP server exposing **10 specialized security tools**, 2 resources, and 2 prompts.
    * Compatible with **all AI providers** (Claude, GPT-4o, DeepSeek, Gemini, Llama) and clients (OpenCode, Cursor, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code CLI, Continue.dev, Zed, Kilo Code, Hermes, Codex, Google Antigravity).
-   * **1-Click Universal Auto-Installer**: `npx -y @zyrexnn/cybermes-mcp install` or `python scripts/setup_mcp.py`.
+   * **1-Click Universal Auto-Installer**: `npx -y cybermes-mcp install` or `python scripts/setup_mcp.py`.
    * See [docs/MCP_SETUP.md](MCP_SETUP.md) for full guide and CLI options.
 2. **Browser MCP (`@modelcontextprotocol/server-puppeteer`)**:
    * Launches headless Chromium in container isolation.

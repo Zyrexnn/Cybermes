@@ -1,10 +1,10 @@
 {
-  "name": "@zyrexnn/cybermes-mcp",
+  "name": "cybermes-mcp",
   "version": "3.0.0",
   "description": "Zero-Go Model Context Protocol (MCP) Server for Cybermes Autonomous Security & Diagnostic Framework",
   "main": "bin/cybermes-mcp.js",
   "bin": {
-    "cybermes-mcp": "./bin/cybermes-mcp.js"
+    "cybermes-mcp": "bin/cybermes-mcp.js"
   },
   "scripts": {
     "start": "node ./bin/cybermes-mcp.js"

@@ -86,7 +86,7 @@ def get_client_definitions(use_local=False, local_bin=None):
     else:
         default_def = {
             "command": "npx",
-            "args": ["-y", "@zyrexnn/cybermes-mcp"],
+            "args": ["-y", "cybermes-mcp"],
         }
 
     return [

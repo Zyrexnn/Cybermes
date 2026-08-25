@@ -1,4 +1,4 @@
-# 🛡️ @zyrexnn/cybermes-mcp
+# 🛡️ cybermes-mcp
 
 > **Universal Zero-Go Model Context Protocol (MCP) Server & 1-Click Auto-Installer for the Cybermes Autonomous Security & Diagnostic Framework**
 
@@ -13,18 +13,18 @@ Compatible with all foundation LLMs: **Claude 3.7/3.5, GPT-4o/o3, DeepSeek R1/V3
 Install and automatically inject Cybermes MCP into **all detected AI clients** on your machine (Windows, macOS, Linux):
 
 ```bash
-npx -y @zyrexnn/cybermes-mcp install
+npx -y cybermes-mcp install
 ```
 
 ### CLI Command Options:
 | Command / Option | Purpose |
 | :--- | :--- |
-| `npx -y @zyrexnn/cybermes-mcp install` | Auto-detect all installed AI IDEs and inject Cybermes configuration with safe `.bak` backups. |
-| `npx -y @zyrexnn/cybermes-mcp install --dry-run` | Preview what configs will be modified without writing any files. |
-| `npx -y @zyrexnn/cybermes-mcp status` | View discovery and connection status across all supported AI clients. |
-| `npx -y @zyrexnn/cybermes-mcp uninstall` | Cleanly remove Cybermes configuration from all AI clients. |
-| `npx -y @zyrexnn/cybermes-mcp install --clients=cursor,claude-desktop` | Target specific AI clients only. |
-| `npx -y @zyrexnn/cybermes-mcp install --force` | Generate config files even if the client is not currently installed. |
+| `npx -y cybermes-mcp install` | Auto-detect all installed AI IDEs and inject Cybermes configuration with safe `.bak` backups. |
+| `npx -y cybermes-mcp install --dry-run` | Preview what configs will be modified without writing any files. |
+| `npx -y cybermes-mcp status` | View discovery and connection status across all supported AI clients. |
+| `npx -y cybermes-mcp uninstall` | Cleanly remove Cybermes configuration from all AI clients. |
+| `npx -y cybermes-mcp install --clients=cursor,claude-desktop` | Target specific AI clients only. |
+| `npx -y cybermes-mcp install --force` | Generate config files even if the client is not currently installed. |
 
 ---
 
@@ -33,14 +33,14 @@ npx -y @zyrexnn/cybermes-mcp install
 When called without subcommands, the package acts as a standard MCP server over `stdio` (JSON-RPC 2.0):
 
 ```bash
-npx -y @zyrexnn/cybermes-mcp
+npx -y cybermes-mcp
 ```
 
 ---
 
 ## 🔌 Manual AI Client Configuration
 
-If you prefer to configure manually, simply add `@zyrexnn/cybermes-mcp` to your client's MCP configuration:
+If you prefer to configure manually, simply add `cybermes-mcp` to your client's MCP configuration:
 
 ### 1. Claude Desktop
 Add to `claude_desktop_config.json`:
@@ -53,7 +53,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -66,7 +66,7 @@ Add to `.cursor/mcp.json` or Global MCP settings:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -79,7 +79,7 @@ Add to `~/.config/opencode/opencode.json`:
   "mcp_servers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -92,7 +92,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+      "args": ["-y", "cybermes-mcp"]
     }
   }
 }
@@ -105,7 +105,7 @@ Add to `cline_mcp_settings.json`:
   "mcpServers": {
     "cybermes": {
       "command": "npx",
-      "args": ["-y", "@zyrexnn/cybermes-mcp"],
+      "args": ["-y", "cybermes-mcp"],
       "disabled": false,
       "autoApprove": [
         "cybermes_search_knowledge",
@@ -143,7 +143,7 @@ Add to `cline_mcp_settings.json`:
 
 ## 🧪 Verification & Health Check
 
-After running `npx -y @zyrexnn/cybermes-mcp install` and restarting your AI client:
+After running `npx -y cybermes-mcp install` and restarting your AI client:
 1. In your AI client chat, ask:
    > *"List all available Cybermes MCP tools and search the knowledge base for 'JWT algorithm confusion'."*
 2. The AI model will execute `cybermes_search_knowledge` and return validated payload snippets with zero latency.
