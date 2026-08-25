@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.jpg" alt="Cybermes Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
+<img src="assets/bannernew.png" alt="Cybermes Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
 
 # 🛡️ Cybermes
 
