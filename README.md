@@ -1,84 +1,95 @@
 <div align="center">
 
-<img src="assets/bannernew.png" alt="Cybermes Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
+# Cybermes
 
-# 🛡️ Cybermes
-
-### **Autonomous Offensive Security & Bug Bounty Automation Framework**
+**Autonomous Offensive Security & Bug Bounty Automation Framework**
 
 [![Release](https://img.shields.io/badge/Release-v3.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#-installation--setup)
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
+
+<img src="assets/bannernew.png" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
 <p align="center">
   <b>Cybermes</b> is an offensive security assistant and automation framework designed for authorized bug bounty hunting, reconnaissance, vulnerability research, and structured reporting.
   <br>
-  It integrates native Go performance tools, 200+ modular offensive skills, automated recon pipelines, and Model Context Protocol (MCP) support for AI clients.
+  It combines native Go performance utilities, 200+ modular offensive security playbooks, token-optimized streaming pipelines, and full Model Context Protocol (MCP) support for AI coding environments.
 </p>
 
-[Quickstart](#-quickstart) • [Why Cybermes?](#-why-cybermes) • [Features](#-core-features) • [Installation](#-installation--setup) • [MCP Integration](#-mcp-server-integration) • [Workflow](#-operational-workflow) • [Toolchain](#-toolchain) • [Documentation](docs/)
+[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/)
 
 </div>
 
 ---
 
-## 💡 Why Cybermes?
+## Installation & Setup
 
-| Capability / Challenge | Traditional Workflow | Cybermes Solution |
-| :--- | :--- | :--- |
-| **AI Assistant Integration** | Manual copy-pasting of terminal outputs or fragile custom wrappers. | **Native Go MCP Server (`cybermes-mcp`)**: 1-click integration exposing 10+ security tools directly to Cursor, Claude Desktop, Windsurf, and Cline. |
-| **LLM Token & Context Noise** | Fuzzer/crawler outputs flood context with thousands of lines of 404s and static assets. | **High-Speed Stream Filter (`smart_pipe`)**: Pure Go filter that archives raw logs to disk while streaming only high-signal endpoints, status codes, and secrets to the LLM. |
-| **Exploit Verification** | Speculative or pattern-matched alerts without reproducible verification. | **Zero-False-Positive PoC Gate**: Requires standalone, non-destructive Python scripts (`pocs/poc_<name>.py`) and raw HTTP traces before logging findings. |
-| **Payload & Methodology Retrieval** | Manually searching external wikis, repositories, and cheat sheets online. | **Sub-50ms Local Knowledge Base (`search_knowledge`)**: Instant offline query engine across 200+ SOP playbooks, PayloadsAllTheThings, and HackTricks datasets. |
-| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT.pdf`. |
-| **OS & Environment Portability** | Most offensive tools assume Kali/Linux, complicating Windows setups. | **Native Multi-Platform Support**: Automated native installers for Windows (PowerShell), Linux, macOS, and Docker with a built-in health check and repair tool (`doctor.py`). |
+Cybermes can be used directly through your AI assistant via **Model Context Protocol (MCP)** or executed as a **standalone CLI / pipeline**.
+
+### 1. MCP Server Installation (Recommended for AI Workflows)
+
+Cybermes includes a high-performance native Go MCP server (`cybermes-mcp`) that exposes 10+ security tools and context providers directly to AI coding environments (Cursor, Claude Desktop, Windsurf, VS Code / Cline, Roo Code, OpenCode, and Continue).
+
+#### Universal Auto-Installer (1-Click)
+```bash
+# Automatically detects and configures all installed AI clients
+npx -y cybermes-mcp install
+```
+
+#### Local Repository Auto-Injector
+```bash
+# Offline injector using local configuration
+python scripts/setup_mcp.py
+```
+
+#### Manual Client Configuration
+To manually register the MCP server in your client configuration (`mcpServers` section):
+```json
+{
+  "mcpServers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "cybermes-mcp"]
+    }
+  }
+}
+```
+
+> For client-specific paths, flags (`--status`, `--dry-run`, `--uninstall`), and local binary setup, see the **[MCP Integration Guide](docs/MCP_SETUP.md)**.
 
 ---
 
-## 🚀 Core Features
+### 2. Standalone CLI Installation
 
-- **⚡ Native Go High-Speed Toolchain**: Zero-overhead compiled utilities for output streaming filter (`smart_pipe`), multi-pattern credential scanner (`secret_scan`), sub-50ms offline knowledge search (`search_knowledge`), and report aggregation (`aggregate_reports`).
-- **🔌 Model Context Protocol (MCP)**: Native Go MCP server (`cybermes-mcp`) providing 10+ security tools and context providers to AI assistants like Claude Desktop, Cursor, Windsurf, and VS Code/Cline.
-- **🎯 200+ Offensive Playbooks & Methodologies**: Comprehensive SOPs in `skills/` covering API security (IDOR/BOLA, JWT, BPLA), web vulnerabilities (SSRF, XSS, SQLi, Race Conditions), and cloud misconfigurations.
-- **🔍 Reconnaissance & Probing Integration**: Out-of-the-box integration with industry-standard tools (`subfinder`, `httpx`, `katana`, `ffuf`, `nuclei`, `sqlmap`).
-- **📑 Structured Multi-Format Reporting**: Automatic aggregation of findings into structured target workspaces with Markdown (`SUMMARY.md`), JSON (`metadata.json`), HTML dashboards, and print-ready PDF reports (`REPORT.pdf`).
-- **💻 Cross-Platform Support**: First-class support for Windows (native PowerShell / `.bat`), Linux, macOS, and Docker.
+If you plan to run Cybermes directly from the terminal or in headless CI/CD pipelines:
 
----
-
-## ⚡ Quickstart
-
-### 1. Installation
-
-Choose your platform:
-
-#### 🪟 Windows (Native PowerShell)
+#### Windows (Native PowerShell)
 ```powershell
-# Clone and run the automated installer
+# Clone repository and execute installer
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 .\setup_windows.ps1
 
-# Configure your API keys in .env
+# Configure environment variables and API keys
 notepad .env
 ```
-*(See [Windows Guide](docs/INSTALL_WINDOWS.md) for WSL2 or manual instructions)*
+*(For WSL2 or manual setups, refer to the [Windows Installation Guide](docs/INSTALL_WINDOWS.md))*
 
-#### 🐧 Linux / macOS
+#### Linux / macOS
 ```bash
-# Clone and run the automated installer
+# Clone repository and execute installer
 git clone https://github.com/Zyrexnn/Cybermes.git
 cd Cybermes
 ./setup.sh
 
-# Configure your API keys in .env
+# Configure environment variables and API keys
 nano .env
 ```
 
-#### 🐳 Docker
+#### Docker Container
 ```bash
 git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
 cp .env.example .env && nano .env
@@ -87,21 +98,21 @@ docker compose up -d
 
 ---
 
-### 2. Verify Installation
+### 3. Environment Health Check
 
-Run the built-in system doctor to verify dependencies and health:
+Verify system dependencies, path bindings, and tool integrity:
 
 ```bash
-# Check environment and toolchain
+# Run environment diagnostics
 python tools/doctor.py
 
-# Auto-repair missing tools or directories if needed
+# Automatically resolve and repair missing components
 python tools/doctor.py --fix
 ```
 
 ---
 
-### 3. Launching an Assessment
+### 4. Running an Assessment
 
 ```bash
 # Linux / macOS
@@ -114,53 +125,56 @@ python tools/doctor.py --fix
 docker compose exec cybermes cybermes "Assess https://example.com"
 ```
 
-> **Testing locally?** Run the mock test app in `examples/`:
+> **Local Testing**: Run the included mock vulnerable application in `examples/`:
 > ```bash
-> python examples/mock_vulnerable_app.py   # Runs local server on http://127.0.0.1:8888
+> python examples/mock_vulnerable_app.py   # Starts mock app on http://127.0.0.1:8888
 > ./cybermes "Assess http://127.0.0.1:8888"
 > ```
 
 ---
 
-## 🔌 MCP Server Integration
+## Architecture & Operational Pipeline
 
-Cybermes includes a high-performance native Go MCP server (`cybermes-mcp`) to supercharge your AI coding assistant with security tools.
-
-### 1-Click Auto-Installer
-```bash
-# Automatically detects and configures Cursor, Claude Desktop, Windsurf, Cline, etc.
-npx -y cybermes-mcp install
-```
-
-Or run the offline Python injector:
-```bash
-python scripts/setup_mcp.py
-```
-
-See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for manual JSON configs, flags (`--status`, `--dry-run`), and full tool specifications.
-
----
-
-## 🔄 Operational Workflow
-
-Cybermes organizes testing systematically across structured phases:
+Cybermes operates through a closed-loop, deterministic offensive research pipeline:
 
 ```text
-[1. Passive Recon] ──> [2. Active Probing] ──> [3. Skill Execution]
-                                                       │
-[6. Exec Reporting] <── [5. Secret Mining]  <── [4. PoC Validation]
+[Hermes Reasoning] ──> [Reconnaissance] ──> [Analysis & Skills] ──> [Validation Gate] ──> [Structured Reporting]
 ```
 
-1. **Passive Recon**: Subdomain discovery (`subfinder`) and archive mining (`gau`).
-2. **Active Probing**: Service discovery (`httpx`), crawler & endpoint discovery (`katana`, `ffuf`) via `smart_pipe`.
-3. **Skill Execution**: Application of relevant vulnerability playbooks from `skills/` and payload retrieval via `search_knowledge`.
-4. **PoC Validation**: Deterministic exploit validation with non-destructive standalone Python scripts.
-5. **Secret Mining**: Scanning responses and downloaded bundles for leaked credentials (`secret_scan`).
-6. **Executive Reporting**: Aggregation into `reports/<TARGET_SLUG>/` (`SUMMARY.md`, `report.html`, `REPORT.pdf`).
+1. **Reasoning & Orchestration (`Hermes`)**: Autonomous decision loop evaluating scope, parameter maps, and attack paths via MCP tool invocations.
+2. **Reconnaissance & Probing**: Passive asset discovery (`subfinder`, `gau`) and active crawling/probing (`httpx`, `katana`, `ffuf`).
+3. **Analysis & Skill Execution**: High-speed output filtering (`smart_pipe`) streaming high-signal endpoints into 200+ specialized vulnerability SOPs and offline knowledge lookups (`search_knowledge`).
+4. **Validation Gate (Zero False-Positive)**: Mandatory creation and execution of standalone, non-destructive validation scripts (`pocs/poc_<name>.py`) backed by raw HTTP proof traces.
+5. **Structured Reporting**: Automated compilation into `reports/<TARGET_SLUG>/` (`SUMMARY.md`, `metadata.json`, interactive HTML, and `REPORT.pdf`).
 
 ---
 
-## 📁 Target Workspace & Deliverables
+## Why Cybermes?
+
+| Challenge | Traditional Approach | Cybermes Solution |
+| :--- | :--- | :--- |
+| **AI Assistant Integration** | Manual copy-pasting of terminal outputs or fragile custom wrappers. | **Native Go MCP Server (`cybermes-mcp`)**: Standardized JSON-RPC 2.0 integration exposing 10+ security tools directly to AI clients. |
+| **LLM Token & Context Noise** | Fuzzer/crawler outputs flood context with thousands of lines of 404s and static assets. | **High-Speed Stream Filter (`smart_pipe`)**: Pure Go filter that archives raw logs to disk while streaming only high-signal endpoints, status codes, and secrets. |
+| **Exploit Verification** | Speculative or pattern-matched alerts without reproducible verification. | **Zero-False-Positive PoC Gate**: Requires standalone, non-destructive Python scripts (`pocs/poc_<name>.py`) and raw HTTP traces before logging findings. |
+| **Payload & Methodology Retrieval** | Manually searching external wikis, repositories, and cheat sheets online. | **Sub-50ms Local Knowledge Base (`search_knowledge`)**: Instant offline query engine across 200+ SOP playbooks, PayloadsAllTheThings, and HackTricks datasets. |
+| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT.pdf`. |
+| **OS & Environment Portability** | Most offensive tools assume Kali/Linux, complicating Windows setups. | **Native Multi-Platform Support**: Automated native installers for Windows (PowerShell), Linux, macOS, and Docker with a built-in health check and repair tool (`doctor.py`). |
+
+---
+
+## Core Features
+
+- **Native Go Toolchain**: Zero-overhead compiled utilities for output stream filtering (`smart_pipe`), credential scanning (`secret_scan`), offline knowledge retrieval (`search_knowledge`), and report aggregation (`aggregate_reports`).
+- **Model Context Protocol (MCP)**: Native Go MCP server (`cybermes-mcp`) exposing security tools and context providers to AI assistants like Claude Desktop, Cursor, Windsurf, and VS Code / Cline.
+- **200+ Offensive Playbooks**: Standard operating procedures in `skills/` covering API security (IDOR/BOLA, JWT, BPLA), web vulnerabilities (SSRF, XSS, SQLi, Race Conditions), and cloud misconfigurations.
+- **Integrated Reconnaissance**: Pre-configured pipelines for `subfinder`, `httpx`, `katana`, `ffuf`, `nuclei`, and `sqlmap`.
+- **Target Workspace Isolation**: Strict target-scoped evidence tracking, preventing context contamination across engagements.
+- **Multi-Format Reporting**: Automated output generation in Markdown (`SUMMARY.md`), JSON metrics (`metadata.json`), standalone HTML dashboards, and PDF reports (`REPORT.pdf`).
+- **Cross-Platform Compatibility**: Fully supported on Windows (native PowerShell), Linux, macOS, and Docker.
+
+---
+
+## Target Workspace & Deliverables
 
 Every target assessment creates a dedicated directory structure under `reports/` and `recon/`:
 
@@ -171,7 +185,7 @@ Cybermes/
 │   ├── metadata.json             # Structured JSON metrics & counters
 │   ├── report.html               # Standalone interactive HTML report
 │   ├── REPORT.pdf                # Print-ready PDF report
-│   ├── findings/                 # Confirmed vulnerability writeups (LOW/MED/HIGH/CRIT)
+│   ├── findings/                 # Confirmed vulnerability writeups (low, medium, high, critical)
 │   │   └── high_idor_orders.md
 │   ├── pocs/                     # Standalone Python proof-of-concept scripts
 │   │   └── poc_idor_orders.py
@@ -184,14 +198,14 @@ Cybermes/
 
 ---
 
-## 🧰 Toolchain
+## Toolchain
 
-| Tool | Type | Purpose | Example Command |
+| Tool | Type | Purpose | Standard Syntax |
 | :--- | :--- | :--- | :--- |
-| **`smart_pipe`** | Go Binary | Output filter & stream token optimizer | `katana -u <url> \| smart_pipe --target <slug> --tool katana` |
+| **`smart_pipe`** | Go Binary | Stream output filter & context token optimizer | `katana -u <url> \| smart_pipe --target <slug> --tool katana` |
 | **`secret_scan`** | Go Binary | Multi-pattern credential leak scanner | `secret_scan recon/<slug>/` |
-| **`search_knowledge`**| Go Binary | Offline exploit & payload search | `search_knowledge "jwt algorithm confusion"` |
-| **`aggregate_reports`**| Go Binary | Markdown findings indexer & compiler | `aggregate_reports <slug>` |
+| **`search_knowledge`**| Go Binary | Sub-50ms offline exploit & payload search | `search_knowledge "jwt algorithm confusion"` |
+| **`aggregate_reports`**| Go Binary | Markdown findings indexer & report compiler | `aggregate_reports <slug>` |
 | **`cybermes-mcp`** | Go Binary / NPX | Native MCP Server for AI assistants | `npx -y cybermes-mcp` |
 | **`subfinder`** | External | Passive subdomain discovery | `subfinder -d <target> -silent` |
 | **`httpx`** | External | Web probing & technology fingerprinting | `httpx -u <url> -tech-detect` |
@@ -199,66 +213,112 @@ Cybermes/
 | **`ffuf`** | External | High-speed web fuzzer | `ffuf -u <url>/FUZZ -w <wordlist>` |
 | **`nuclei`** | External | Template-based vulnerability scanner | `nuclei -u <url> -tags cve` |
 | **`sqlmap`** | Python | Automated SQL injection auditor | `sqlmap -u "<url>?id=1" --batch` |
-| **`doctor.py`** | Python | Environment health check & repair | `python tools/doctor.py --fix` |
-| **`generate_pdf.py`** | Python | PDF/HTML executive report builder | `python tools/generate_pdf.py <slug>` |
+| **`doctor.py`** | Python | Environment health check & auto-repair | `python tools/doctor.py --fix` |
+| **`generate_pdf.py`** | Python | PDF and HTML executive report generator | `python tools/generate_pdf.py <slug>` |
 
 ---
 
-## 📚 Documentation
+## Documentation
 
-Detailed documentation is available in the [`docs/`](docs/) directory:
+Detailed guides and references are available in the [`docs/`](docs/) directory:
 
-- 📖 **[Windows Installation Guide](docs/INSTALL_WINDOWS.md)**: Setup via PowerShell, WSL2, and troubleshooting.
-- 🔌 **[MCP Setup Guide](docs/MCP_SETUP.md)**: Configuration guide for all supported AI coding editors.
-- 🎯 **[Prompt Engineering Guide](docs/prompt_guide.md)**: Structuring security research prompts effectively.
-- 🤖 **[Telegram Gateway Setup](docs/telegram_setup.md)**: Setting up remote control via Telegram.
-- 🛠️ **[Tools & Skills Reference](docs/tools_and_skills.md)**: In-depth breakdown of playbooks and tools.
-- ❓ **[Troubleshooting & FAQ](docs/troubleshooting.md)**: Common errors and solutions.
+- [Windows Installation Guide](docs/INSTALL_WINDOWS.md) — Setup via PowerShell, WSL2, and troubleshooting.
+- [MCP Setup Guide](docs/MCP_SETUP.md) — Integration guide for all supported AI coding editors and clients.
+- [Prompt Engineering Guide](docs/prompt_guide.md) — Structuring security research prompts effectively.
+- [Telegram Gateway Setup](docs/telegram_setup.md) — Configuring remote execution via Telegram.
+- [Tools & Skills Reference](docs/tools_and_skills.md) — Breakdown of offensive playbooks and built-in tools.
+- [Troubleshooting & FAQ](docs/troubleshooting.md) — Common error resolutions and diagnostics.
 
 ---
 
-## 🙏 Acknowledgments & Upstream Credits
+## Acknowledgments & Upstream Credits
 
-Cybermes builds upon and integrates the valuable work of the open-source and offensive security research communities:
+Cybermes integrates and builds upon foundational work from the open-source and offensive security research communities:
 
 | Project / Tool | Maintainer / Author | Contribution / Reference |
 | :--- | :--- | :--- |
-| **[HackTricks](https://github.com/carlospolop/hacktricks)** | [@carlospolop](https://github.com/carlospolop) | Privilege escalation, service exploitation & offensive knowledge base |
-| **[PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings)** | [@swisskyrepo](https://github.com/swisskyrepo) | Web application payloads and bypass vectors |
-| **[ProjectDiscovery Suite](https://projectdiscovery.io/)** | ProjectDiscovery Team | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
-| **[SQLMap](https://github.com/sqlmapproject/sqlmap)** | Bernardo Damele & Miroslav Stampar | Automated SQL injection auditor |
-| **[Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter)** | [@sachinsharma-96](https://github.com/sachinsharma-96) | Bug bounty engagement patterns & validation playbooks |
-| **[Strix Framework](https://github.com/strix-security/strix)** | Strix Security Team | Autonomous multi-agent coordination architecture |
-| **[FFuF](https://github.com/ffuf/ffuf)** | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer |
-| **[Hermes-Agent](https://github.com/NousResearch/Hermes-Agent)** | NousResearch | Autonomous agent core framework |
+| [HackTricks](https://github.com/carlospolop/hacktricks) | [@carlospolop](https://github.com/carlospolop) | Privilege escalation, service exploitation & offensive knowledge base |
+| [PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings) | [@swisskyrepo](https://github.com/swisskyrepo) | Web application payloads and bypass vectors |
+| [ProjectDiscovery Suite](https://projectdiscovery.io/) | ProjectDiscovery Team | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
+| [SQLMap](https://github.com/sqlmapproject/sqlmap) | Bernardo Damele & Miroslav Stampar | Automated SQL injection auditor |
+| [Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter) | [@sachinsharma-96](https://github.com/sachinsharma-96) | Bug bounty engagement patterns & validation playbooks |
+| [Strix Framework](https://github.com/strix-security/strix) | Strix Security Team | Autonomous multi-agent coordination architecture |
+| [FFuF](https://github.com/ffuf/ffuf) | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer |
+| [Hermes-Agent](https://github.com/NousResearch/Hermes-Agent) | NousResearch | Autonomous agent core framework |
 
 *(See [ATTRIBUTION.md](ATTRIBUTION.md) for full license notices and upstream details)*
 
 ---
 
-## 👥 Contributors
+## Contributors
 
-Thank you to all contributors who help build, maintain, and research **Cybermes**:
+Thank you to everyone who helps build, maintain, and research Cybermes:
 
-- **[Zyrexnn](https://github.com/Zyrexnn)** — Project Lead & Architecture
-- **[msarg44](https://github.com/msarg44)** — Playwright PDF rendering engine fix
-- **[Mortify4315](https://github.com/Mortify4315)** — Windows Python launcher & long path docs
-- **[xsoft](https://github.com/xsoft)** — Linux setup audit, Docker config mounts & workflow diagnostics
-- **[Muzakie-ID](https://github.com/Muzakie-ID)** — Windows PowerShell setup & parser fixes
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center" width="160px">
+      <a href="https://github.com/Zyrexnn">
+        <img src="https://github.com/Zyrexnn.png?size=120" width="80px" height="80px" alt="Zyrexnn" style="border-radius: 50%; border: 3px solid #00d2ff; box-shadow: 0 0 14px rgba(0, 210, 255, 0.7); padding: 2px;" /><br />
+        <sub><b>Zyrexnn</b></sub>
+      </a><br />
+      <a href="https://github.com/Zyrexnn"><img src="https://img.shields.io/badge/★-Project_Lead-00d2ff?style=flat-square" alt="Project Lead" /></a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/msarg44">
+        <img src="https://github.com/msarg44.png?size=100" width="65px" height="65px" alt="msarg44" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
+        <sub><b>msarg44</b></sub>
+      </a><br />
+      <a href="https://github.com/msarg44"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/Mortify4315">
+        <img src="https://github.com/Mortify4315.png?size=100" width="65px" height="65px" alt="Mortify4315" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
+        <sub><b>Mortify4315</b></sub>
+      </a><br />
+      <a href="https://github.com/Mortify4315"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/xsoft">
+        <img src="https://github.com/xsoft.png?size=100" width="65px" height="65px" alt="xsoft" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
+        <sub><b>xsoft</b></sub>
+      </a><br />
+      <a href="https://github.com/xsoft"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
+    </td>
+    <td align="center" width="130px">
+      <a href="https://github.com/Muzakie-ID">
+        <img src="https://github.com/Muzakie-ID.png?size=100" width="65px" height="65px" alt="Muzakie-ID" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
+        <sub><b>Muzakie-ID</b></sub>
+      </a><br />
+      <a href="https://github.com/Muzakie-ID"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
+    </td>
+  </tr>
+</table>
+
+</div>
+
+| Contributor | Type | Contribution | Reference |
+| :--- | :--- | :--- | :--- |
+| **[@Zyrexnn](https://github.com/Zyrexnn)** | `Project Lead` | Creator, Core Architecture & Offensive Framework | Main |
+| **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
+| **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
+| **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
+| **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
 
 Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and [Contributors List](CONTRIBUTORS.md).
 
 ---
 
-## ⚖️ License
+## License
 
-This project is licensed under the **[Apache License 2.0](LICENSE)**.
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 Third-party research materials, datasets, and upstream tools referenced or incorporated within this repository retain their respective original licenses (see [ATTRIBUTION.md](ATTRIBUTION.md)).
 
 ---
 
-## ⚠️ Legal & Ethical Disclaimer
+## Legal & Ethical Disclaimer
 
 > **IMPORTANT**: Cybermes is developed exclusively for **authorized security testing**, **legitimate bug bounty research**, and **academic security education**.
 > 
