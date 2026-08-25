@@ -17,8 +17,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-          check-latest: true
+          go-version: '1.23'
+          cache: true
 
       - name: Run Go Unit Tests
         run: go test -v -race ./pkg/...
@@ -30,6 +30,7 @@ jobs:
           go build -ldflags="-s -w" -o bin/secret_scan ./cmd/secret_scan
           go build -ldflags="-s -w" -o bin/search_knowledge ./cmd/search_knowledge
           go build -ldflags="-s -w" -o bin/aggregate_reports ./cmd/aggregate_reports
+          go build -ldflags="-s -w" -o bin/cybermes-mcp ./cmd/cybermes-mcp
 
   python-ci:
     name: Python Syntax & Skill Integrity
