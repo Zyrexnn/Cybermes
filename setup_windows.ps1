@@ -105,7 +105,8 @@ if (Get-Command go -ErrorAction SilentlyContinue) {
         & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\secret_scan.exe" "$CYBERMES_DIR\cmd\secret_scan"
         & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\search_knowledge.exe" "$CYBERMES_DIR\cmd\search_knowledge"
         & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\aggregate_reports.exe" "$CYBERMES_DIR\cmd\aggregate_reports"
-        Write-Host "✓ Built Go tools in tools\bin\" -ForegroundColor Green
+        & go build -ldflags="-s -w" -o "$CYBERMES_DIR\tools\bin\cybermes-mcp.exe" "$CYBERMES_DIR\cmd\cybermes-mcp"
+        Write-Host "✓ Built Go tools (including cybermes-mcp.exe) in tools\bin\" -ForegroundColor Green
     } catch {
         Write-Host "ℹ️  Could not compile Go binaries locally; skipping" -ForegroundColor DarkYellow
     }
@@ -126,5 +127,6 @@ Write-Host "  ✅ Cybermes Windows Setup Complete!" -ForegroundColor Green
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host "`nQuick Start:" -ForegroundColor Cyan
 Write-Host "  1. Edit your API keys:        notepad .env" -ForegroundColor Yellow
-Write-Host "  2. Run assessment:            .\cybermes.bat `"Assess http://target.com`"" -ForegroundColor Yellow
-Write-Host "  3. Run doctor diagnostics:    python tools\doctor.py" -ForegroundColor Yellow
+Write-Host "  2. 1-Click MCP AI Setup:      python scripts\setup_mcp.py --local" -ForegroundColor Yellow
+Write-Host "  3. Run assessment:            .\cybermes.bat `"Assess http://target.com`"" -ForegroundColor Yellow
+Write-Host "  4. Run doctor diagnostics:    python tools\doctor.py" -ForegroundColor Yellow

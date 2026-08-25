@@ -40,7 +40,7 @@ func formatCLIOutput(results []search.Snippet, query string) {
 	fmt.Println("\n📚 ══════════════════════════════════════════════════════════════════")
 	fmt.Printf("   CYBERMES KNOWLEDGE BASE SEARCH: '%s'\n", query)
 	fmt.Printf("   Found %d high-signal snippets (Ranked by relevance)\n", len(results))
-	fmt.Println("══════════════════════════════════════════════════════════════════════\n")
+	fmt.Println("══════════════════════════════════════════════════════════════════════")
 
 	for i, res := range results {
 		fmt.Printf("─── [Result #%d | Score: %d] ──────────────────────────────────────────\n", i+1, res.Score)
@@ -48,10 +48,10 @@ func formatCLIOutput(results []search.Snippet, query string) {
 		fmt.Printf("📄 Location  : %s:%d\n", res.File, res.StartLine)
 		fmt.Printf("🏷️ Section   : %s\n\n", res.Heading)
 		fmt.Println(res.Content)
-		fmt.Println("\n")
+		fmt.Println()
 	}
 
-	fmt.Println("💡 Tip: Use '--limit N' or '--source [payloads|hacktricks|claude|strix]' to filter.\n")
+	fmt.Println("💡 Tip: Use '--limit N' or '--source [payloads|hacktricks|claude|strix]' to filter.")
 }
 
 func main() {
