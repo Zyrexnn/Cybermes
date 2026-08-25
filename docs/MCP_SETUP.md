@@ -1,12 +1,38 @@
 # 🔌 Cybermes MCP Server — Universal AI Client Setup & Integration Guide
 
-The **Cybermes MCP Server** implements the official **Model Context Protocol (MCP) JSON-RPC 2.0** standard over `stdio` transport. It is **100% Provider-Agnostic and Model-Agnostic** — compatible with any AI foundation model (**Claude 3.7/3.5, GPT-4o/o3, DeepSeek R1/V3, Gemini 2.0/1.5 Pro, Llama 3.3, Qwen 2.5 Coder**) and any MCP-enabled client (**OpenCode, Kilo, Cursor, Claude Desktop, Windsurf, Cline, Roo Code, Continue.dev, Zed**, etc.).
+The **Cybermes MCP Server** implements the official **Model Context Protocol (MCP) JSON-RPC 2.0** standard over `stdio` transport. It is **100% Provider-Agnostic and Model-Agnostic** — compatible with any AI foundation model (**Claude 3.7/3.5, GPT-4o/o3, DeepSeek R1/V3, Gemini 2.0/1.5 Pro, Llama 3.3, Qwen 2.5 Coder**) and any MCP-enabled client (**OpenCode, Cursor, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code, Continue.dev, Zed, Kilo, Hermes, Codex**, etc.).
 
 ---
 
-## ⚡ Method 1: Zero-Go NPX (Instant & Recommended)
+## 🚀 Method 0: 1-Click Universal Auto-Installer (Recommended)
 
-No Go SDK installation or local compilation required. Node.js (v18+) automatically detects your operating system and CPU architecture, downloads the verified binary from GitHub Releases, caches it in `~/.cybermes/bin/`, and starts the server with zero configuration.
+Cybermes includes an intelligent, non-destructive **Universal Auto-Injector** that automatically detects your installed AI clients across **Windows, macOS, and Linux**, creates timestamped backups of your configurations (`.bak`), and cleanly wires Cybermes into all of them.
+
+### Instant Global Installation (Zero-Go NPX)
+```bash
+npx -y @zyrexnn/cybermes-mcp install
+```
+
+### Or via Local Repository Setup:
+```bash
+python scripts/setup_mcp.py
+```
+
+### Auto-Installer Options:
+| Flag | Description | Example |
+| :--- | :--- | :--- |
+| `--dry-run` | Preview configuration changes without touching disk | `npx @zyrexnn/cybermes-mcp install --dry-run` |
+| `--status` | Display discovery matrix & wiring status for all AI clients | `npx @zyrexnn/cybermes-mcp status` |
+| `--local` | Wire directly to local compiled binary (`tools/bin/cybermes-mcp`) | `python scripts/setup_mcp.py --local` |
+| `--clients=` | Target specific clients (comma-separated) | `npx @zyrexnn/cybermes-mcp install --clients=cursor,claude-desktop` |
+| `--uninstall`| Cleanly remove Cybermes from all client configs | `npx @zyrexnn/cybermes-mcp uninstall` |
+| `--force` | Generate config files even if AI client is not yet detected | `npx @zyrexnn/cybermes-mcp install --force` |
+
+---
+
+## ⚡ Method 1: Manual Zero-Go NPX Setup (Instant)
+
+If you prefer manual configuration, Node.js (v18+) automatically downloads the verified binary from GitHub Releases:
 
 ```bash
 npx -y @zyrexnn/cybermes-mcp
@@ -155,6 +181,65 @@ Add to `~/.config/zed/settings.json`:
 ```json
 {
   "context_servers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+    }
+  }
+}
+```
+
+---
+
+### 9. Claude Code CLI (`claude mcp`)
+Run via CLI or add to `~/.claude.json`:
+
+```bash
+claude mcp add cybermes npx -- -y @zyrexnn/cybermes-mcp
+```
+Or in `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "@zyrexnn/cybermes-mcp"]
+    }
+  }
+}
+```
+
+---
+
+### 10. Hermes Agent
+Add to `~/.hermes/config.yaml` or `.hermes/config.yaml`:
+
+```yaml
+mcp_servers:
+  cybermes:
+    command: "npx"
+    args: ["-y", "@zyrexnn/cybermes-mcp"]
+```
+
+---
+
+### 11. Codex CLI
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.cybermes]
+command = "npx"
+args = ["-y", "@zyrexnn/cybermes-mcp"]
+```
+
+---
+
+### 12. Google Antigravity & Gemini Assistants
+Add to your Antigravity MCP settings or configuration JSON:
+
+```json
+{
+  "mcpServers": {
     "cybermes": {
       "command": "npx",
       "args": ["-y", "@zyrexnn/cybermes-mcp"]

@@ -42,12 +42,13 @@ This document records the completed milestones, active architectural capabilitie
 
 ### 3. Zero-Go NPX Distribution & Multi-Platform CI/CD (Phase 3)
 - **NPM Package**: `@zyrexnn/cybermes-mcp` (`npm/package.json` & `npm/bin/cybermes-mcp.js`).
-- **Zero-Go Launcher**: Instant execution via:
+- **1-Click Universal Auto-Injector Engine**: Instant multi-client discovery, non-destructive config injection, and backup rotation via:
   ```bash
-  npx -y @zyrexnn/cybermes-mcp
+  npx -y @zyrexnn/cybermes-mcp install
   ```
+- **Local Python Setup Tool**: `scripts/setup_mcp.py` for local and air-gapped developer environments.
 - **Automated Multi-Platform CI/CD**: GitHub Actions workflow (`.github/workflows/mcp-release.yml`) cross-compiling Go binaries for Windows AMD64, Linux AMD64, macOS ARM64 (Apple Silicon), and macOS AMD64 (Intel), complete with SHA256 checksums and automated npm publishing.
-- **Universal AI Client Integration**: Comprehensive setup guides for OpenCode, Kilo Code, Claude Desktop, Cursor IDE, Windsurf, Cline, Continue.dev, and Zed in [`docs/MCP_SETUP.md`](MCP_SETUP.md).
+- **Universal AI Client Integration**: Comprehensive setup guides and auto-injection support for 11+ AI clients: OpenCode, Cursor IDE, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code CLI, Continue.dev, Zed, Kilo Code, Hermes, Codex, and Google Antigravity in [`docs/MCP_SETUP.md`](MCP_SETUP.md).
 
 ---
 

@@ -89,7 +89,8 @@ if command -v go >/dev/null 2>&1; then
     go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/secret_scan" "$CYBERMES_DIR/cmd/secret_scan" 2>/dev/null || true
     go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/search_knowledge" "$CYBERMES_DIR/cmd/search_knowledge" 2>/dev/null || true
     go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/aggregate_reports" "$CYBERMES_DIR/cmd/aggregate_reports" 2>/dev/null || true
-    echo "✓ Built smart_pipe, secret_scan, search_knowledge, aggregate_reports"
+    go build -ldflags="-s -w" -o "$CYBERMES_DIR/tools/bin/cybermes-mcp" "$CYBERMES_DIR/cmd/cybermes-mcp" 2>/dev/null || true
+    echo "✓ Built smart_pipe, secret_scan, search_knowledge, aggregate_reports, cybermes-mcp"
 fi
 
 # 9. Download ProjectDiscovery Security Toolchain
@@ -117,7 +118,8 @@ echo "========================================================"
 echo ""
 echo "Quick Start:"
 echo "  1. Configure your API keys:  nano .env"
-echo "  2. Verify environment:       python3 tools/doctor.py"
-echo "  3. Configure LLM model:      ./cybermes model"
-echo "  4. Run assessment:           ./cybermes \"Assess https://example.com\""
+echo "  2. 1-Click MCP AI Setup:     python3 scripts/setup_mcp.py --local"
+echo "  3. Verify environment:       python3 tools/doctor.py"
+echo "  4. Configure LLM model:      ./cybermes model"
+echo "  5. Run assessment:           ./cybermes \"Assess https://example.com\""
 echo ""

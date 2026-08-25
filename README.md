@@ -14,7 +14,7 @@
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Docker: Ready](https://img.shields.io/badge/Docker-Supported-2496ED.svg?logo=docker&logoColor=white)](docker-compose.yml)
 [![Windows: Supported](https://img.shields.io/badge/Windows-Supported-brightgreen.svg?logo=windows&logoColor=white)](docs/INSTALL_WINDOWS.md)
-[![MCP Server: Zero--Go Ready](https://img.shields.io/badge/MCP%20Server-npx%20ready-blue.svg)](docs/MCP_SETUP.md)
+[![MCP Server: Universal](https://img.shields.io/badge/MCP%20Server-1--Click%20npx-blue.svg)](docs/MCP_SETUP.md)
 [![Hermes: Powered](https://img.shields.io/badge/Hermes%20Agent-Core-purple.svg)](https://github.com/NousResearch/Hermes-Agent)
 [![PDF Reporting: Automated](https://img.shields.io/badge/Reports-PDF%20%26%20HTML%20Automated-brightgreen.svg)](#-automated-executive-reporting-pdf--html)
 [![Token Economy: 85% Saved](https://img.shields.io/badge/Token%20Economy-Smart%20Filter-blueviolet.svg)](#-token-economy--smart-output-filtering)
@@ -25,7 +25,7 @@
   <i>⚡ Works seamlessly on <strong>Linux</strong>, <strong>macOS</strong>, and <strong>Windows</strong></i>
 </p>
 
-[Quick Start](#-installation--quick-start) • [MCP Setup](docs/MCP_SETUP.md) • [Architecture](#-architecture--core-engine) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Skills Layer](#-offensive-skills-layer-50-modules) • [Roadmap](docs/MCP_ROADMAP.md) • [Documentation](docs/) • [Release Notes](#-release--version-history)
+[Quickstart](#-60-second-fast-track-quickstart) • [MCP Setup](docs/MCP_SETUP.md) • [Architecture](#-architecture--core-engine) • [Methodology](#-operational-methodology-phases-16) • [Skills Layer](#-offensive-skills--playbooks) • [Automated PDF Reports](#-automated-executive-reporting-pdf--html) • [Roadmap](docs/MCP_ROADMAP.md) • [Documentation](docs/) • [Release Notes](#-release--version-history)
 
 </div>
 
@@ -46,28 +46,28 @@
 ## 📑 Table of Contents
 
 - [🏛️ Architecture & Core Engine](#-architecture--core-engine)
+- [🔄 Operational Methodology (Phases 1–6)](#-operational-methodology-phases-16)
+- [🎯 Offensive Skills & Playbooks](#-offensive-skills--playbooks)
 - [📑 Automated Executive Reporting (PDF & HTML)](#-automated-executive-reporting-pdf--html)
 - [🧠 Token Economy & Smart Output Filtering](#-token-economy--smart-output-filtering)
 - [🛡️ Universal AI Agent Standards (`AGENTS.md`)](#-universal-ai-agent-standards-agentsmd--cursorrules)
-- [🔄 Operational Methodology (Phases 1–6)](#-operational-methodology-phases-16)
 - [🧰 Available Toolchain & MCP Bridge](#-available-toolchain--mcp-bridge)
 - [📁 Target-Scoped Directory Structure](#-target-scoped-directory-structure)
-- [🚀 Installation & Quick Start](#-installation--quick-start)
-  - [💻 Installing on Windows](#-installing-on-windows)
-    - [Method 1A: PowerShell Native Setup (RECOMMENDED)](#method-1a-powershell-native-setup-recommended-)
-    - [Method 1B: WSL2 + Linux Subsystem](#method-1b-wsl2-linux-subsystem-best-performance)
-    - [Method 1C: Docker Desktop](#method-1c-docker-desktop-easiest-isolation)
-  - [🐧 Native Host Setup (Linux/macOS)](#native-host-setup-linuxmacos)
-  - [🐳 Docker & Docker Compose (All Platforms)](#docker--docker-compose-all-platforms)
-- [🆘 Getting Help](#%EF%B8%8F-getting-help)
+- [🚀 Installation & Quickstart](#-installation--quickstart)
+  - [💻 Option A: Windows (Native PowerShell)](#option-a-windows-native-powershell-)
+  - [🐧 Option B: Linux & macOS (Native Host)](#option-b-linux--macos-native-host-)
+  - [🐳 Option C: Docker (Zero Local Setup)](#option-c-docker-zero-local-setup-)
+- [🆘 Getting Help & System Doctor](#-getting-help--system-doctor)
 - [💬 Community & Discussions](#-community--discussions)
+- [🤖 Telegram Bot Gateway](#-telegram-bot-gateway)
 - [🎯 Prompt Engineering & Anti-Filter Guidelines](#-prompt-engineering--anti-filter-guidelines)
 - [🧪 Local Validation with Mock Target](#-local-validation-with-mock-target)
 - [📈 Star History](#-star-history)
 - [📦 Release & Version History](#-release--version-history)
-- [👥 Contributors](#-contributors)
 - [⚖️ License](#️-license)
 - [⚠️ Legal & Ethical Disclaimer](#️-legal--ethical-disclaimer)
+- [🙏 Acknowledgments & Upstream Credits](#-acknowledgments--upstream-credits)
+- [👥 Contributors](#-contributors)
 
 ---
 
@@ -75,7 +75,7 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                      CYBERMES ENGINE v2.0.0                                      │
+│                                      CYBERMES ENGINE v2.1.0                                      │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
 │  [ Operator Prompt / Target Queue ]  ────────>  [ Direct Operator Authorization Hook ]           │
 │                                                                │                                 │
@@ -115,6 +115,49 @@
 │  └────────────────────────────────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 🔄 Operational Methodology (Phases 1–6)
+
+Cybermes operates through a disciplined, six-phase offensive security lifecycle:
+
+```text
+[Phase 1: Passive Recon] ──> [Phase 2: Active Probing] ──> [Phase 3: Skill Execution]
+                                                                     │
+[Phase 6: Exec Reporting] <── [Phase 5: Secret Mining] <── [Phase 4: PoC Validation]
+```
+
+1. **Phase 1: Passive Reconnaissance & Discovery**:
+   - Subdomain mapping (`subfinder`), historical archive mining (`gau`), and ASN range lookups.
+   - Saves raw domain assets to `recon/<TARGET_SLUG>/subdomains.txt`.
+2. **Phase 2: Active Web Probing & Tech Fingerprinting**:
+   - Multi-port web discovery (`httpx`), TLS cert extraction, and framework fingerprinting.
+   - Endpoint & SPA crawl (`katana`, `ffuf`) with `smart_pipe` token filtering.
+3. **Phase 3: Offensive Skills & Hypothesis Testing**:
+   - Autonomous selection of 200+ specialized SOP playbooks (Next.js SSRF, JWT bypass, BOLA/IDOR, Race Conditions).
+   - Instant payload retrieval via `search_knowledge` (<50ms).
+4. **Phase 4: Zero-False-Positive PoC Validation**:
+   - Deterministic exploit validation using minimal-impact standalone Python scripts (`requests`).
+   - Generation of reproducible writeups in `reports/<TARGET_SLUG>/findings/`.
+5. **Phase 5: Secret & Credential Leak Mining**:
+   - 48-pattern credential leak scanning on all downloaded JS bundles, dumps, and responses (`secret_scan`).
+6. **Phase 6: Multi-Format Executive Reporting**:
+   - Automated compilation of findings into `SUMMARY.md`, `metadata.json`, `report.html`, and print-ready `REPORT.pdf`.
+
+---
+
+## 🎯 Offensive Skills & Playbooks
+
+Cybermes includes **200+ modular, production-tested offensive security SOP playbooks** located in `skills/`. Each skill provides detailed step-by-step methodologies, parameter mutation patterns, differential verification matrices, and remediation guides.
+
+### Key Skill Domains:
+- **API & Access Control**: IDOR/BOLA, JWT algorithm confusion & HMAC forgery, broken object-property level auth (BPLA), mass assignment.
+- **Web App Exploitation**: Next.js Server Action RCE/SSRF, GraphQL query depth bypass, SQLi, DOM-based & Blind XSS, prototype pollution, SSTI.
+- **Cloud & Infrastructure**: AWS/GCP/Azure IAM metadata leak verification, S3 bucket misconfigurations, Kubernetes API audits.
+- **Business Logic & Race Conditions**: Limit overdrafts, coupon concurrency bypass, multi-step transaction desynchronization.
+
+*Inspect or load skills directly via MCP with `cybermes_list_skills` and `cybermes_get_skill`.*
 
 ---
 
@@ -194,131 +237,114 @@ All tools are pre-compiled in `tools/bin/` and accessible on system `$PATH`:
 | **Puppeteer MCP** | Browser DOM Automation | Native MCP tools for dynamic SPA testing & screenshot capture |
 | **Fetch MCP** | Clean Web-to-Markdown Reader | Native MCP tool for token-efficient API inspection |
 
-> ⚡ **Connect AI Assistants (Claude Desktop, Cursor, Windsurf, Cline)**:
+> ⚡ **1-Click MCP Auto-Connect (Claude Desktop, Cursor, OpenCode, Windsurf, Cline, Zed)**:
 > ```bash
-> npx -y @zyrexnn/cybermes-mcp
+> # Universal 1-Click Auto-Installer:
+> npx -y @zyrexnn/cybermes-mcp install
+> 
+> # Or for local offline environments:
+> python scripts/setup_mcp.py
 > ```
-> *See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for 1-click JSON configurations.*
+> *See [docs/MCP_SETUP.md](docs/MCP_SETUP.md) for full guide, options (`--dry-run`, `--status`, `--clients`), and manual JSON configs.*
 
 🪟 **Windows Users**: Run `.\cybermes.bat` (or `.\hermes.bat`) and use `.\setup_windows.ps1` for installation.
 
 ---
 
-## 🚀 60-Second Fast Track Quickstart
+## 📁 Target-Scoped Directory Structure
 
-Get Cybermes up and running in under a minute:
+Every assessment is cleanly scoped into standard directory structures to guarantee reproducibility, zero context clutter, and seamless reporting:
 
-### Option A: Docker (Zero Local Setup) 🐳
-```bash
-git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
-cp .env.example .env && nano .env
-docker compose up -d
-docker compose exec cybermes cybermes "Assess https://example.com"
+```text
+Cybermes/
+├── reports/<TARGET_SLUG>/        # All confirmed deliverables & reports
+│   ├── SUMMARY.md                # Consolidated executive findings matrix
+│   ├── metadata.json             # Automation & pipeline metric counters
+│   ├── report.html               # Interactive dashboard (Dark/Light)
+│   ├── REPORT.pdf                # Print-ready executive PDF deliverable
+│   ├── findings/                 # Confirmed vulnerabilities (LOW/MED/HIGH/CRIT)
+│   │   ├── high_idor_orders.md
+│   │   └── crit_auth_bypass.md
+│   ├── pocs/                     # Standalone Python proof-of-concept scripts
+│   │   └── poc_idor_orders.py
+│   └── evidence/                 # Raw logs, traces, screenshot dumps
+│       ├── recon_notes.md        # All informational notes & negative tests
+│       └── login_trace.json
+├── recon/<TARGET_SLUG>/          # Raw tool outputs & streaming dumps
+│   ├── subdomains.txt            # Passive & active subdomain assets
+│   ├── katana_raw.txt            # Complete unfiltered crawl logs
+│   └── endpoints.txt             # High-signal discovered API routes
+└── targets/                      # Target scope files & parameters
 ```
 
-### Option B: Linux / macOS Host (One Command) 🐧
+---
+
+## 🚀 Installation & Quickstart
+
+Choose your preferred deployment method to get Cybermes running in under a minute:
+
+| Platform / Method | Setup Command | Details |
+| :--- | :--- | :--- |
+| **💻 Windows (PowerShell)** | `.\setup_windows.ps1` | Native execution on Windows 10/11 ([Windows Guide](docs/INSTALL_WINDOWS.md)) |
+| **🐧 Linux / macOS** | `./setup.sh` | Automated environment, virtualenv & Go toolchain build |
+| **🐳 Docker (All OS)** | `docker compose up -d` | Zero-pollution isolated environment |
+| **🔌 MCP Only (AI Clients)** | `npx -y @zyrexnn/cybermes-mcp install` | 1-Click universal AI assistant integration ([MCP Guide](docs/MCP_SETUP.md)) |
+
+---
+
+### Option A: Windows (Native PowerShell) 💻
+
+```powershell
+# 1. Clone repository & run automated installer
+git clone https://github.com/Zyrexnn/Cybermes.git; cd Cybermes
+.\setup_windows.ps1
+
+# 2. Configure API keys (Anthropic, OpenAI, DeepSeek, OpenRouter, etc.)
+notepad .env
+
+# 3. Optional: Verify health & launch assessment
+python tools\doctor.py
+.\cybermes.bat "Assess https://example.com"
+```
+👉 *See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for detailed PowerShell and WSL2 walkthroughs.*
+
+---
+
+### Option B: Linux & macOS (Native Host) 🐧
+
 ```bash
+# 1. Clone repository & run automated installer
 git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
 ./setup.sh
+
+# 2. Configure API keys
 nano .env
+
+# 3. Optional: Verify health & launch assessment
+python3 tools/doctor.py
 ./cybermes "Assess https://example.com"
 ```
 
-### Option C: Windows Host (Native PowerShell) 💻
-```powershell
-git clone https://github.com/Zyrexnn/Cybermes.git; cd Cybermes
-.\setup_windows.ps1
-notepad .env
-.\cybermes.bat "Assess https://example.com"
+---
+
+### Option C: Docker (Zero Local Setup) 🐳
+
+```bash
+# 1. Clone repository & set API keys
+git clone https://github.com/Zyrexnn/Cybermes.git && cd Cybermes
+cp .env.example .env && nano .env
+
+# 2. Start container and run assessment
+docker compose up -d
+docker compose exec cybermes cybermes "Assess https://example.com"
 ```
 
 > [!TIP]
-> **Testing Locally?** You can test against the included mock vulnerable application:
+> **Testing Locally?** Verify Cybermes in an isolated offline sandbox against the included mock application:
 > ```bash
-> python3 examples/mock_vulnerable_app.py   # Starts local test server on :8888
-> ./cybermes "Assess http://127.0.0.1:8888" # In a new terminal tab
+> python3 examples/mock_vulnerable_app.py   # Starts local test target on http://127.0.0.1:8888
+> ./cybermes "Assess http://127.0.0.1:8888" # In a second terminal tab
 > ```
-
----
-
-## 📑 Installation Guide & Methods
-
-Choose your preferred deployment method:
-
-| Method | OS | Setup Time | Performance | Best For |
-|--------|----|------------|-------------|----------|
-| **PowerShell Native** | Windows 10/11 | ~1 min | ⭐⭐⭐⭐⭐ | Windows host, direct hardware access |
-| **Native Host** | Linux/macOS | ~1 min | ⭐⭐⭐⭐⭐ | Linux & macOS native environments |
-| **Docker (GHCR)** | All Platforms | <30 sec | ⭐⭐⭐⭐ | Zero-pollution isolated environment |
-| **WSL2** | Windows → Linux | ~2 min | ⭐⭐⭐⭐⭐ | Windows power users |
-
----
-
-### 💻 Installing on Windows (Native PowerShell)
-
-```powershell
-# 1. Clone repository
-git clone https://github.com/Zyrexnn/Cybermes.git
-cd Cybermes
-
-# 2. Run automated installer (installs venv, Go tools & ProjectDiscovery binaries)
-.\setup_windows.ps1
-
-# 3. Configure your API keys
-notepad .env
-
-# 4. Verify system health
-python tools\doctor.py
-
-# 5. Launch an assessment
-.\cybermes.bat "Assess https://example.com"
-```
-
-👉 **See [Windows Installation Guide](docs/INSTALL_WINDOWS.md) for step-by-step walkthrough**
-
----
-
-### 🐧 Native Host Setup (Linux/macOS)
-
-```bash
-# 1. Clone repository
-git clone https://github.com/Zyrexnn/Cybermes.git
-cd Cybermes
-
-# 2. Run automated installer
-./setup.sh
-
-# 3. Configure API keys in .env
-nano .env
-
-# 4. Verify system health
-python3 tools/doctor.py
-
-# 5. Launch an assessment
-./cybermes "Assess https://example.com"
-```
-
----
-
-### 🐳 Docker & Docker Compose (Pre-built GHCR)
-
-Run Cybermes inside a container with pre-packaged tools:
-
-```bash
-# 1. Clone and navigate to repository
-git clone https://github.com/Zyrexnn/Cybermes.git
-cd Cybermes
-
-# 2. Configure environment variables
-cp .env.example .env
-nano .env
-
-# 3. Start container
-docker compose up -d
-
-# 4. Execute assessment
-docker compose exec cybermes cybermes "Assess https://example.com"
-```
 
 ---
 
