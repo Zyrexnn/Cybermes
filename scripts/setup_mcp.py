@@ -241,7 +241,6 @@ def get_client_definitions(use_local=False, local_bin=None):
 def inject_config(client: dict, file_path: Path, dry_run: bool):
     ctype = client["type"]
     cdef = client["definition"]
-    cname = client["name"]
 
     if ctype in ("json-mcpServers", "json-cline"):
         data = safe_read_json(file_path)
@@ -268,16 +267,28 @@ def inject_config(client: dict, file_path: Path, dry_run: bool):
         if data is None:
             data = {}
 
-        data.setdefault("mcp_servers", {})
-        if data["mcp_servers"].get("cybermes") == cdef:
-            return {"status": "unchanged", "details": "Already up-to-date"}
+        opencode_entry = {
+            "type": "local",
+            "command": [cdef["command"]] + cdef["args"],
+            "enabled": True,
+        }
 
-        data["mcp_servers"]["cybermes"] = cdef
+        if "mcp" in data or ("mcp_servers" not in data and "mcpServers" not in data):
+            data.setdefault("mcp", {})
+            if data["mcp"].get("cybermes") == opencode_entry:
+                return {"status": "unchanged", "details": "Already up-to-date in mcp"}
+            data["mcp"]["cybermes"] = opencode_entry
+        else:
+            data.setdefault("mcp_servers", {})
+            if data["mcp_servers"].get("cybermes") == cdef:
+                return {"status": "unchanged", "details": "Already up-to-date in mcp_servers"}
+            data["mcp_servers"]["cybermes"] = cdef
+
         if not dry_run:
             bak = create_backup(file_path)
             safe_write_json(file_path, data, False)
             return {"status": "injected", "details": f"Updated (backup: {Path(bak).name})" if bak else "Created config"}
-        return {"status": "dry-run", "details": "Would inject mcp_servers.cybermes"}
+        return {"status": "dry-run", "details": "Would inject mcp.cybermes"}
 
     if ctype == "json-continue":
         data = safe_read_json(file_path)
@@ -377,14 +388,22 @@ def remove_config(client: dict, file_path: Path, dry_run: bool):
 
     if ctype == "json-mcp_servers":
         data = safe_read_json(file_path)
-        if not data or "_parseError" in data or not data.get("mcp_servers", {}).get("cybermes"):
+        if not data or "_parseError" in data:
             return {"status": "unchanged", "details": "Cybermes not present"}
-        del data["mcp_servers"]["cybermes"]
+        has_removed = False
+        if "mcp" in data and "cybermes" in data["mcp"]:
+            del data["mcp"]["cybermes"]
+            has_removed = True
+        if "mcp_servers" in data and "cybermes" in data["mcp_servers"]:
+            del data["mcp_servers"]["cybermes"]
+            has_removed = True
+        if not has_removed:
+            return {"status": "unchanged", "details": "Cybermes not present"}
         if not dry_run:
             bak = create_backup(file_path)
             safe_write_json(file_path, data, False)
             return {"status": "removed", "details": f"Cleaned (backup: {Path(bak).name})" if bak else "Removed"}
-        return {"status": "dry-run", "details": "Would remove mcp_servers.cybermes"}
+        return {"status": "dry-run", "details": "Would remove mcp.cybermes"}
 
     return {"status": "skipped", "details": "Manual cleanup recommended for YAML/TOML"}
 
@@ -401,7 +420,7 @@ def check_status(client: dict, file_path: Path):
 
     if ctype == "json-mcp_servers":
         data = safe_read_json(file_path)
-        has_cb = bool(data and data.get("mcp_servers", {}).get("cybermes"))
+        has_cb = bool(data and ((data.get("mcp") and "cybermes" in data["mcp"]) or (data.get("mcp_servers") and "cybermes" in data["mcp_servers"])))
         return {"installed": True, "configured": has_cb, "details": "Configured" if has_cb else "Detected (Missing Cybermes)"}
 
     if ctype in ("yaml-hermes", "toml-codex"):

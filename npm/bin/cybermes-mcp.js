@@ -391,7 +391,7 @@ function injectClientConfig(client, filePath, isDryRun) {
     return result;
   }
 
-  if (client.type === 'json-mcp_servers') {
+  if (client.type === 'json-mcp_servers' || client.type === 'json-opencode') {
     let json = safeReadJson(filePath);
     if (json && json._parseError) {
       result.status = 'error';
@@ -400,15 +400,31 @@ function injectClientConfig(client, filePath, isDryRun) {
     }
     if (!json) json = {};
 
-    json.mcp_servers = json.mcp_servers || {};
-    const existing = json.mcp_servers.cybermes;
-    if (existing && JSON.stringify(existing) === JSON.stringify(client.definition)) {
-      result.status = 'unchanged';
-      result.details = 'Already up-to-date';
-      return result;
-    }
+    const opencodeEntry = {
+      type: 'local',
+      command: [client.definition.command, ...client.definition.args],
+      enabled: true,
+    };
 
-    json.mcp_servers.cybermes = client.definition;
+    if (json.mcp || (!json.mcp_servers && !json.mcpServers)) {
+      json.mcp = json.mcp || {};
+      const existing = json.mcp.cybermes;
+      if (existing && JSON.stringify(existing) === JSON.stringify(opencodeEntry)) {
+        result.status = 'unchanged';
+        result.details = 'Already up-to-date';
+        return result;
+      }
+      json.mcp.cybermes = opencodeEntry;
+    } else {
+      json.mcp_servers = json.mcp_servers || {};
+      const existing = json.mcp_servers.cybermes;
+      if (existing && JSON.stringify(existing) === JSON.stringify(client.definition)) {
+        result.status = 'unchanged';
+        result.details = 'Already up-to-date';
+        return result;
+      }
+      json.mcp_servers.cybermes = client.definition;
+    }
 
     if (!isDryRun) {
       const bak = createBackup(filePath);
@@ -417,7 +433,7 @@ function injectClientConfig(client, filePath, isDryRun) {
       result.details = bak ? `Updated (backup: ${path.basename(bak)})` : 'Created new config';
     } else {
       result.status = 'dry-run';
-      result.details = 'Would inject mcp_servers.cybermes';
+      result.details = 'Would inject mcp.cybermes';
     }
     return result;
   }
