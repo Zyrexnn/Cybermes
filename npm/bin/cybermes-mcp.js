@@ -164,10 +164,16 @@ function createBackup(filePath) {
 function safeReadJson(filePath) {
   if (!fs.existsSync(filePath)) return null;
   try {
-    let content = fs.readFileSync(filePath, 'utf8').trim();
+    const content = fs.readFileSync(filePath, 'utf8').trim();
     if (!content) return {};
-    content = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-    return JSON.parse(content);
+    try {
+      return JSON.parse(content);
+    } catch (_) {
+      const clean = content
+        .replace(/("(?:\\.|[^"\\])*")|\/\/.*$|\/\*[\s\S]*?\*\//gm, (m, g1) => g1 || '')
+        .replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(clean);
+    }
   } catch (err) {
     return { _parseError: err.message };
   }

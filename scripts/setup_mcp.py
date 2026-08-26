@@ -58,9 +58,13 @@ def safe_read_json(file_path: Path):
             content = f.read().strip()
             if not content:
                 return {}
-            cleaned = re.sub(r"//.*$", "", content, flags=re.MULTILINE)
-            cleaned = re.sub(r"/\*[\s\S]*?\*/", "", cleaned)
-            return json.loads(cleaned)
+            try:
+                return json.loads(content)
+            except Exception:
+                # Strip comments while preserving strings with quotes
+                cleaned = re.sub(r'("(?:\\.|[^"\\])*")|//.*$|/\*[\s\S]*?\*/', lambda m: m.group(1) or '', content, flags=re.MULTILINE)
+                cleaned = re.sub(r',\s*([}\]])', r'\1', cleaned)
+                return json.loads(cleaned)
     except Exception as e:
         return {"_parseError": str(e)}
 
