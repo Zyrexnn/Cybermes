@@ -33,22 +33,24 @@ This document records the completed milestones, active architectural capabilitie
 | **Tool** | `cybermes_list_skills` | Catalog and filter 200+ offensive security playbooks. |
 | **Tool** | `cybermes_get_skill` | Retrieve complete Markdown SOP playbooks or specific section headings. |
 | **Tool** | `cybermes_scan_secrets` | 48-pattern credential leak detector (AWS, GCP, GitHub, Slack, Private Keys, JWTs) with automated masking. |
-| **Tool** | `cybermes_record_finding` | Record verified findings to `reports/<target>/findings/` matching strict `AGENTS.md` format with standalone PoC scripts. |
-| **Tool** | `cybermes_aggregate_report` | Executive summary generator aggregating metrics into `SUMMARY.md` and `metadata.json`. |
-| **Tool** | `cybermes_list_findings` | List confirmed findings and severity breakdown per target. |
+| **Tool** | `cybermes_nuclei_scan` | Targeted vulnerability verification using community and custom templates with on-demand dependency guidance. |
+| **Tool** | `cybermes_check_environment`| Automated diagnostics for local toolchain and security binary availability. |
+| **Tool** | `cybermes_record_evidence` | Structured recording of raw recon evidence, HTTP logs, and negative test results. |
 | **Resource** | `skills://{skill_name}` | Direct read-only URI access to playbook SOPs. |
 | **Resource** | `reports://{target_slug}/summary` | Direct read-only URI access to executive engagement summaries. |
-| **Prompt** | `cybermes_hunt` & `cybermes_triage` | Zero-false-positive reasoning workflow templates for AI agents. |
+| **Prompt** | `security_recon_audit` | Standardized reconnaissance & attack-surface mapping prompt workflow. |
+| **Prompt** | `api_security_review` | Deterministic REST, GraphQL, and gRPC vulnerability review workflow. |
 
-### 3. Zero-Go NPX Distribution & Multi-Platform CI/CD (Phase 3)
+### 3. Zero-Go NPX Distribution, Local Controller & Multi-Platform CI/CD (Phase 3)
 - **NPM Package**: `cybermes-mcp` (`npm/package.json` & `npm/bin/cybermes-mcp.js`).
-- **1-Click Universal Auto-Injector Engine**: Instant multi-client discovery, non-destructive config injection, and backup rotation via:
+- **1-Click Universal Auto-Injector Engine**: Instant multi-client discovery, non-destructive config injection, direct provider flags (`--kilo`, `--gemini`, `--cursor`, etc.), global execution mode (`--global`), and backup rotation via:
   ```bash
   npx -y cybermes-mcp install
+  cybermes-mcp install --global
   ```
-- **Local Python Setup Tool**: `scripts/setup_mcp.py` for local and air-gapped developer environments.
-- **Automated Multi-Platform CI/CD**: GitHub Actions workflow (`.github/workflows/mcp-release.yml`) cross-compiling Go binaries for Windows AMD64, Linux AMD64, macOS ARM64 (Apple Silicon), and macOS AMD64 (Intel), complete with SHA256 checksums and automated npm publishing.
-- **Universal AI Client Integration**: Comprehensive setup guides and auto-injection support for 11+ AI clients: OpenCode, Cursor IDE, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code CLI, Continue.dev, Zed, Kilo Code, Hermes, Codex, and Google Antigravity in [`docs/MCP_SETUP.md`](MCP_SETUP.md).
+- **Local Cross-Platform MCP Controller**: `scripts/mcp.py` + launchers (`mcp.bat`, `mcp.ps1`, `mcp.sh`) with live stdio JSON-RPC latency diagnostics, server ON/OFF toggling, and startup optimization.
+- **Automated Unit Testing & CI/CD**: GitHub Actions workflows (`ci.yml` & `mcp-release.yml`) cross-compiling Go binaries for Windows AMD64, Linux AMD64, macOS ARM64, and macOS AMD64, plus Node.js test suites in `npm/test.js` prior to npm publishing.
+- **Universal AI Client Integration**: Comprehensive setup guides and auto-injection support for 13+ AI clients: Google Antigravity / Gemini, Kilo Code, Cursor IDE, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code CLI, Continue.dev, Zed, OpenCode, Hermes, and Codex in [`docs/MCP_SETUP.md`](MCP_SETUP.md).
 
 ---
 

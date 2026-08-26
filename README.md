@@ -31,18 +31,31 @@ Cybermes can be used directly through your AI assistant via **Model Context Prot
 
 ### 1. MCP Server Installation (Recommended for AI Workflows)
 
-Cybermes includes a high-performance native Go MCP server (`cybermes-mcp`) that exposes 10+ security tools and context providers directly to AI coding environments (Cursor, Claude Desktop, Windsurf, VS Code / Cline, Roo Code, OpenCode, and Continue).
+Cybermes includes a high-performance native Go MCP server (`cybermes-mcp`) that exposes 10+ security tools and context providers directly to AI coding environments (**Google Antigravity / Gemini**, **Kilo Code**, **Cursor**, **Claude Desktop**, **Windsurf**, **Cline**, **Roo Code**, **OpenCode**, **Claude Code CLI**, **Continue.dev**, **Zed**, **Hermes**, and **Codex**).
 
 #### Universal Auto-Installer (1-Click)
 ```bash
-# Automatically detects and configures all installed AI clients
+# Auto-detect and configure all installed AI clients
 npx -y cybermes-mcp install
+
+# Install ONLY to specific AI providers:
+npx -y cybermes-mcp install --kilo
+npx -y cybermes-mcp install --gemini --cursor
 ```
 
-#### Local Repository Auto-Injector
+#### Global Installation (No NPX Startup Latency)
 ```bash
-# Offline injector using local configuration
-python scripts/setup_mcp.py
+npm install -g cybermes-mcp
+cybermes-mcp install --global
+```
+
+#### Local Interactive MCP Manager & Optimizer
+```bash
+# Windows
+.\mcp.bat            # or .\mcp.ps1
+
+# Linux / macOS
+./mcp.sh             # or python3 scripts/mcp.py
 ```
 
 #### Manual Client Configuration
@@ -58,7 +71,7 @@ To manually register the MCP server in your client configuration (`mcpServers` s
 }
 ```
 
-> For client-specific paths, flags (`--status`, `--dry-run`, `--uninstall`), and local binary setup, see the **[MCP Integration Guide](docs/MCP_SETUP.md)**.
+> For client-specific paths, direct flags (`--kilo`, `--gemini`, `--global`, `--dry-run`), and native binary setup, see the **[MCP Integration Guide](docs/MCP_SETUP.md)**.
 
 ---
 
