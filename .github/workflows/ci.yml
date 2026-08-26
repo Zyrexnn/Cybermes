@@ -46,11 +46,28 @@ jobs:
 
       - name: Verify Python Script Compilation
         run: |
-          python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py
+          python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py scripts/mcp.py scripts/setup_mcp.py
 
       - name: Validate Skills Integrity
         run: |
           python3 tools/validate_skills.py
+
+  node-mcp-ci:
+    name: Node.js & MCP Package Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run MCP NPM Package Unit Tests
+        run: |
+          node -c npm/bin/cybermes-mcp.js
+          node npm/test.js
 
   docker-lint:
     name: Dockerfile Lint & Validate

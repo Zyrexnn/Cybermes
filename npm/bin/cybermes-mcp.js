@@ -177,11 +177,17 @@ function getAppdataDir() {
   return process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
 }
 
-function getTargetDefinition(useLocal, localBinPath, workspaceRoot) {
+function getTargetDefinition(useLocal, localBinPath, workspaceRoot, useGlobal) {
   if (useLocal && localBinPath) {
     return {
       command: localBinPath,
       args: ['-workspace', workspaceRoot || path.resolve(__dirname, '..', '..')],
+    };
+  }
+  if (useGlobal) {
+    return {
+      command: 'cybermes-mcp',
+      args: [],
     };
   }
   return {
@@ -190,15 +196,24 @@ function getTargetDefinition(useLocal, localBinPath, workspaceRoot) {
   };
 }
 
-function getClientDefinitions(useLocal, localBinPath, workspaceRoot) {
+function getClientDefinitions(useLocal, localBinPath, workspaceRoot, useGlobal) {
   const home = os.homedir();
   const appdata = getAppdataDir();
   const isWin = os.platform() === 'win32';
   const isMac = os.platform() === 'darwin';
 
-  const defaultDef = getTargetDefinition(useLocal, localBinPath, workspaceRoot);
+  const defaultDef = getTargetDefinition(useLocal, localBinPath, workspaceRoot, useGlobal);
 
   return [
+    {
+      id: 'gemini',
+      name: 'Antigravity / Gemini',
+      paths: [
+        path.join(home, '.gemini', 'config', 'mcp_config.json'),
+      ],
+      type: 'json-mcpServers',
+      definition: defaultDef,
+    },
     {
       id: 'claude-desktop',
       name: 'Claude Desktop',
@@ -706,17 +721,43 @@ function checkClientStatus(client, filePath) {
 }
 
 // ============================================================================
-// 4. CLI Subcommand Handlers: runInstaller, runUninstaller, runStatus
+// 4. Modern Terminal UI & Handlers
 // ============================================================================
 
+const ANSI = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  cyan: '\x1b[38;2;6;182;212m',
+  teal: '\x1b[38;2;20;184;166m',
+  green: '\x1b[38;2;34;197;94m',
+  yellow: '\x1b[38;2;234;179;8m',
+  red: '\x1b[38;2;239;68;68m',
+  purple: '\x1b[38;2;168;85;247m',
+  gray: '\x1b[38;2;148;163;184m',
+  darkGray: '\x1b[38;2;71;85;105m',
+  white: '\x1b[38;2;248;250;252m',
+};
+
+function printHeader(title, subtitle = '') {
+  const width = 68;
+  console.log(`\n${ANSI.cyan}╭${'─'.repeat(width - 2)}╮${ANSI.reset}`);
+  console.log(`${ANSI.cyan}│  ${ANSI.bold}${ANSI.white}${title.padEnd(width - 5)}${ANSI.reset}${ANSI.cyan}│${ANSI.reset}`);
+  if (subtitle) {
+    const sub = subtitle.length <= width - 5 ? subtitle : subtitle.substring(0, width - 8) + '...';
+    console.log(`${ANSI.cyan}│  ${ANSI.gray}${sub.padEnd(width - 5)}${ANSI.reset}${ANSI.cyan}│${ANSI.reset}`);
+  }
+  console.log(`${ANSI.cyan}╰${'─'.repeat(width - 2)}╯${ANSI.reset}\n`);
+}
+
 async function runInstaller(options) {
-  console.log('\n🛡️  Cybermes MCP Server — Universal Auto-Installer v' + VERSION);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  printHeader('CYBERMES MCP — AUTO-INJECTOR', `Version: v${VERSION} | Target Clients: 13+ AI IDEs`);
+  
   if (options.dryRun) {
-    console.log('🔍 DRY RUN MODE ACTIVATED — No configuration files will be modified.\n');
+    console.log(`  ${ANSI.yellow}[ DRY RUN ]${ANSI.reset} ${ANSI.gray}Simulation mode active — No files will be modified.${ANSI.reset}\n`);
   }
 
-  const clients = getClientDefinitions(options.useLocal, options.localBinPath, options.workspaceRoot);
+  const clients = getClientDefinitions(options.useLocal, options.localBinPath, options.workspaceRoot, options.useGlobal);
   const filterList = options.clients ? options.clients.split(',').map(s => s.trim().toLowerCase()) : null;
 
   let injectedCount = 0;
@@ -727,7 +768,6 @@ async function runInstaller(options) {
       continue;
     }
 
-    // Pick first matching or existing path, or default to first path if force
     let targetPath = client.paths.find(p => fs.existsSync(p));
     if (!targetPath) {
       if (options.force || options.createAll) {
@@ -742,34 +782,35 @@ async function runInstaller(options) {
 
     if (res.status === 'injected' || res.status === 'dry-run') {
       injectedCount++;
-      console.log(`  ✓ ${client.name.padEnd(26)} -> [${res.status.toUpperCase()}] ${res.path} (${res.details})`);
+      const badge = `${ANSI.green}[ INJECTED ]${ANSI.reset}`;
+      console.log(`  ${badge} ${ANSI.white}${client.name.padEnd(24)}${ANSI.reset} ${ANSI.dim}-> ${res.path}${ANSI.reset}`);
     } else if (res.status === 'unchanged') {
-      console.log(`  = ${client.name.padEnd(26)} -> [UNCHANGED] ${res.path} (${res.details})`);
+      const badge = `${ANSI.cyan}[ READY ]${ANSI.reset}`;
+      console.log(`  ${badge} ${ANSI.white}${client.name.padEnd(24)}${ANSI.reset} ${ANSI.dim}-> Up-to-date${ANSI.reset}`);
     } else if (res.status === 'error') {
-      console.log(`  ✗ ${client.name.padEnd(26)} -> [ERROR] ${res.path} (${res.details})`);
+      const badge = `${ANSI.red}[ ERROR ]${ANSI.reset}`;
+      console.log(`  ${badge} ${ANSI.white}${client.name.padEnd(24)}${ANSI.reset} ${ANSI.red}${res.details}${ANSI.reset}`);
     }
   }
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`\n${ANSI.darkGray}────────────────────────────────────────────────────────────────────${ANSI.reset}`);
   if (injectedCount > 0 || detectedCount > 0) {
-    console.log(`🎉 Process completed! (Targets evaluated: ${detectedCount}, Updates: ${injectedCount})`);
-    console.log('💡 Note: Restart your AI client (Cursor, Claude, Windsurf, etc.) to reload tools.\n');
+    console.log(`  ${ANSI.green}[SUCCESS]${ANSI.reset} Evaluated: ${detectedCount} client(s), Updated: ${injectedCount}`);
+    console.log(`  ${ANSI.gray}Note: Restart your AI client (Cursor, Gemini, Claude, etc.) to reload MCP tools.${ANSI.reset}\n`);
   } else {
-    console.log('ℹ️  No AI client configurations were detected on this system.');
-    console.log('   Use --force to automatically generate configuration files for all supported clients.\n');
+    console.log(`  ${ANSI.yellow}[INFO]${ANSI.reset} No target client configuration detected. Use --force to generate automatically.\n`);
   }
 }
 
 async function runUninstaller(options) {
-  console.log('\n🗑️  Cybermes MCP Server — Uninstaller v' + VERSION);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  printHeader('CYBERMES MCP — UNINSTALLER', `Version: v${VERSION}`);
+  
   if (options.dryRun) {
-    console.log('🔍 DRY RUN MODE ACTIVATED — No configuration files will be modified.\n');
+    console.log(`  ${ANSI.yellow}[ DRY RUN ]${ANSI.reset} ${ANSI.gray}Simulation mode active — No files will be modified.${ANSI.reset}\n`);
   }
 
   const clients = getClientDefinitions();
   const filterList = options.clients ? options.clients.split(',').map(s => s.trim().toLowerCase()) : null;
-
   let removedCount = 0;
 
   for (const client of clients) {
@@ -783,65 +824,147 @@ async function runUninstaller(options) {
     const res = removeClientConfig(client, existingPath, options.dryRun);
     if (res.status === 'removed' || res.status === 'dry-run') {
       removedCount++;
-      console.log(`  ✓ ${client.name.padEnd(26)} -> [REMOVED] ${res.path} (${res.details})`);
+      const badge = `${ANSI.green}[ REMOVED ]${ANSI.reset}`;
+      console.log(`  ${badge} ${client.name.padEnd(24)} -> ${res.path}`);
     } else if (res.status === 'unchanged') {
-      console.log(`  = ${client.name.padEnd(26)} -> [NO CHANGE] ${res.path} (${res.details})`);
+      const badge = `${ANSI.darkGray}[ NO CHANGE ]${ANSI.reset}`;
+      console.log(`  ${badge} ${client.name.padEnd(24)} -> Not present`);
     }
   }
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`✨ Cleanup complete! Removed from ${removedCount} client configuration(s).\n`);
+  console.log(`\n${ANSI.darkGray}────────────────────────────────────────────────────────────────────${ANSI.reset}`);
+  console.log(`  ${ANSI.green}[SUCCESS]${ANSI.reset} Cybermes configuration removed from ${removedCount} client(s).\n`);
 }
 
 async function runStatus() {
-  console.log('\n📊 Cybermes MCP Server — Client Discovery & Status Matrix v' + VERSION);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  printHeader('CYBERMES MCP — CLIENT DISCOVERY MATRIX', `Version: v${VERSION} | Host: ${os.platform()} (${os.arch()})`);
 
   const clients = getClientDefinitions();
+
+  console.log(`  ${ANSI.bold}${'CLIENT'.padEnd(26)} ${'STATUS'.padEnd(16)} CONFIG PATH${ANSI.reset}`);
+  console.log(`  ${ANSI.darkGray}${'─'.repeat(68)}${ANSI.reset}`);
 
   for (const client of clients) {
     const existingPath = client.paths.find(p => fs.existsSync(p)) || client.paths[0];
     const status = checkClientStatus(client, existingPath);
 
-    const mark = status.configured ? '✓' : (status.installed ? '!' : '-');
-    const stateStr = status.configured ? '[CONFIGURED]' : (status.installed ? '[NOT WIRED]' : '[NOT DETECTED]');
-    console.log(`  ${mark} ${client.name.padEnd(26)} ${stateStr.padEnd(16)} ${status.path}`);
+    let badge = `${ANSI.darkGray}[ NOT DETECTED ]${ANSI.reset}`;
+    let nameStr = `${ANSI.darkGray}${client.name.padEnd(26)}${ANSI.reset}`;
+    let pathStr = `${ANSI.darkGray}${status.path}${ANSI.reset}`;
+
+    if (status.configured) {
+      badge = `${ANSI.green}[ CONFIGURED ]${ANSI.reset}`;
+      nameStr = `${ANSI.white}${client.name.padEnd(26)}${ANSI.reset}`;
+      pathStr = `${ANSI.gray}${status.path}${ANSI.reset}`;
+    } else if (status.installed) {
+      badge = `${ANSI.yellow}[ NOT WIRED  ]${ANSI.reset}`;
+      nameStr = `${ANSI.white}${client.name.padEnd(26)}${ANSI.reset}`;
+      pathStr = `${ANSI.yellow}${status.path}${ANSI.reset}`;
+    }
+
+    console.log(`  ${nameStr} ${badge} ${pathStr}`);
   }
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('💡 Run `npx cybermes-mcp install` to automatically configure un-wired clients.\n');
+  console.log(`  ${ANSI.darkGray}${'─'.repeat(68)}${ANSI.reset}`);
+  console.log(`  ${ANSI.gray}Run ${ANSI.cyan}npx cybermes-mcp install${ANSI.gray} to automatically configure un-wired clients.${ANSI.reset}\n`);
+}
+
+const CLIENT_ALIASES = {
+  'gemini': ['gemini', 'antigravity', 'google'],
+  'claude-desktop': ['claude-desktop', 'claude', 'desktop'],
+  'cursor': ['cursor', 'cursor-ide', 'cursoride'],
+  'opencode': ['opencode', 'open-code', 'interpreter'],
+  'windsurf': ['windsurf', 'codeium'],
+  'cline': ['cline', 'claude-dev'],
+  'roo-code': ['roo-code', 'roo', 'roocode', 'roo-cline'],
+  'claude-code': ['claude-code', 'claudecode', 'claude-cli'],
+  'continue': ['continue', 'continuedev', 'continue-dev'],
+  'zed': ['zed', 'zed-editor'],
+  'kilo': ['kilo', 'kilo-code', 'kilocode'],
+  'hermes': ['hermes', 'hermes-agent'],
+  'codex': ['codex', 'codex-cli'],
+};
+
+function resolveClientTarget(token) {
+  const clean = token.toLowerCase().replace(/^--?/, '').trim();
+  for (const [id, aliases] of Object.entries(CLIENT_ALIASES)) {
+    if (id === clean || aliases.includes(clean)) {
+      return id;
+    }
+  }
+  return null;
+}
+
+function parseTargetClients(args) {
+  const targeted = new Set();
+  const knownGeneralFlags = new Set(['install', 'uninstall', 'remove', 'status', 'doctor', 'help', '-h', '--help', '--dry-run', '--force', '--local', '--all']);
+
+  for (const arg of args) {
+    if (arg.startsWith('--clients=')) {
+      const parts = arg.replace('--clients=', '').split(',');
+      for (const p of parts) {
+        const id = resolveClientTarget(p);
+        if (id) targeted.add(id);
+      }
+      continue;
+    }
+
+    if (knownGeneralFlags.has(arg.toLowerCase())) continue;
+
+    const matchedId = resolveClientTarget(arg);
+    if (matchedId) {
+      targeted.add(matchedId);
+    }
+  }
+
+  return targeted.size > 0 ? Array.from(targeted) : null;
 }
 
 function printHelp() {
-  console.log(`
-🛡️  Cybermes Model Context Protocol (MCP) Server — CLI & Auto-Installer v${VERSION}
-https://github.com/${REPO}
+  printHeader('CYBERMES MCP SERVER — CLI HELP', `Package: cybermes-mcp v${VERSION}`);
+  console.log(`  ${ANSI.bold}USAGE:${ANSI.reset}
+    ${ANSI.cyan}npx cybermes-mcp${ANSI.reset} [command] [options/flags]
 
-USAGE:
-  npx cybermes-mcp [command] [options]
+  ${ANSI.bold}COMMANDS:${ANSI.reset}
+    ${ANSI.green}(no command)${ANSI.reset}      Start the Cybermes MCP Server over stdio (JSON-RPC 2.0)
+    ${ANSI.green}install${ANSI.reset}           Auto-detect AI clients and inject MCP configuration
+    ${ANSI.green}status, doctor${ANSI.reset}    Display status matrix across all supported AI clients
+    ${ANSI.green}uninstall${ANSI.reset}         Cleanly remove Cybermes configuration from AI clients
+    ${ANSI.green}help, -h${ANSI.reset}          Display this help menu
 
-COMMANDS:
-  (no command)      Start the Cybermes MCP Server over stdio (JSON-RPC 2.0)
-  install           Auto-detect installed AI clients and inject Cybermes configuration
-  uninstall         Cleanly remove Cybermes configuration from all AI clients
-  status, doctor    Display status and discovery matrix of all supported AI clients
-  help, --help, -h  Display this help menu
+  ${ANSI.bold}TARGET PROVIDER FLAGS (Install to specific AI clients only):${ANSI.reset}
+    ${ANSI.cyan}--gemini${ANSI.reset}, ${ANSI.cyan}--antigravity${ANSI.reset}   Google Antigravity / Gemini CLI & IDE
+    ${ANSI.cyan}--kilo${ANSI.reset}, ${ANSI.cyan}--kilo-code${ANSI.reset}       Kilo Code IDE
+    ${ANSI.cyan}--cursor${ANSI.reset}                  Cursor IDE
+    ${ANSI.cyan}--claude${ANSI.reset}                  Claude Desktop
+    ${ANSI.cyan}--claude-code${ANSI.reset}             Claude Code CLI
+    ${ANSI.cyan}--windsurf${ANSI.reset}                Windsurf IDE (Codeium)
+    ${ANSI.cyan}--cline${ANSI.reset}, ${ANSI.cyan}--roo${ANSI.reset}           Cline / Roo Code (VS Code Extension)
+    ${ANSI.cyan}--opencode${ANSI.reset}                OpenCode Interpreter
+    ${ANSI.cyan}--zed${ANSI.reset}, ${ANSI.cyan}--continue${ANSI.reset}       Zed Editor / Continue.dev
+    ${ANSI.cyan}--hermes${ANSI.reset}, ${ANSI.cyan}--codex${ANSI.reset}         Hermes Agent / Codex CLI
 
-OPTIONS for 'install':
-  --dry-run         Simulate injection without modifying any files
-  --force           Generate config files even if AI client is not currently installed
-  --clients=<list>  Comma-separated client IDs to target (e.g. cursor,claude-desktop,opencode)
-  --local           Wire directly to local compiled binary (tools/bin/cybermes-mcp)
+  ${ANSI.bold}OPTIONS:${ANSI.reset}
+    ${ANSI.yellow}--global, -g${ANSI.reset}      Wire clients to use global 'cybermes-mcp' command (no npx)
+    ${ANSI.yellow}--dry-run${ANSI.reset}         Simulate operations without writing files to disk
+    ${ANSI.yellow}--force${ANSI.reset}           Generate configuration files even if client is not detected
+    ${ANSI.yellow}--local${ANSI.reset}           Wire directly to local compiled binary (tools/bin/cybermes-mcp)
 
-EXAMPLES:
-  # 1-Click universal auto-injection for all detected AI clients:
-  npx -y cybermes-mcp install
+  ${ANSI.bold}EXAMPLES:${ANSI.reset}
+    # 1-Click install globally for all AI clients:
+    ${ANSI.cyan}cybermes-mcp install --global${ANSI.reset}
 
-  # Test what will change without touching disk:
-  npx -y cybermes-mcp install --dry-run
+    # Install ONLY into Kilo Code:
+    ${ANSI.cyan}npx -y cybermes-mcp install --kilo${ANSI.reset}
 
-  # Check configuration status across your IDEs:
-  npx -y cybermes-mcp status
+    # Install into Gemini and Cursor with global command:
+    ${ANSI.cyan}cybermes-mcp install --gemini --cursor --global${ANSI.reset}
+
+    # Check status for specific client:
+    ${ANSI.cyan}npx -y cybermes-mcp status --kilo${ANSI.reset}
+
+    # Remove from Claude Desktop only:
+    ${ANSI.cyan}npx -y cybermes-mcp uninstall --claude${ANSI.reset}
 `);
 }
 
@@ -852,22 +975,32 @@ EXAMPLES:
 async function main() {
   const args = process.argv.slice(2);
   const firstArg = (args[0] || '').toLowerCase();
+  const targetClients = parseTargetClients(args);
+  const useGlobal = args.includes('--global') || args.includes('-g');
 
   if (firstArg === 'install' || firstArg === '--install' || firstArg === '-i') {
     const dryRun = args.includes('--dry-run');
-    const force = args.includes('--force');
+    const force = args.includes('--force') || Boolean(targetClients); // Auto-force if user explicitly targeted a client
     const useLocal = args.includes('--local');
-    const clientsArg = args.find(a => a.startsWith('--clients='))?.replace('--clients=', '');
     const localBin = useLocal ? findLocalDevBinary() : null;
 
-    await runInstaller({ dryRun, force, useLocal, localBinPath: localBin, clients: clientsArg });
+    await runInstaller({
+      dryRun,
+      force,
+      useLocal,
+      useGlobal,
+      localBinPath: localBin,
+      clients: targetClients ? targetClients.join(',') : null,
+    });
     return;
   }
 
   if (firstArg === 'uninstall' || firstArg === '--uninstall' || firstArg === 'remove') {
     const dryRun = args.includes('--dry-run');
-    const clientsArg = args.find(a => a.startsWith('--clients='))?.replace('--clients=', '');
-    await runUninstaller({ dryRun, clients: clientsArg });
+    await runUninstaller({
+      dryRun,
+      clients: targetClients ? targetClients.join(',') : null,
+    });
     return;
   }
 
@@ -878,6 +1011,22 @@ async function main() {
 
   if (firstArg === 'help' || firstArg === '--help' || firstArg === '-h') {
     printHelp();
+    return;
+  }
+
+  // Check if first arg is directly an install flag like `npx cybermes-mcp --kilo`
+  if (targetClients && (firstArg.startsWith('--') || firstArg.startsWith('-'))) {
+    const dryRun = args.includes('--dry-run');
+    const useLocal = args.includes('--local');
+    const localBin = useLocal ? findLocalDevBinary() : null;
+    await runInstaller({
+      dryRun,
+      force: true,
+      useLocal,
+      useGlobal,
+      localBinPath: localBin,
+      clients: targetClients.join(','),
+    });
     return;
   }
 

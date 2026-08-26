@@ -114,6 +114,12 @@ jobs:
           echo "Updating npm package version to $TAG_VER"
           npm version "$TAG_VER" --no-git-tag-version --allow-same-version
 
+      - name: Run NPM Package Tests
+        working-directory: npm
+        run: |
+          node -c bin/cybermes-mcp.js
+          node test.js
+
       - name: Publish to NPM
         working-directory: npm
         if: env.NODE_AUTH_TOKEN != ''

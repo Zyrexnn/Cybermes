@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$BinDir = ""
+    [string]$BinDir = "",
+    [switch]$IncludeNuclei = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -83,19 +84,26 @@ function Install-PDTool {
     }
 }
 
+# Core Lightweight Tools
 $tools = @(
     @{ Repo = "subfinder"; Tool = "subfinder" },
     @{ Repo = "httpx"; Tool = "httpx" },
-    @{ Repo = "katana"; Tool = "katana" },
-    @{ Repo = "nuclei"; Tool = "nuclei" }
+    @{ Repo = "katana"; Tool = "katana" }
 )
+
+if ($IncludeNuclei) {
+    Write-Host "[*] Nuclei included as requested (-IncludeNuclei)..." -ForegroundColor Cyan
+    $tools += @{ Repo = "nuclei"; Tool = "nuclei" }
+} else {
+    Write-Host "[i] Nuclei skipped by default (On-Demand / Optional). Use -IncludeNuclei to install." -ForegroundColor DarkGray
+}
 
 foreach ($t in $tools) {
     Install-PDTool -Repo $t.Repo -ToolName $t.Tool
 }
 
 $nucleiExe = Join-Path $BinDir "nuclei.exe"
-if (Test-Path $nucleiExe) {
+if ($IncludeNuclei -and (Test-Path $nucleiExe)) {
     Write-Host "[*] Updating Nuclei templates..." -ForegroundColor Cyan
     try {
         & $nucleiExe -update-templates -silent

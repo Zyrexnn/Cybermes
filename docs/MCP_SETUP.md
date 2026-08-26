@@ -10,27 +10,66 @@ Cybermes includes an intelligent, non-destructive **Universal Auto-Injector** th
 
 ### Instant Global Installation (Zero-Go NPX)
 ```bash
+# Auto-detect and configure all installed AI clients
 npx -y cybermes-mcp install
+
+# Install ONLY to specific AI providers:
+npx -y cybermes-mcp install --kilo
+npx -y cybermes-mcp install --gemini --cursor
 ```
 
-### Or via Local Repository Setup:
+### Global Installation (No NPX Latency)
 ```bash
-python scripts/setup_mcp.py
+# Install globally via npm:
+npm install -g cybermes-mcp
+
+# Wire clients to use global 'cybermes-mcp' command:
+cybermes-mcp install --global
+cybermes-mcp install --gemini --global
 ```
 
-### Auto-Installer Options:
-| Flag | Description | Example |
+### Auto-Installer Options & Provider Flags:
+| Flag / Option | Description | Example |
 | :--- | :--- | :--- |
-| `--dry-run` | Preview configuration changes without touching disk | `npx cybermes-mcp install --dry-run` |
-| `--status` | Display discovery matrix & wiring status for all AI clients | `npx cybermes-mcp status` |
-| `--local` | Wire directly to local compiled binary (`tools/bin/cybermes-mcp`) | `python scripts/setup_mcp.py --local` |
-| `--clients=` | Target specific clients (comma-separated) | `npx cybermes-mcp install --clients=cursor,claude-desktop` |
-| `--uninstall`| Cleanly remove Cybermes from all client configs | `npx cybermes-mcp uninstall` |
+| `--gemini`, `--antigravity` | Install **only** into **Google Antigravity / Gemini** (`~/.gemini/config/mcp_config.json`) | `npx cybermes-mcp install --gemini` |
+| `--kilo`, `--kilo-code` | Install **only** into **Kilo Code IDE** (`~/.kilo/mcp.json`) | `npx cybermes-mcp install --kilo` |
+| `--cursor` | Install **only** into **Cursor IDE** (`~/.cursor/mcp.json`) | `npx cybermes-mcp install --cursor` |
+| `--claude` | Install **only** into **Claude Desktop** | `npx cybermes-mcp install --claude` |
+| `--claude-code` | Install **only** into **Claude Code CLI** (`~/.claude.json`) | `npx cybermes-mcp install --claude-code` |
+| `--windsurf` | Install **only** into **Windsurf IDE** (`~/.codeium/...`) | `npx cybermes-mcp install --windsurf` |
+| `--cline`, `--roo` | Install **only** into **Cline / Roo Code** | `npx cybermes-mcp install --cline` |
+| `--opencode` | Install **only** into **OpenCode Interpreter** | `npx cybermes-mcp install --opencode` |
+| `--zed`, `--continue` | Install **only** into **Zed Editor** / **Continue.dev** | `npx cybermes-mcp install --zed` |
+| `--hermes`, `--codex` | Install **only** into **Hermes Agent** / **Codex CLI** | `npx cybermes-mcp install --hermes` |
+| `--global`, `-g` | Wire clients to invoke global binary directly without `npx` | `cybermes-mcp install --global` |
+| `--dry-run` | Preview configuration changes without modifying files | `npx cybermes-mcp install --dry-run` |
+| `--status` | Display discovery matrix & health status for all AI clients | `npx cybermes-mcp status` |
+| `--uninstall` | Cleanly remove Cybermes from AI client configs | `npx cybermes-mcp uninstall` |
 | `--force` | Generate config files even if AI client is not yet detected | `npx cybermes-mcp install --force` |
 
 ---
 
-## ⚡ Method 1: Manual Zero-Go NPX Setup (Instant)
+## 🛠️ Method 1: Local Cross-Platform MCP Manager & Optimizer
+
+Cybermes includes a zero-dependency Python management CLI and interactive TUI for real-time latency diagnostics, server toggling, and startup optimization:
+
+```bash
+# Windows (CMD / PowerShell)
+.\mcp.bat            # or .\mcp.ps1
+
+# Linux / macOS (Bash)
+./mcp.sh             # or python3 scripts/mcp.py
+
+# Direct CLI Commands:
+python scripts/mcp.py status          # Live stdio JSON-RPC latency probing
+python scripts/mcp.py toggle cybermes # Enable / disable server (RAM & token optimizer)
+python scripts/mcp.py optimize        # Pre-cache remote npx servers locally
+python scripts/mcp.py backup          # Create or restore timestamped snapshots
+```
+
+---
+
+## ⚡ Method 2: Manual Zero-Go NPX Setup (Instant)
 
 If you prefer manual configuration, Node.js (v18+) automatically downloads the verified binary from GitHub Releases:
 
@@ -235,7 +274,7 @@ args = ["-y", "cybermes-mcp"]
 ---
 
 ### 12. Google Antigravity & Gemini Assistants
-Add to your Antigravity MCP settings or configuration JSON:
+Add to `~/.gemini/config/mcp_config.json`:
 
 ```json
 {
@@ -248,9 +287,14 @@ Add to your Antigravity MCP settings or configuration JSON:
 }
 ```
 
+Or install with direct flag:
+```bash
+npx -y cybermes-mcp install --gemini
+```
+
 ---
 
-## 🛠️ Method 2: Direct Native Go Binary (Offline / Air-Gapped / Enterprise)
+## 🛠️ Method 3: Direct Native Go Binary (Offline / Air-Gapped / Enterprise)
 
 If you have cloned the Cybermes repository or want to run the native pre-compiled Go binary directly without Node.js/npx:
 
@@ -296,12 +340,13 @@ go build -o tools/bin/cybermes-mcp.exe ./cmd/cybermes-mcp
 | **Tool** | `cybermes_list_skills` | Catalog and filter 200+ offensive security playbooks. |
 | **Tool** | `cybermes_get_skill` | Read complete offensive playbook SOPs or specific section headings. |
 | **Tool** | `cybermes_scan_secrets` | 48-pattern credential leak detector with automated masking. |
-| **Tool** | `cybermes_record_finding` | Record verified findings to `reports/<target>/findings/` and generate PoCs. |
-| **Tool** | `cybermes_aggregate_report` | Executive summary generator (`SUMMARY.md` & `metadata.json`). |
-| **Tool** | `cybermes_list_findings` | List confirmed findings and severity breakdown per target. |
+| **Tool** | `cybermes_nuclei_scan` | Targeted vulnerability verification using community and custom templates. |
+| **Tool** | `cybermes_check_environment`| Diagnostics for local toolchain and security binary availability. |
+| **Tool** | `cybermes_record_evidence` | Record raw recon evidence, HTTP logs, and negative test results. |
 | **Resource** | `skills://{skill_name}` | Direct read-only URI access to offensive playbook SOPs. |
 | **Resource** | `reports://{target_slug}/summary` | Direct read-only URI access to executive engagement summaries. |
-| **Prompt** | `cybermes_hunt` & `cybermes_triage` | Zero-false-positive reasoning workflow templates for AI agents. |
+| **Prompt** | `security_recon_audit` | Standardized reconnaissance & attack-surface mapping prompt workflow. |
+| **Prompt** | `api_security_review` | Deterministic REST, GraphQL, and gRPC vulnerability review workflow. |
 
 ---
 

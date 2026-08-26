@@ -51,6 +51,9 @@ func TestNewServer(t *testing.T) {
 		"cybermes_validate_scope",
 		"cybermes_http_probe",
 		"cybermes_recon_crawl",
+		"cybermes_nuclei_scan",
+		"cybermes_check_environment",
+		"cybermes_record_evidence",
 	}
 
 	for _, toolName := range expectedTools {
@@ -376,4 +379,103 @@ func TestToolReconCrawl(t *testing.T) {
 		t.Errorf("Expected crawl summary in output, got: %s", text.Text)
 	}
 }
+
+func TestToolCheckEnvironment(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_check_environment",
+			Arguments: map[string]any{
+				"format": "markdown",
+			},
+		},
+	}
+
+	res, err := srv.handleCheckEnvironment(ctx, req)
+	if err != nil {
+		t.Fatalf("handleCheckEnvironment error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Cybermes Environment & Toolchain Diagnostic") {
+		t.Errorf("Expected Diagnostic header in output, got: %s", text.Text)
+	}
+	if !strings.Contains(text.Text, "nuclei") {
+		t.Errorf("Expected nuclei tool in status matrix, got: %s", text.Text)
+	}
+}
+
+func TestToolRecordEvidence(t *testing.T) {
+	srv, rootDir := setupTestServer(t)
+	ctx := context.Background()
+
+	testSlug := "test_evidence_mcp"
+	targetDir := filepath.Join(rootDir, "reports", testSlug)
+	defer os.RemoveAll(targetDir)
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_record_evidence",
+			Arguments: map[string]any{
+				"target_slug": testSlug,
+				"category":    "Missing Headers",
+				"note":        "Strict-Transport-Security and Content-Security-Policy headers missing on /api/login.",
+			},
+		},
+	}
+
+	res, err := srv.handleRecordEvidence(ctx, req)
+	if err != nil {
+		t.Fatalf("handleRecordEvidence error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Evidence logged successfully") {
+		t.Errorf("Expected success confirmation, got: %s", text.Text)
+	}
+
+	reconNotesPath := filepath.Join(targetDir, "evidence", "recon_notes.md")
+	if _, err := os.Stat(reconNotesPath); os.IsNotExist(err) {
+		t.Errorf("Expected recon_notes.md to be created at %s", reconNotesPath)
+	}
+}
+
+func TestToolNucleiScan(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	// Test with a mock / dummy target
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_nuclei_scan",
+			Arguments: map[string]any{
+				"target_url":      "https://example.com",
+				"target_slug":     "test_nuclei_slug",
+				"template_id":     "non-existent-dummy-cve-1234",
+				"timeout_seconds": float64(5),
+				"format":          "markdown",
+			},
+		},
+	}
+
+	res, err := srv.handleNucleiScan(ctx, req)
+	if err != nil {
+		t.Fatalf("handleNucleiScan error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	// Either executes or returns on-demand install instructions
+	if !strings.Contains(text.Text, "Nuclei") {
+		t.Errorf("Expected output to mention Nuclei, got: %s", text.Text)
+	}
+}
+
 

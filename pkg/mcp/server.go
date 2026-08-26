@@ -115,6 +115,8 @@ func NewServer(cfg Config) (*Server, error) {
 	s.registerSecretsTools()
 	s.registerReportsTools()
 	s.registerReconTools()
+	s.registerNucleiTools()
+	s.registerSystemTools()
 	s.registerResources()
 	s.registerPrompts()
 
