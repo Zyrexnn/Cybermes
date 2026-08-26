@@ -7,7 +7,8 @@
     "cybermes-mcp": "bin/cybermes-mcp.js"
   },
   "scripts": {
-    "start": "node ./bin/cybermes-mcp.js"
+    "start": "node ./bin/cybermes-mcp.js",
+    "test": "node test.js"
   },
   "repository": {
     "type": "git",
