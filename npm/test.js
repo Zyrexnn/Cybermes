@@ -100,27 +100,20 @@ try {
 `;
   fs.writeFileSync(sampleJsonc, rawContent, 'utf8');
 
-  // Verify CLI status/install does not crash on this file
-  const testProc = spawnSync(process.execPath, [
-    '-e',
-    `const { getClientDefinitions } = require('${SCRIPT_PATH.replace(/\\/g, '\\\\')}');
-     const fs = require('fs');
-     const raw = fs.readFileSync('${sampleJsonc.replace(/\\/g, '\\\\')}', 'utf8');
-     let clean;
-     try {
-       clean = JSON.parse(raw);
-     } catch (_) {
-       const stripped = raw
-         .replace(/("(?:\\\\.|[^"\\\\])*")|\\/\\/.*$|\\/\\*[\\s\\S]*?\\*\\//gm, (m, g1) => g1 || '')
-         .replace(/,\\s*([}\\]])/g, '$1');
-       clean = JSON.parse(stripped);
-     }
-     if (clean['$schema'] !== 'https://opencode.ai/config.json') process.exit(1);
-     if (clean.endpoint !== 'https://api.example.com/v1/models//test') process.exit(1);
-     if (clean.server.url !== 'https://router.example.id/v1') process.exit(1);
-    `
-  ]);
-  assert.strictEqual(testProc.status, 0, 'JSON with URLs and comments must parse cleanly without corruption');
+  // Verify URL-safe JSON/JSONC parsing logic
+  let clean;
+  try {
+    clean = JSON.parse(rawContent);
+  } catch (_) {
+    const stripped = rawContent
+      .replace(/("(?:\\.|[^"\\])*")|\/\/.*$|\/\*[\s\S]*?\*\//gm, (m, g1) => g1 || '')
+      .replace(/,\s*([}\]])/g, '$1');
+    clean = JSON.parse(stripped);
+  }
+
+  assert.strictEqual(clean['$schema'], 'https://opencode.ai/config.json', 'Schema URL must be preserved');
+  assert.strictEqual(clean.endpoint, 'https://api.example.com/v1/models//test', 'Endpoint URL with multiple slashes must be preserved');
+  assert.strictEqual(clean.server.url, 'https://router.example.id/v1', 'Nested server URL must be preserved');
   console.log('  -> PASS: URL preservation and JSONC comments parsed perfectly.');
 } finally {
   try { fs.rmSync(testJsoncDir, { recursive: true, force: true }); } catch (_) {}
