@@ -24,7 +24,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-VERSION = "3.0.0"
+VERSION = "3.1.1"
 CYBERMES_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -56,7 +56,11 @@ def safe_read_json(file_path: Path):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read().strip()
-            return json.loads(content) if content else {}
+            if not content:
+                return {}
+            cleaned = re.sub(r"//.*$", "", content, flags=re.MULTILINE)
+            cleaned = re.sub(r"/\*[\s\S]*?\*/", "", cleaned)
+            return json.loads(cleaned)
     except Exception as e:
         return {"_parseError": str(e)}
 
@@ -115,8 +119,14 @@ def get_client_definitions(use_local=False, local_bin=None):
             "id": "opencode",
             "name": "OpenCode Interpreter",
             "paths": [
-                home / ".config" / "opencode" / "opencode.json",
-                home / ".config" / "opencode" / "config.json",
+                p for p in [
+                    home / ".config" / "opencode" / "opencode.json",
+                    home / ".config" / "opencode" / "opencode.jsonc",
+                    home / ".config" / "opencode" / "config.json",
+                    appdata / "opencode" / "opencode.json" if is_win else None,
+                    Path.cwd() / "opencode.json",
+                    Path.cwd() / "opencode.jsonc",
+                ] if p is not None
             ],
             "type": "json-mcp_servers",
             "definition": default_def,
@@ -340,7 +350,10 @@ def inject_config(client: dict, file_path: Path, dry_run: bool):
 
         cmd_json = json.dumps(cdef["command"])
         args_json = json.dumps(cdef["args"])
-        block = f"\nmcp_servers:\n  cybermes:\n    command: {cmd_json}\n    args: {args_json}\n"
+        if "mcp_servers:" in content:
+            block = f"\n  cybermes:\n    command: {cmd_json}\n    args: {args_json}\n"
+        else:
+            block = f"\nmcp_servers:\n  cybermes:\n    command: {cmd_json}\n    args: {args_json}\n"
 
         if not dry_run:
             bak = create_backup(file_path)
@@ -439,13 +452,56 @@ def main():
     parser.add_argument("--status", action="store_true", help="Display client discovery and configuration matrix")
     parser.add_argument("--uninstall", action="store_true", help="Cleanly remove Cybermes MCP configuration")
     parser.add_argument("--clients", type=str, help="Comma-separated client IDs to target")
+    parser.add_argument("--opencode", action="store_true", help="Target only OpenCode Interpreter")
+    parser.add_argument("--gemini", action="store_true", help="Target only Antigravity / Gemini")
+    parser.add_argument("--cursor", action="store_true", help="Target only Cursor IDE")
+    parser.add_argument("--claude", action="store_true", help="Target only Claude Desktop")
+    parser.add_argument("--windsurf", action="store_true", help="Target only Windsurf IDE")
+    parser.add_argument("--cline", action="store_true", help="Target only Cline")
+    parser.add_argument("--roo", action="store_true", help="Target only Roo Code")
+    parser.add_argument("--continue", dest="continue_dev", action="store_true", help="Target only Continue.dev")
+    parser.add_argument("--zed", action="store_true", help="Target only Zed Editor")
+    parser.add_argument("--kilo", action="store_true", help="Target only Kilo Code")
+    parser.add_argument("--hermes", action="store_true", help="Target only Hermes Agent")
+    parser.add_argument("--codex", action="store_true", help="Target only Codex CLI")
 
     args = parser.parse_args()
 
     local_bin = get_local_binary_path() if args.local else None
     clients = get_client_definitions(use_local=args.local, local_bin=local_bin)
 
-    filter_list = [c.strip().lower() for c in args.clients.split(",")] if args.clients else None
+    direct_targets = []
+    if args.opencode:
+        direct_targets.append("opencode")
+    if args.gemini:
+        direct_targets.extend(["gemini", "antigravity"])
+    if args.cursor:
+        direct_targets.append("cursor")
+    if args.claude:
+        direct_targets.extend(["claude", "claude-desktop", "claude-code"])
+    if args.windsurf:
+        direct_targets.append("windsurf")
+    if args.cline:
+        direct_targets.append("cline")
+    if args.roo:
+        direct_targets.append("roo-cline")
+    if args.continue_dev:
+        direct_targets.append("continue")
+    if args.zed:
+        direct_targets.append("zed")
+    if args.kilo:
+        direct_targets.append("kilo")
+    if args.hermes:
+        direct_targets.append("hermes")
+    if args.codex:
+        direct_targets.append("codex")
+
+    if direct_targets:
+        filter_list = direct_targets
+    elif args.clients:
+        filter_list = [c.strip().lower() for c in args.clients.split(",")]
+    else:
+        filter_list = None
 
     if args.status:
         print(f"\n📊 Cybermes MCP Server — Client Discovery Matrix v{VERSION}")

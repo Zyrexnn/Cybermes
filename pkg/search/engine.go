@@ -100,6 +100,9 @@ func (s *Searcher) Search(query string, source string, limit int, maxChars int) 
 }
 
 func (s *Searcher) findCandidateFiles(searchPath string, keywords []string) ([]candidateFile, error) {
+	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
+		return nil, nil
+	}
 	var fileList []string
 
 	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {

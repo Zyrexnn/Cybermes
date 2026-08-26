@@ -1,6 +1,6 @@
 {
   "name": "cybermes-mcp",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Zero-Go Model Context Protocol (MCP) Server for Cybermes Autonomous Security & Diagnostic Framework",
   "main": "bin/cybermes-mcp.js",
   "bin": {

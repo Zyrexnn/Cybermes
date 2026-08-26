@@ -119,6 +119,9 @@ func (s *Server) GetSkillsIndex(forceRefresh bool) ([]SkillMetadata, error) {
 
 	entries, err := os.ReadDir(s.cfg.SkillsDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []SkillMetadata{}, nil
+		}
 		return nil, fmt.Errorf("failed to read skills directory %s: %w", s.cfg.SkillsDir, err)
 	}
 

@@ -4,7 +4,7 @@
 
 **Autonomous Offensive Security & Bug Bounty Automation Framework**
 
-[![Release](https://img.shields.io/badge/Release-v3.0.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
+[![Release](https://img.shields.io/badge/Release-v3.1.1-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)

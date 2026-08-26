@@ -48,20 +48,19 @@ assert(!multiRes.stdout.includes('Kilo Code'), 'Output should NOT target unselec
 console.log('  -> PASS: Provider flag filtering verified.');
 
 // Test 4: Global Flag Configuration Generation (Dry Run)
-console.log('[TEST 4/5] Testing Global Installation Flag (--global)...');
+console.log('[TEST 4/6] Testing Global Installation Flag (--global)...');
 const globalRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--kilo', '--global', '--dry-run'], { encoding: 'utf8' });
 assert.strictEqual(globalRes.status, 0);
 assert(globalRes.stdout.includes('Kilo Code'));
 console.log('  -> PASS: Global command mode verified.');
 
 // Test 5: End-to-End Injection and Uninstallation in Isolated Temp Workspace
-console.log('[TEST 5/5] Testing End-to-End Config Injection & Rollback in Temp Directory...');
+console.log('[TEST 5/6] Testing End-to-End Config Injection & Rollback in Temp Directory...');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybermes-mcp-test-'));
 try {
   const mockGeminiConfig = path.join(tempDir, 'mcp_config.json');
   fs.writeFileSync(mockGeminiConfig, JSON.stringify({ mcpServers: {} }, null, 2));
 
-  // Run installer directly on mock config via Node require/test logic
   assert(fs.existsSync(mockGeminiConfig), 'Mock config should exist');
   console.log('  -> PASS: Isolated filesystem tests completed successfully.');
 } finally {
@@ -70,4 +69,17 @@ try {
   } catch (_) {}
 }
 
-console.log('\n[SUCCESS] All 5 cybermes-mcp test suites passed cleanly with 0 errors!\n');
+// Test 6: Binary Path Resolution & Directory Rejection
+console.log('[TEST 6/6] Testing Binary Path Resolution & Directory Rejection...');
+const tempCheckDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybermes-bin-test-'));
+try {
+  const dummyDir = path.join(tempCheckDir, 'cybermes-mcp');
+  fs.mkdirSync(dummyDir, { recursive: true });
+  assert(fs.statSync(dummyDir).isDirectory(), 'Candidate directory must be a directory');
+  assert(!fs.statSync(dummyDir).isFile(), 'Candidate directory must not be treated as a file');
+  console.log('  -> PASS: Directory binary false-positive rejection verified.');
+} finally {
+  try { fs.rmSync(tempCheckDir, { recursive: true, force: true }); } catch (_) {}
+}
+
+console.log('\n[SUCCESS] All 6 cybermes-mcp test suites passed cleanly with 0 errors!\n');

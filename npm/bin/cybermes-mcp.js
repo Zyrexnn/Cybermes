@@ -40,7 +40,7 @@ function getPlatformInfo() {
   if (arch === 'x64') {
     archName = 'amd64';
   } else if (arch === 'arm64') {
-    archName = 'arm64';
+    archName = platform === 'win32' ? 'amd64' : 'arm64';
   } else {
     throw new Error(`Unsupported CPU architecture: ${arch}`);
   }
@@ -57,9 +57,11 @@ function findLocalDevBinary() {
   ];
 
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
+    try {
+      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        return candidate;
+      }
+    } catch (_) {}
   }
   return null;
 }
@@ -127,7 +129,14 @@ async function getOrDownloadBinary() {
   const cachedBinPath = path.join(cacheDir, binaryFilename);
 
   if (fs.existsSync(cachedBinPath)) {
-    return cachedBinPath;
+    try {
+      if (fs.statSync(cachedBinPath).isFile()) {
+        if (os.platform() !== 'win32') {
+          fs.chmodSync(cachedBinPath, 0o755);
+        }
+        return cachedBinPath;
+      }
+    } catch (_) {}
   }
 
   if (!fs.existsSync(cacheDir)) {
@@ -155,8 +164,9 @@ function createBackup(filePath) {
 function safeReadJson(filePath) {
   if (!fs.existsSync(filePath)) return null;
   try {
-    const content = fs.readFileSync(filePath, 'utf8').trim();
+    let content = fs.readFileSync(filePath, 'utf8').trim();
     if (!content) return {};
+    content = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     return JSON.parse(content);
   } catch (err) {
     return { _parseError: err.message };
@@ -242,8 +252,12 @@ function getClientDefinitions(useLocal, localBinPath, workspaceRoot, useGlobal) 
       name: 'OpenCode Interpreter',
       paths: [
         path.join(home, '.config', 'opencode', 'opencode.json'),
+        path.join(home, '.config', 'opencode', 'opencode.jsonc'),
         path.join(home, '.config', 'opencode', 'config.json'),
-      ],
+        isWin ? path.join(appdata, 'opencode', 'opencode.json') : null,
+        path.join(process.cwd(), 'opencode.json'),
+        path.join(process.cwd(), 'opencode.jsonc'),
+      ].filter(Boolean),
       type: 'json-mcp_servers',
       definition: defaultDef,
     },
@@ -534,7 +548,12 @@ function injectClientConfig(client, filePath, isDryRun) {
 
     const cmdStr = JSON.stringify(client.definition.command);
     const argsStr = JSON.stringify(client.definition.args);
-    const block = `\nmcp_servers:\n  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}\n`;
+    let block = '';
+    if (existingContent.includes('mcp_servers:')) {
+      block = `\n  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}\n`;
+    } else {
+      block = `\nmcp_servers:\n  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}\n`;
+    }
 
     if (!isDryRun) {
       const bak = createBackup(filePath);
