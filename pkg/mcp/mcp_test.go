@@ -478,4 +478,19 @@ func TestToolNucleiScan(t *testing.T) {
 	}
 }
 
+func TestFindProjectRoot(t *testing.T) {
+	root := FindProjectRoot("")
+	if root == "" || root == "." {
+		t.Errorf("Expected FindProjectRoot to discover project root, got: %s", root)
+	}
+	if _, err := os.Stat(filepath.Join(root, "AGENTS.md")); err != nil {
+		t.Errorf("Expected AGENTS.md in discovered root %s, but stat returned: %v", root, err)
+	}
 
+	// Test with environment variable
+	t.Setenv("CYBERMES_ROOT", root)
+	envRoot := FindProjectRoot("")
+	if envRoot != root {
+		t.Errorf("Expected CYBERMES_ROOT to return %s, got %s", root, envRoot)
+	}
+}
