@@ -54,3 +54,46 @@ admin' OR '1'='1' --
 		t.Errorf("expected SourceKB 'PayloadsAllTheThings', got %q", snippets[0].SourceKB)
 	}
 }
+
+func TestSearcherSynonyms(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "kb_synonym_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	payloadsDir := filepath.Join(tempDir, "PayloadsAllTheThings")
+	if err := os.MkdirAll(payloadsDir, 0755); err != nil {
+		t.Fatalf("failed to create sub dir: %v", err)
+	}
+
+	testFile := filepath.Join(payloadsDir, "idor.md")
+	content := `# Insecure Direct Object References
+
+## IDOR Exploitation
+
+Testing for BOLA / object level authorization bypass:
+
+` + "```http" + `
+GET /api/documents/100 HTTP/1.1
+Host: example.com
+` + "```" + `
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	s := NewSearcher(tempDir, tempDir)
+	snippets, err := s.Search("idor", "all", 2, 1000)
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+
+	if len(snippets) == 0 {
+		t.Fatalf("expected at least 1 snippet for synonym 'idor', got 0")
+	}
+
+	if !strings.Contains(snippets[0].Content, "/api/documents/100") {
+		t.Errorf("expected snippet to contain payload, got: %s", snippets[0].Content)
+	}
+}

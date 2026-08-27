@@ -26,6 +26,49 @@ var kbMapping = map[string]string{
 	"hack":       "hack-skills",
 }
 
+var synonymMap = map[string][]string{
+	"idor": {"insecure direct object", "bola", "broken object"},
+	"bola": {"insecure direct object", "idor", "broken object level"},
+	"bpla": {"broken property level authorization", "mass assignment"},
+	"sqli": {"sql injection", "sql-injection"},
+	"xss":  {"cross-site scripting", "cross site scripting"},
+	"csrf": {"cross-site request forgery", "xsrf"},
+	"xsrf": {"cross-site request forgery", "csrf"},
+	"rce":  {"remote code execution", "command injection"},
+	"ssrf": {"server side request forgery", "server-side request forgery"},
+	"xxe":  {"xml external entity"},
+	"jwt":  {"json web token"},
+	"lfi":  {"local file inclusion", "path traversal", "directory traversal"},
+	"rfi":  {"remote file inclusion"},
+	"cors": {"cross-origin resource sharing"},
+	"crlf": {"http response splitting", "carriage return"},
+}
+
+func expandKeywords(terms []string) []string {
+	seen := make(map[string]struct{}, len(terms)*2)
+	var result []string
+
+	for _, term := range terms {
+		t := strings.TrimSpace(strings.ToLower(term))
+		if len(t) <= 1 {
+			continue
+		}
+		if _, exists := seen[t]; !exists {
+			seen[t] = struct{}{}
+			result = append(result, t)
+		}
+		if synonyms, ok := synonymMap[t]; ok {
+			for _, syn := range synonyms {
+				if _, exists := seen[syn]; !exists {
+					seen[syn] = struct{}{}
+					result = append(result, syn)
+				}
+			}
+		}
+	}
+	return result
+}
+
 type Snippet struct {
 	Heading   string `json:"heading"`
 	StartLine int    `json:"start_line"`
@@ -62,12 +105,7 @@ func (s *Searcher) Search(query string, source string, limit int, maxChars int) 
 	}
 
 	rawTerms := strings.Fields(strings.ToLower(query))
-	var keywords []string
-	for _, term := range rawTerms {
-		if len(term) > 1 {
-			keywords = append(keywords, term)
-		}
-	}
+	keywords := expandKeywords(rawTerms)
 	if len(keywords) == 0 {
 		return nil, nil
 	}
