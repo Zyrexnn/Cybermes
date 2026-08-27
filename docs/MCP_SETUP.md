@@ -298,12 +298,25 @@ npx -y cybermes-mcp install --gemini
 
 If you have cloned the Cybermes repository or want to run the native pre-compiled Go binary directly without Node.js/npx:
 
-### 1. Build Local Binary
+### 1. Build All Local Binaries (1-Click)
 ```bash
+# Cross-platform build script (compiles all 5 Go tools to tools/bin/):
+go run scripts/build_tools.go
+
+# Or compile only the MCP server:
 go build -o tools/bin/cybermes-mcp.exe ./cmd/cybermes-mcp
 ```
 
-### 2. Configure Client with Absolute Path (Windows Example)
+### 2. Auto-Wire Local Binary to All Clients
+```bash
+# Using Python auto-installer:
+python scripts/setup_mcp.py --local
+
+# Using NPX / NPM CLI:
+npx -y cybermes-mcp install --local
+```
+
+### 3. Manual Configuration with Absolute Path (Windows Example)
 ```json
 {
   "mcpServers": {
@@ -315,7 +328,7 @@ go build -o tools/bin/cybermes-mcp.exe ./cmd/cybermes-mcp
 }
 ```
 
-### 3. Configure Client (Linux/macOS Example)
+### 4. Manual Configuration (Linux/macOS Example)
 ```json
 {
   "mcpServers": {
@@ -326,6 +339,20 @@ go build -o tools/bin/cybermes-mcp.exe ./cmd/cybermes-mcp
   }
 }
 ```
+
+---
+
+## 🛡️ Windows Defender & Antivirus Exclusion Guide
+
+Because Cybermes contains 50,000+ educational pentest payloads, webshell references (e.g. PHP/ASP one-liners in `knowledge/PayloadsAllTheThings`), and the EICAR test string in text markdown documentation, Windows Defender's real-time memory scanner may flag these text strings during deep indexing or unit tests.
+
+### How to Add Exclusion (PowerShell Administrator):
+```powershell
+# Run PowerShell as Administrator:
+Add-MpPreference -ExclusionPath "C:\path\to\Cybermes"
+```
+
+> **Note**: These files are inert Markdown documentation (`.md` / `.txt`) and not executable malware.
 
 ---
 
