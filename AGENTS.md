@@ -89,4 +89,7 @@ All pre-compiled security binaries are located in `tools/bin/` and exposed on yo
   - Switch to header mutation testing (`tools/wordlists/bypass-headers.txt`).
   - Test alternate casing, path normalization (`/api/v1/..;/admin`), or client-side SPA routing.
 - **Tool Missing Dependency or Fails**:
-  - Adapt by using built-in Python standard libraries (`requests`, `urllib`, `socket`) or fallback tools without terminating the session.
+  - All core capabilities (probing, crawling, fuzzing, secret detection) operate 100% standalone with native Go engines.
+  - If an optional advanced tool (`nuclei`, `sqlmap`, `dalfox`) is evaluated as **important/high-value** for verifying a specific vulnerability hypothesis:
+    1. Proactively notify the operator and provide the exact 1-line installation command (e.g., `pdtm -i nuclei`, `pip install sqlmap`), or propose running the installation directly on their behalf.
+    2. Continue the assessment using Cybermes native capabilities (`cybermes_http_probe`, `cybermes_fuzz_endpoints`, `cybermes_search_knowledge`) without stalling the engagement.
