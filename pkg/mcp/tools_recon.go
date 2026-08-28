@@ -11,8 +11,40 @@ import (
 	"cybermes/pkg/crawl"
 	"cybermes/pkg/probe"
 	"cybermes/pkg/scope"
+	"cybermes/pkg/subdomain"
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+func parseCustomHeaders(raw string) map[string]string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	headers := make(map[string]string)
+	if strings.HasPrefix(raw, "{") {
+		var jsonMap map[string]any
+		if err := json.Unmarshal([]byte(raw), &jsonMap); err == nil {
+			for k, v := range jsonMap {
+				headers[k] = fmt.Sprintf("%v", v)
+			}
+			return headers
+		}
+	}
+
+	lines := strings.Split(raw, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+	return headers
+}
 
 func (s *Server) registerReconTools() {
 	// 1. cybermes_validate_scope
@@ -39,7 +71,7 @@ func (s *Server) registerReconTools() {
 	// 2. cybermes_http_probe
 	httpProbeTool := mcp.NewTool(
 		"cybermes_http_probe",
-		mcp.WithDescription("Inspect an HTTP/HTTPS service, identify status codes, headers, TLS certificates, and fingerprint backend/frontend technologies."),
+		mcp.WithDescription("Inspect an HTTP/HTTPS service, identify status codes, headers, TLS certificates, and fingerprint backend/frontend technologies. Supports custom authentication headers and cookies."),
 		mcp.WithString(
 			"target_url",
 			mcp.Required(),
@@ -48,6 +80,14 @@ func (s *Server) registerReconTools() {
 		mcp.WithString(
 			"target_slug",
 			mcp.Description("Target slug for scope enforcement and logging (e.g. 'example_com')."),
+		),
+		mcp.WithString(
+			"headers",
+			mcp.Description("Custom HTTP headers as JSON string (e.g. '{\"Authorization\": \"Bearer token\"}') or newline-separated 'Key: Value' pairs."),
+		),
+		mcp.WithString(
+			"cookies",
+			mcp.Description("Session cookie string to include in the probe request (e.g. 'session=abc123; role=admin')."),
 		),
 		mcp.WithBoolean(
 			"follow_redirects",
@@ -73,7 +113,7 @@ func (s *Server) registerReconTools() {
 	// 3. cybermes_recon_crawl
 	reconCrawlTool := mcp.NewTool(
 		"cybermes_recon_crawl",
-		mcp.WithDescription("Crawl and mine web endpoints, API routes, and JavaScript bundles with Smart Pipe token budgeting."),
+		mcp.WithDescription("Crawl and mine web endpoints, API routes, and JavaScript bundles with Smart Pipe token budgeting. Supports authenticated crawling with session cookies/headers."),
 		mcp.WithString(
 			"target_url",
 			mcp.Required(),
@@ -82,6 +122,14 @@ func (s *Server) registerReconTools() {
 		mcp.WithString(
 			"target_slug",
 			mcp.Description("Target slug directory for saving full output to recon/<target_slug>/katana.txt."),
+		),
+		mcp.WithString(
+			"headers",
+			mcp.Description("Custom HTTP headers as JSON string (e.g. '{\"Authorization\": \"Bearer ...\"}') or newline-separated 'Key: Value' pairs."),
+		),
+		mcp.WithString(
+			"cookies",
+			mcp.Description("Session cookie string to include in crawl requests (e.g. 'session=abc123')."),
 		),
 		mcp.WithNumber(
 			"depth",
@@ -110,9 +158,40 @@ func (s *Server) registerReconTools() {
 		),
 	)
 
+	// 4. cybermes_subdomain_discovery
+	subdomainTool := mcp.NewTool(
+		"cybermes_subdomain_discovery",
+		mcp.WithDescription("Discover subdomains passively using subfinder or native Certificate Transparency logs (crt.sh) with deduplication and scope checking."),
+		mcp.WithString(
+			"domain",
+			mcp.Required(),
+			mcp.Description("Base target domain to enumerate (e.g. 'example.com' or 'target.co.id')."),
+		),
+		mcp.WithString(
+			"target_slug",
+			mcp.Description("Target slug for logging and scope enforcement (optional)."),
+		),
+		mcp.WithNumber(
+			"timeout_seconds",
+			mcp.Description("Discovery timeout in seconds (default: 30)."),
+			mcp.DefaultNumber(30),
+		),
+		mcp.WithBoolean(
+			"prefer_subfinder",
+			mcp.Description("Attempt to use external subfinder binary before falling back to native Certificate Transparency API (default: true)."),
+		),
+		mcp.WithString(
+			"format",
+			mcp.Description("Output format: 'markdown' (default summary list) or 'json'."),
+			mcp.Enum("markdown", "json"),
+			mcp.DefaultString("markdown"),
+		),
+	)
+
 	s.mcpServer.AddTool(validateScopeTool, s.handleValidateScope)
 	s.mcpServer.AddTool(httpProbeTool, s.handleHttpProbe)
 	s.mcpServer.AddTool(reconCrawlTool, s.handleReconCrawl)
+	s.mcpServer.AddTool(subdomainTool, s.handleSubdomainDiscovery)
 }
 
 func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -167,6 +246,8 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 	}
 
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
+	headersRaw := request.GetString("headers", "")
+	cookies := strings.TrimSpace(request.GetString("cookies", ""))
 	followRedirects := request.GetBool("follow_redirects", false)
 	timeoutSec := request.GetInt("timeout_seconds", 10)
 	preferHttpx := request.GetBool("prefer_httpx", true)
@@ -187,6 +268,8 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 		FollowRedirects: followRedirects,
 		ToolsDir:        s.cfg.ToolsDir,
 		PreferHttpx:     preferHttpx,
+		Headers:         parseCustomHeaders(headersRaw),
+		Cookies:         cookies,
 	}
 
 	result, err := probe.ProbeTarget(ctx, opts)
@@ -249,6 +332,8 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 		targetSlug = sanitizeSlug(targetURL)
 	}
 
+	headersRaw := request.GetString("headers", "")
+	cookies := strings.TrimSpace(request.GetString("cookies", ""))
 	depth := request.GetInt("depth", 2)
 	maxEndpoints := request.GetInt("max_endpoints", 25)
 	timeoutSec := request.GetInt("timeout_seconds", 30)
@@ -274,6 +359,8 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 		ToolsDir:     s.cfg.ToolsDir,
 		OutputDir:    outputDir,
 		PreferKatana: preferKatana,
+		Headers:      parseCustomHeaders(headersRaw),
+		Cookies:      cookies,
 	}
 
 	result, err := crawl.CrawlTarget(ctx, opts)
@@ -307,6 +394,68 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 	if result.TotalEndpointsFound > len(result.TopEndpoints) {
 		sb.WriteString(fmt.Sprintf("\n> 💡 *Note: Remaining %d lower-entropy endpoints filtered to preserve token economy. Full list saved in disk.*",
 			result.TotalEndpointsFound-len(result.TopEndpoints)))
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+func (s *Server) handleSubdomainDiscovery(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	domain := strings.TrimSpace(request.GetString("domain", ""))
+	if domain == "" {
+		return mcp.NewToolResultError("domain parameter is required"), nil
+	}
+
+	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
+	if targetSlug == "" {
+		targetSlug = sanitizeSlug(domain)
+	}
+
+	timeoutSec := request.GetInt("timeout_seconds", 30)
+	preferSubfinder := request.GetBool("prefer_subfinder", true)
+	format := request.GetString("format", "markdown")
+
+	// Scope Guard check
+	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
+	if err == nil && cfg != nil {
+		val := scope.ValidateTarget(domain, cfg)
+		if !val.Allowed {
+			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
+		}
+	}
+
+	opts := subdomain.SubdomainOptions{
+		Domain:          domain,
+		Timeout:         time.Duration(timeoutSec) * time.Second,
+		ToolsDir:        s.cfg.ToolsDir,
+		PreferSubfinder: preferSubfinder,
+	}
+
+	res, err := subdomain.DiscoverSubdomains(ctx, opts)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Subdomain discovery failed: %v", err)), nil
+	}
+
+	if strings.ToLower(format) == "json" {
+		data, err := json.MarshalIndent(res, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to format JSON: %v", err)), nil
+		}
+		return mcp.NewToolResultText(string(data)), nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# 🔍 Subdomain Discovery: `%s`\n\n", res.Domain))
+	sb.WriteString(fmt.Sprintf("- **Total Subdomains Discovered**: `%d`\n", res.TotalFound))
+	sb.WriteString(fmt.Sprintf("- **Engine Used**: `%s` (Completed in %d ms)\n\n", res.EngineUsed, res.DurationMs))
+
+	if len(res.Subdomains) == 0 {
+		sb.WriteString("ℹ️ No active subdomains discovered for this target.\n")
+		return mcp.NewToolResultText(sb.String()), nil
+	}
+
+	sb.WriteString("| # | Subdomain Host |\n| :---: | :--- |\n")
+	for i, sub := range res.Subdomains {
+		sb.WriteString(fmt.Sprintf("| `%d` | `%s` |\n", i+1, sub))
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil

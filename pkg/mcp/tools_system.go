@@ -104,7 +104,8 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		{"aggregate_reports", "Core", "Executive Report & Finding Indexer"},
 		{"httpx", "Core (Go fallback available)", "HTTP Prober & Tech Fingerprinter"},
 		{"katana", "Core (Go fallback available)", "SPA & Endpoint Crawler"},
-		{"subfinder", "Core", "Passive Subdomain Discovery"},
+		{"subfinder", "Core (Go fallback available)", "Passive Subdomain Discovery"},
+		{"ffuf", "Core (Go fallback available)", "Directory & Endpoint Fuzzer"},
 		{"nuclei", "Optional (On-Demand)", "Vulnerability Template & CVE Scanner (~150MB)"},
 		{"sqlmap", "Optional (On-Demand)", "Automated SQL Injection Auditor"},
 	}
@@ -159,7 +160,7 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		if !st.Installed {
 			if strings.Contains(st.Type, "Optional") {
 				badge = "⚪ **OPTIONAL (NOT INSTALLED)**"
-				loc = fmt.Sprintf("*Available on-demand: %s*", getOnDemandInstallInstructions())
+				loc = fmt.Sprintf("*Install on-demand: %s*", getToolInstallCommand(st.Name))
 			} else {
 				badge = "🟡 **FALLBACK ACTIVE**"
 				loc = "*Using native Go internal engine*"
@@ -169,8 +170,21 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 			st.Name, st.Type, badge, loc))
 	}
 
-	sb.WriteString("\n💡 *Tip: Core tools run 100% standalone. Optional tools like Nuclei can be installed on-demand only when needed.*")
+	sb.WriteString("\n💡 *Directive for Agent: Core tools run 100% standalone. If an optional tool (Nuclei, SQLMap, Dalfox) is important for verifying a finding, notify the operator with the install command above or offer to run it.*")
 	return mcp.NewToolResultText(sb.String()), nil
+}
+
+func getToolInstallCommand(name string) string {
+	switch name {
+	case "nuclei":
+		return "`pdtm -i nuclei` or `go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest`"
+	case "sqlmap":
+		return "`pip install sqlmap`"
+	case "dalfox":
+		return "`go install github.com/hahwul/dalfox/v2@latest`"
+	default:
+		return "`go install ...`"
+	}
 }
 
 func (s *Server) handleRecordEvidence(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
