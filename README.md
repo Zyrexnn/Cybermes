@@ -11,7 +11,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
 
-<img src="assets/bannernew.png" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
+<img src="assets/bannerterbaru.jpeg" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
 <p align="center">
   <b>Cybermes</b> is an offensive security assistant and automation framework designed for authorized bug bounty hunting, reconnaissance, vulnerability research, and structured reporting.
@@ -148,17 +148,94 @@ docker compose exec cybermes cybermes "Assess https://example.com"
 
 ## Architecture & Operational Pipeline
 
-Cybermes operates through a closed-loop, deterministic offensive research pipeline:
+Cybermes provides two distinct operational workflows tailored to different execution environments:
+1. **Autonomous Hermes CLI Workflow**: Fully autonomous terminal/headless execution where the local Hermes engine reasons, spawns subprocesses, filters streaming outputs via `smart_pipe`, and executes validation loops directly on the OS.
+2. **Model Context Protocol (MCP) Server Workflow**: Client-Server architecture exposing 10+ high-performance native Go tools and 200+ security SOPs over JSON-RPC 2.0 stdio to external AI coding assistants and IDEs (Gemini/Antigravity, Claude Desktop, Cursor, Windsurf, Cline, Roo Code).
 
-```text
-[Hermes Reasoning] ──> [Reconnaissance] ──> [Analysis & Skills] ──> [Validation Gate] ──> [Structured Reporting]
+---
+
+### 1. 🤖 Autonomous Hermes CLI Workflow
+
+The standalone CLI mode utilizes the built-in **Hermes Agent** engine (`hermes.exe` / `cybermes`) as an autonomous reasoning brain. The operator provides a target prompt, and Hermes autonomously maps the attack surface, invokes CLI binaries, filters outputs through `smart_pipe` to prevent LLM context saturation, verifies hypotheses with standalone PoC scripts, and produces executive reports.
+
+<div align="center">
+  <img src="assets/cybermes_hermes_workflow.jpeg" alt="Cybermes Hermes CLI Workflow" width="100%" style="border-radius: 8px; margin: 14px 0; border: 1px solid #30363d;">
+</div>
+
+#### Hermes CLI Execution Flowchart:
+
+```mermaid
+flowchart TD
+    A([Operator Input: ./cybermes 'Assess target']) --> B[1. Hermes Reasoning Loop]
+    B --> C{Scope & Target Check}
+    C -->|Valid Scope| D[2. Reconnaissance & Crawling]
+    D -->|subfinder / httpx / katana / ffuf| E[smart_pipe Token Stream Filter]
+    E -->|High-Signal Endpoints| F[3. Vulnerability Hypothesis & Skill Matching]
+    F -->|Query 200+ SOPs via search_knowledge| G[4. Zero-False-Positive Validation Gate]
+    G --> H[Generate & Run pocs/poc_*.py]
+    H -->|Verified with Raw HTTP Trace| I[Save to reports/SLUG/findings/]
+    I --> J[5. Structured Multi-Format Reporting]
+    J --> K([aggregate_reports -> SUMMARY.md, HTML, REPORT.pdf])
 ```
 
-1. **Reasoning & Orchestration (`Hermes`)**: Autonomous decision loop evaluating scope, parameter maps, and attack paths via MCP tool invocations.
-2. **Reconnaissance & Probing**: Passive asset discovery (`subfinder`, `gau`) and active crawling/probing (`httpx`, `katana`, `ffuf`).
-3. **Analysis & Skill Execution**: High-speed output filtering (`smart_pipe`) streaming high-signal endpoints into 200+ specialized vulnerability SOPs and offline knowledge lookups (`search_knowledge`).
-4. **Validation Gate (Zero False-Positive)**: Mandatory creation and execution of standalone, non-destructive validation scripts (`pocs/poc_<name>.py`) backed by raw HTTP proof traces.
-5. **Structured Reporting**: Automated compilation into `reports/<TARGET_SLUG>/` (`SUMMARY.md`, `metadata.json`, interactive HTML, and `REPORT.pdf`).
+#### Hermes Pipeline Stages:
+1. **Target Ingestion & Scope Validation**: Operator issues a single CLI prompt. Hermes resolves domain boundaries and initializes target workspace directories (`recon/<TARGET_SLUG>/` and `reports/<TARGET_SLUG>/`).
+2. **Autonomous Toolchain Orchestration**: Hermes spawns external reconnaissance tools (`subfinder`, `httpx`, `katana`, `ffuf`) in sequence.
+3. **High-Speed Stream Filtering (`smart_pipe`)**: Raw outputs are archived to disk in `recon/` while `smart_pipe` streams only relevant endpoints, HTTP status codes, and leaked secrets into Hermes' context window.
+4. **Hypothesis & Skill Retrieval**: Hermes queries the offline database (`search_knowledge`) and loads relevant offensive playbooks from `skills/`.
+5. **Deterministic PoC Validation Gate**: Hermes writes and executes a non-destructive script (`pocs/poc_<vuln>.py`), capturing raw HTTP request/response evidence.
+6. **Report Compilation**: Calls native Go `aggregate_reports` and `generate_pdf.py` to compile `SUMMARY.md`, `metadata.json`, interactive `report.html`, and `REPORT.pdf`.
+
+---
+
+### 2. 🔌 Cybermes MCP Server Workflow
+
+In the MCP workflow, **Cybermes operates as a native JSON-RPC 2.0 server (`cybermes-mcp`)** providing specialized security tools, prompts, and context providers directly to external AI assistants and IDEs (Cursor, Antigravity / Gemini, Claude, Windsurf, VS Code / Cline). The external model acts as the reasoning engine while Cybermes handles high-speed tool execution, local knowledge lookups, and reporting.
+
+<div align="center">
+  <img src="assets/cybermes_mcp_workflow.jpeg" alt="Cybermes MCP Server Workflow" width="100%" style="border-radius: 8px; margin: 14px 0; border: 1px solid #30363d;">
+</div>
+
+#### MCP Protocol Execution Flowchart:
+
+```mermaid
+flowchart TD
+    Client([AI Editor / IDE: Gemini, Claude, Cursor, Cline]) <-->|JSON-RPC 2.0 stdio| MCP[Cybermes MCP Server: cybermes-mcp]
+    
+    subgraph "Cybermes Native MCP Capabilities"
+        MCP --> T1[cybermes_validate_scope]
+        MCP --> T2[cybermes_check_environment]
+        MCP --> T3[cybermes_recon_crawl & cybermes_http_probe]
+        MCP --> T4[cybermes_search_knowledge & cybermes_get_skill]
+        MCP --> T5[cybermes_scan_secrets & cybermes_nuclei_scan]
+        MCP --> T6[cybermes_record_finding & cybermes_aggregate_report]
+    end
+
+    T3 --> R1[(Target Recon & Live Endpoints)]
+    T4 --> R2[(200+ Playbooks & Offline Knowledge)]
+    T5 --> R3[(Vulnerability & Credential Detections)]
+    T6 --> R4[(reports/TARGET_SLUG/ Workspace)]
+```
+
+#### MCP Tooling & Interaction Lifecycle:
+1. **Handshake & Discovery**: AI Client starts `cybermes-mcp` via stdio and discovers exposed tools, schemas, and resource templates.
+2. **Environment & Scope Assessment**: The AI invokes `cybermes_validate_scope` and `cybermes_check_environment` to inspect target authorization and system tool health.
+3. **Structured Recon & Secret Mining**: AI executes `cybermes_recon_crawl`, `cybermes_http_probe`, or `cybermes_scan_secrets`. The MCP server executes compiled routines and returns clean, structured JSON results without context bloat.
+4. **On-Demand Playbook & Exploit Lookup**: When a vulnerability vector is identified, the AI calls `cybermes_search_knowledge` and `cybermes_get_skill` to retrieve targeted exploitation steps in sub-50ms.
+5. **Deterministic Evidence Recording & Aggregation**: AI logs verified findings with `cybermes_record_finding` / `cybermes_record_evidence` and compiles target deliverables via `cybermes_aggregate_report`.
+
+---
+
+### 3. ⚖️ Hermes CLI vs. Cybermes MCP Comparison
+
+| Feature / Dimension | 🤖 Hermes CLI Workflow | 🔌 Cybermes MCP Workflow |
+| :--- | :--- | :--- |
+| **Primary Interface** | Terminal / PowerShell / Docker CLI | AI Coding Editors / IDEs / Web Chat (JSON-RPC) |
+| **Reasoning Engine** | Built-in Hermes Autonomous Agent (`hermes.exe`) | Host AI Client (Gemini, Claude 3.7, GPT-4o, etc.) |
+| **Execution Model** | Autonomous sub-process loop from CLI prompt | Modular Tool & Context calls requested by the AI |
+| **Token Optimization** | OS pipe streaming via Go `smart_pipe` | Native JSON-RPC schema with compact response filters |
+| **Knowledge Access** | CLI binary execution (`search_knowledge`) | In-memory MCP tools (`cybermes_search_knowledge`, `cybermes_get_skill`) |
+| **Deliverables Output** | Direct filesystem generation in `reports/<TARGET_SLUG>/` | Programmatic management via `cybermes_aggregate_report` |
 
 ---
 
