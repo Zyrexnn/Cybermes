@@ -51,6 +51,9 @@ func TestNewServer(t *testing.T) {
 		"cybermes_validate_scope",
 		"cybermes_http_probe",
 		"cybermes_recon_crawl",
+		"cybermes_subdomain_discovery",
+		"cybermes_fuzz_endpoints",
+		"cybermes_filter_stream",
 		"cybermes_nuclei_scan",
 		"cybermes_check_environment",
 		"cybermes_record_evidence",
@@ -63,11 +66,18 @@ func TestNewServer(t *testing.T) {
 	}
 
 	prompts := srv.MCPServer().ListPrompts()
-	if _, ok := prompts["cybermes_hunt"]; !ok {
-		t.Error("Expected prompt cybermes_hunt to be registered")
+	expectedPrompts := []string{
+		"cybermes_hunt",
+		"cybermes_triage",
+		"cybermes_api_audit",
+		"cybermes_idor_matrix",
+		"cybermes_403_bypass",
+		"cybermes_ai_prompt_injection_audit",
 	}
-	if _, ok := prompts["cybermes_triage"]; !ok {
-		t.Error("Expected prompt cybermes_triage to be registered")
+	for _, p := range expectedPrompts {
+		if _, ok := prompts[p]; !ok {
+			t.Errorf("Expected prompt %s to be registered", p)
+		}
 	}
 }
 
@@ -241,23 +251,49 @@ func TestResourceAndPrompts(t *testing.T) {
 	srv, _ := setupTestServer(t)
 	ctx := context.Background()
 
-	// 1. Read skill resource
+	// 1. Read skill resource template & static index
 	resReq := mcp.ReadResourceRequest{
 		Params: mcp.ReadResourceParams{
 			URI: "skills://hunt-idor",
 		},
 	}
-
 	resContents, err := srv.handleReadSkillResource(ctx, resReq)
-	if err != nil {
+	if err != nil || len(resContents) == 0 {
 		t.Fatalf("handleReadSkillResource error: %v", err)
 	}
-	if len(resContents) == 0 {
-		t.Fatal("Expected non-empty resource contents")
+
+	skillsIndexReq := mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{
+			URI: "skills://index",
+		},
+	}
+	idxContents, err := srv.handleReadSkillsIndexResource(ctx, skillsIndexReq)
+	if err != nil || len(idxContents) == 0 {
+		t.Fatalf("handleReadSkillsIndexResource error: %v", err)
+	}
+
+	reportsIndexReq := mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{
+			URI: "reports://index",
+		},
+	}
+	repContents, err := srv.handleReadReportsIndexResource(ctx, reportsIndexReq)
+	if err != nil || len(repContents) == 0 {
+		t.Fatalf("handleReadReportsIndexResource error: %v", err)
+	}
+
+	knowledgeResReq := mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{
+			URI: "knowledge://cheatsheets",
+		},
+	}
+	knowContents, err := srv.handleReadKnowledgeCheatsheetsResource(ctx, knowledgeResReq)
+	if err != nil || len(knowContents) == 0 {
+		t.Fatalf("handleReadKnowledgeCheatsheetsResource error: %v", err)
 	}
 
 	// 2. Hunt prompt
-	promptReq := mcp.GetPromptRequest{
+	huntReq := mcp.GetPromptRequest{
 		Params: mcp.GetPromptParams{
 			Name: "cybermes_hunt",
 			Arguments: map[string]string{
@@ -266,13 +302,107 @@ func TestResourceAndPrompts(t *testing.T) {
 			},
 		},
 	}
-
-	promptRes, err := srv.handleHuntPrompt(ctx, promptReq)
-	if err != nil {
+	huntRes, err := srv.handleHuntPrompt(ctx, huntReq)
+	if err != nil || len(huntRes.Messages) == 0 {
 		t.Fatalf("handleHuntPrompt error: %v", err)
 	}
-	if len(promptRes.Messages) == 0 {
-		t.Fatal("Expected messages in prompt result")
+
+	// 3. API Audit prompt
+	apiAuditReq := mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{
+			Name: "cybermes_api_audit",
+			Arguments: map[string]string{
+				"target_url": "https://api.target.com/v1",
+				"api_type":   "rest",
+			},
+		},
+	}
+	apiRes, err := srv.handleApiAuditPrompt(ctx, apiAuditReq)
+	if err != nil || len(apiRes.Messages) == 0 {
+		t.Fatalf("handleApiAuditPrompt error: %v", err)
+	}
+
+	// 4. IDOR Matrix prompt
+	idorReq := mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{
+			Name: "cybermes_idor_matrix",
+			Arguments: map[string]string{
+				"target_url": "https://api.target.com",
+				"endpoint":   "GET /invoices/{id}",
+			},
+		},
+	}
+	idorRes, err := srv.handleIdorMatrixPrompt(ctx, idorReq)
+	if err != nil || len(idorRes.Messages) == 0 {
+		t.Fatalf("handleIdorMatrixPrompt error: %v", err)
+	}
+
+	// 5. 403 Bypass prompt
+	bypassReq := mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{
+			Name: "cybermes_403_bypass",
+			Arguments: map[string]string{
+				"target_url":   "https://api.target.com",
+				"blocked_path": "/admin/config",
+			},
+		},
+	}
+	bypassRes, err := srv.handleBypassPrompt(ctx, bypassReq)
+	if err != nil || len(bypassRes.Messages) == 0 {
+		t.Fatalf("handleBypassPrompt error: %v", err)
+	}
+
+	// 6. AI Prompt Injection Audit prompt
+	aiAuditReq := mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{
+			Name: "cybermes_ai_prompt_injection_audit",
+			Arguments: map[string]string{
+				"target_url":     "https://api.target.com/v1/chat",
+				"feature_type":   "chatbot",
+				"injection_type": "direct_injection",
+			},
+		},
+	}
+	aiAuditRes, err := srv.handleAiPromptInjectionAuditPrompt(ctx, aiAuditReq)
+	if err != nil || len(aiAuditRes.Messages) == 0 {
+		t.Fatalf("handleAiPromptInjectionAuditPrompt error: %v", err)
+	}
+}
+
+func TestToolFilterStream(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	mockLog := `
+		[INFO] 200 OK https://example.com/index.html
+		[CRITICAL] SQL Injection detected at https://example.com/api/v1/users?id=1'--
+		[DEBUG] Loading static asset https://example.com/images/logo.png
+		[HIGH] Auth Bypass found at https://example.com/admin/dashboard
+		[INFO] 404 Not Found https://example.com/nonexistent
+	`
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_filter_stream",
+			Arguments: map[string]any{
+				"content":   mockLog,
+				"limit":     float64(5),
+				"min_score": float64(10),
+				"format":    "markdown",
+			},
+		},
+	}
+
+	res, err := srv.handleFilterStream(ctx, req)
+	if err != nil {
+		t.Fatalf("handleFilterStream error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Cybermes Smart Stream Filter") || !strings.Contains(text.Text, "SQL Injection") {
+		t.Errorf("Expected filtered stream summary with SQL Injection, got: %s", text.Text)
 	}
 }
 
@@ -494,3 +624,168 @@ func TestFindProjectRoot(t *testing.T) {
 		t.Errorf("Expected CYBERMES_ROOT to return %s, got %s", root, envRoot)
 	}
 }
+
+func TestToolSubdomainDiscovery(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_subdomain_discovery",
+			Arguments: map[string]any{
+				"domain":           "example.com",
+				"prefer_subfinder": false,
+				"timeout_seconds":  float64(5),
+				"format":           "markdown",
+			},
+		},
+	}
+
+	res, err := srv.handleSubdomainDiscovery(ctx, req)
+	if err != nil {
+		t.Fatalf("handleSubdomainDiscovery error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Subdomain Discovery") {
+		t.Errorf("Expected Subdomain Discovery output, got: %s", text.Text)
+	}
+}
+
+func TestToolFuzzEndpoints(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/health" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mockServer.Close()
+
+	tmpDir := t.TempDir()
+	wlFile := filepath.Join(tmpDir, "test_words.txt")
+	_ = os.WriteFile(wlFile, []byte("api/v1/health\nadmin\nlogin\n"), 0644)
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_fuzz_endpoints",
+			Arguments: map[string]any{
+				"target_url":      mockServer.URL,
+				"wordlist":        wlFile,
+				"prefer_ffuf":     false,
+				"rate_limit":      float64(25),
+				"timeout_seconds": float64(3),
+				"format":          "markdown",
+			},
+		},
+	}
+
+	res, err := srv.handleFuzzEndpoints(ctx, req)
+	if err != nil {
+		t.Fatalf("handleFuzzEndpoints error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Endpoint Fuzzing Results") {
+		t.Errorf("Expected Endpoint Fuzzing Results output, got: %s", text.Text)
+	}
+}
+
+func TestToolFilterStream_JSONAndErrors(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	// 1. Error on empty content
+	emptyReq := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_filter_stream",
+			Arguments: map[string]any{
+				"content": "",
+			},
+		},
+	}
+	res, err := srv.handleFilterStream(ctx, emptyReq)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !res.IsError {
+		t.Error("Expected error result on empty content")
+	}
+
+	// 2. JSON output format
+	mockLog := "200 OK https://example.com/api/v1/users\n403 Forbidden /admin\n[DEBUG] static asset"
+	jsonReq := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_filter_stream",
+			Arguments: map[string]any{
+				"content":   mockLog,
+				"format":    "json",
+				"limit":     float64(10),
+				"min_score": float64(5),
+			},
+		},
+	}
+	jsonRes, err := srv.handleFilterStream(ctx, jsonReq)
+	if err != nil {
+		t.Fatalf("handleFilterStream json error: %v", err)
+	}
+	jsonText, ok := mcp.AsTextContent(jsonRes.Content[0])
+	if !ok || !strings.Contains(jsonText.Text, "total_raw_lines") {
+		t.Errorf("Expected JSON stream filter result, got: %s", jsonText.Text)
+	}
+}
+
+func TestPrompts_MissingArguments(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	// Missing target in cybermes_hunt
+	_, err := srv.handleHuntPrompt(ctx, mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{Name: "cybermes_hunt", Arguments: map[string]string{}},
+	})
+	if err == nil {
+		t.Error("Expected error when target is missing in hunt prompt")
+	}
+
+	// Missing target_url in cybermes_api_audit
+	_, err = srv.handleApiAuditPrompt(ctx, mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{Name: "cybermes_api_audit", Arguments: map[string]string{}},
+	})
+	if err == nil {
+		t.Error("Expected error when target_url is missing in api audit prompt")
+	}
+
+	// Missing endpoint in cybermes_idor_matrix
+	_, err = srv.handleIdorMatrixPrompt(ctx, mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{Name: "cybermes_idor_matrix", Arguments: map[string]string{"target_url": "https://example.com"}},
+	})
+	if err == nil {
+		t.Error("Expected error when endpoint is missing in idor matrix prompt")
+	}
+
+	// Missing blocked_path in cybermes_403_bypass
+	_, err = srv.handleBypassPrompt(ctx, mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{Name: "cybermes_403_bypass", Arguments: map[string]string{"target_url": "https://example.com"}},
+	})
+	if err == nil {
+		t.Error("Expected error when blocked_path is missing in 403 bypass prompt")
+	}
+
+	// Missing target_url in cybermes_ai_prompt_injection_audit
+	_, err = srv.handleAiPromptInjectionAuditPrompt(ctx, mcp.GetPromptRequest{
+		Params: mcp.GetPromptParams{Name: "cybermes_ai_prompt_injection_audit", Arguments: map[string]string{}},
+	})
+	if err == nil {
+		t.Error("Expected error when target_url is missing in ai prompt injection audit prompt")
+	}
+}
+
+
