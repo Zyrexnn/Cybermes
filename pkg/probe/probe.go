@@ -57,6 +57,8 @@ type ProbeOptions struct {
 	ToolsDir        string
 	UserAgent       string
 	PreferHttpx     bool
+	Headers         map[string]string
+	Cookies         string
 }
 
 // ExtractTitle finds the <title> tag text inside an HTML body.
@@ -130,6 +132,15 @@ func ProbeNative(ctx context.Context, opts ProbeOptions) (*ProbeResult, error) {
 	}
 	req.Header.Set("User-Agent", opts.UserAgent)
 	req.Header.Set("Accept", "*/*")
+
+	if opts.Cookies != "" {
+		req.Header.Set("Cookie", opts.Cookies)
+	}
+	for k, v := range opts.Headers {
+		if strings.TrimSpace(k) != "" {
+			req.Header.Set(strings.TrimSpace(k), strings.TrimSpace(v))
+		}
+	}
 
 	startTime := time.Now()
 	resp, err := client.Do(req)
@@ -233,6 +244,25 @@ func ProbeHttpx(ctx context.Context, opts ProbeOptions) (*ProbeResult, error) {
 		"-tech-detect",
 		"-json",
 		"-timeout", fmt.Sprintf("%d", timeoutSec),
+	}
+
+	if opts.Cookies != "" {
+		hasCookieHeader := false
+		for k := range opts.Headers {
+			if strings.EqualFold(k, "cookie") {
+				hasCookieHeader = true
+				break
+			}
+		}
+		if !hasCookieHeader {
+			args = append(args, "-H", fmt.Sprintf("Cookie: %s", opts.Cookies))
+		}
+	}
+
+	for k, v := range opts.Headers {
+		if strings.TrimSpace(k) != "" {
+			args = append(args, "-H", fmt.Sprintf("%s: %s", strings.TrimSpace(k), strings.TrimSpace(v)))
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, httpxPath, args...)

@@ -112,3 +112,81 @@ fetch("/api/v1/internal/config");
 		t.Errorf("Expected katana.txt to have content")
 	}
 }
+
+func TestCrawlNative_WithAuthHeadersAndCookies(t *testing.T) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<!DOCTYPE html>
+<html>
+<body>
+    <a href="/public">Public</a>
+    <a href="/protected/admin">Protected Admin</a>
+</body>
+</html>`))
+	})
+
+	mux.HandleFunc("/protected/admin", func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		cookie := r.Header.Get("Cookie")
+		if auth != "Bearer token-xyz" || !strings.Contains(cookie, "role=superadmin") {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("Unauthorized"))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<!DOCTYPE html>
+<html>
+<body>
+    <a href="/api/v1/internal/secrets">Internal Secrets</a>
+    <a href="/api/v1/users/export">Export Users</a>
+</body>
+</html>`))
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	opts := CrawlOptions{
+		TargetURL:    server.URL,
+		Depth:        2,
+		MaxEndpoints: 20,
+		Timeout:      3 * time.Second,
+		Headers: map[string]string{
+			"Authorization": "Bearer token-xyz",
+		},
+		Cookies:      "role=superadmin",
+		PreferKatana: false,
+	}
+
+	res, err := CrawlTarget(ctx, opts)
+	if err != nil {
+		t.Fatalf("CrawlTarget failed: %v", err)
+	}
+
+	hasEndpointContaining := func(sub string) bool {
+		for _, item := range res.TopEndpoints {
+			if strings.Contains(item.Text, sub) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !hasEndpointContaining("/protected/admin") {
+		t.Errorf("Expected /protected/admin to be discovered")
+	}
+	if !hasEndpointContaining("/api/v1/internal/secrets") {
+		t.Errorf("Expected authenticated endpoint /api/v1/internal/secrets to be discovered")
+	}
+	if !hasEndpointContaining("/api/v1/users/export") {
+		t.Errorf("Expected authenticated endpoint /api/v1/users/export to be discovered")
+	}
+}
+

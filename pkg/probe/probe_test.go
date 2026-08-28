@@ -102,3 +102,56 @@ func TestExtractTitle(t *testing.T) {
 		t.Errorf("Expected empty title, got '%s'", title)
 	}
 }
+
+func TestProbeNative_WithAuthHeadersAndCookies(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		cookieHeader := r.Header.Get("Cookie")
+		customHeader := r.Header.Get("X-Custom-Auth")
+
+		if authHeader != "Bearer secret-token-123" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("Unauthorized"))
+			return
+		}
+		if !strings.Contains(cookieHeader, "session_id=mock-session-456") {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("Forbidden"))
+			return
+		}
+		if customHeader != "CybermesSpecial" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("Missing custom header"))
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"authenticated": true, "user": "admin"}`))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	opts := ProbeOptions{
+		TargetURL: server.URL,
+		Timeout:   3 * time.Second,
+		Headers: map[string]string{
+			"Authorization": "Bearer secret-token-123",
+			"X-Custom-Auth": "CybermesSpecial",
+		},
+		Cookies:     "session_id=mock-session-456",
+		PreferHttpx: false,
+	}
+
+	res, err := ProbeTarget(ctx, opts)
+	if err != nil {
+		t.Fatalf("ProbeTarget failed: %v", err)
+	}
+
+	if res.StatusCode != 200 {
+		t.Fatalf("Expected status 200, got %d", res.StatusCode)
+	}
+}
+

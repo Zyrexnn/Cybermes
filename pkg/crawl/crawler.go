@@ -36,6 +36,8 @@ type CrawlOptions struct {
 	OutputDir    string
 	PreferKatana bool
 	UserAgent    string
+	Headers      map[string]string
+	Cookies      string
 }
 
 // CrawlResult holds the summarized and filtered crawl discovery data.
@@ -180,22 +182,48 @@ func runKatana(ctx context.Context, katanaPath string, opts CrawlOptions) ([]str
 		"-ct", fmt.Sprintf("%ds", timeoutSec),
 	}
 
+	if opts.Cookies != "" {
+		hasCookieHeader := false
+		for k := range opts.Headers {
+			if strings.EqualFold(k, "cookie") {
+				hasCookieHeader = true
+				break
+			}
+		}
+		if !hasCookieHeader {
+			args = append(args, "-H", fmt.Sprintf("Cookie: %s", opts.Cookies))
+		}
+	}
+
+	for k, v := range opts.Headers {
+		if strings.TrimSpace(k) != "" {
+			args = append(args, "-H", fmt.Sprintf("%s: %s", strings.TrimSpace(k), strings.TrimSpace(v)))
+		}
+	}
+
 	cmd := exec.CommandContext(ctx, katanaPath, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil && stdout.Len() == 0 && stderr.Len() == 0 {
 		return nil, fmt.Errorf("katana command failed: %w", err)
 	}
 
 	var results []string
-	scanner := bufio.NewScanner(&stdout)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" {
-			results = append(results, line)
+	parseLines := func(buf *bytes.Buffer) {
+		scanner := bufio.NewScanner(buf)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" && (strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") || strings.HasPrefix(line, "/")) {
+				results = append(results, line)
+			}
 		}
+	}
+
+	parseLines(&stdout)
+	if len(results) == 0 {
+		parseLines(&stderr)
 	}
 
 	return results, nil
@@ -244,6 +272,15 @@ func runNativeCrawler(ctx context.Context, opts CrawlOptions) ([]string, error) 
 				continue
 			}
 			req.Header.Set("User-Agent", opts.UserAgent)
+
+			if opts.Cookies != "" {
+				req.Header.Set("Cookie", opts.Cookies)
+			}
+			for k, v := range opts.Headers {
+				if strings.TrimSpace(k) != "" {
+					req.Header.Set(strings.TrimSpace(k), strings.TrimSpace(v))
+				}
+			}
 
 			resp, err := client.Do(req)
 			if err != nil {
