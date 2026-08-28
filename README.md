@@ -152,30 +152,39 @@ Cybermes provides two distinct operational workflows tailored to different execu
 1. **Autonomous Hermes CLI Workflow**: Fully autonomous terminal/headless execution where the local Hermes engine reasons, spawns subprocesses, filters streaming outputs via `smart_pipe`, and executes validation loops directly on the OS.
 2. **Model Context Protocol (MCP) Server Workflow**: Client-Server architecture exposing 10+ high-performance native Go tools and 200+ security SOPs over JSON-RPC 2.0 stdio to external AI coding assistants and IDEs (Gemini/Antigravity, Claude Desktop, Cursor, Windsurf, Cline, Roo Code).
 
----
-
 ### 1. 🤖 Autonomous Hermes CLI Workflow
 
 The standalone CLI mode utilizes the built-in **Hermes Agent** engine (`hermes.exe` / `cybermes`) as an autonomous reasoning brain. The operator provides a target prompt, and Hermes autonomously maps the attack surface, invokes CLI binaries, filters outputs through `smart_pipe` to prevent LLM context saturation, verifies hypotheses with standalone PoC scripts, and produces executive reports.
 
 <div align="center">
-  <img src="assets/cybermes_hermes_workflow.jpeg" alt="Cybermes Hermes CLI Workflow" width="100%" style="border-radius: 8px; margin: 14px 0; border: 1px solid #30363d;">
+  <img src="assets/cybermes_hermes_workflow.jpeg" alt="Cybermes Hermes CLI Workflow" width="85%" style="max-width: 800px; border-radius: 8px; margin: 12px 0; border: 1px solid #30363d;">
 </div>
 
-#### Hermes CLI Execution Flowchart:
+#### Hermes CLI Execution Flow:
 
 ```mermaid
-flowchart TD
-    A([Operator Input: ./cybermes 'Assess target']) --> B[1. Hermes Reasoning Loop]
-    B --> C{Scope & Target Check}
-    C -->|Valid Scope| D[2. Reconnaissance & Crawling]
-    D -->|subfinder / httpx / katana / ffuf| E[smart_pipe Token Stream Filter]
-    E -->|High-Signal Endpoints| F[3. Vulnerability Hypothesis & Skill Matching]
-    F -->|Query 200+ SOPs via search_knowledge| G[4. Zero-False-Positive Validation Gate]
-    G --> H[Generate & Run pocs/poc_*.py]
-    H -->|Verified with Raw HTTP Trace| I[Save to reports/SLUG/findings/]
-    I --> J[5. Structured Multi-Format Reporting]
-    J --> K([aggregate_reports -> SUMMARY.md, HTML, REPORT.pdf])
+flowchart LR
+    subgraph P1["1. Scope & Recon"]
+        direction TB
+        A([CLI Input]) --> B[Hermes Agent]
+        B --> C[Recon Tools]
+        C --> D[smart_pipe Filter]
+    end
+
+    subgraph P2["2. Skill & Validation Gate"]
+        direction TB
+        D --> E[Knowledge & SOPs]
+        E --> F[Validation Gate]
+        F --> G[Run PoC Script]
+    end
+
+    subgraph P3["3. Deliverables"]
+        direction TB
+        G --> H[reports/ Workspace]
+        H --> I([Executive Reports])
+    end
+
+    P1 ==> P2 ==> P3
 ```
 
 #### Hermes Pipeline Stages:
@@ -193,28 +202,25 @@ flowchart TD
 In the MCP workflow, **Cybermes operates as a native JSON-RPC 2.0 server (`cybermes-mcp`)** providing specialized security tools, prompts, and context providers directly to external AI assistants and IDEs (Cursor, Antigravity / Gemini, Claude, Windsurf, VS Code / Cline). The external model acts as the reasoning engine while Cybermes handles high-speed tool execution, local knowledge lookups, and reporting.
 
 <div align="center">
-  <img src="assets/cybermes_mcp_workflow.jpeg" alt="Cybermes MCP Server Workflow" width="100%" style="border-radius: 8px; margin: 14px 0; border: 1px solid #30363d;">
+  <img src="assets/cybermes_mcp_workflow.jpeg" alt="Cybermes MCP Server Workflow" width="85%" style="max-width: 800px; border-radius: 8px; margin: 12px 0; border: 1px solid #30363d;">
 </div>
 
-#### MCP Protocol Execution Flowchart:
+#### MCP Protocol Execution Flow:
 
 ```mermaid
-flowchart TD
-    Client([AI Editor / IDE: Gemini, Claude, Cursor, Cline]) <-->|JSON-RPC 2.0 stdio| MCP[Cybermes MCP Server: cybermes-mcp]
+flowchart LR
+    Client([AI Editor / IDE]) <-->|JSON-RPC 2.0 stdio| MCP[Cybermes MCP: cybermes-mcp]
     
-    subgraph "Cybermes Native MCP Capabilities"
-        MCP --> T1[cybermes_validate_scope]
-        MCP --> T2[cybermes_check_environment]
-        MCP --> T3[cybermes_recon_crawl & cybermes_http_probe]
-        MCP --> T4[cybermes_search_knowledge & cybermes_get_skill]
-        MCP --> T5[cybermes_scan_secrets & cybermes_nuclei_scan]
-        MCP --> T6[cybermes_record_finding & cybermes_aggregate_report]
+    subgraph Tools["Modular Capabilities"]
+        direction TB
+        T1[Recon & Probing]
+        T2[200+ SOPs & Knowledge]
+        T3[Secrets & Nuclei Scan]
+        T4[Findings & Evidence]
     end
 
-    T3 --> R1[(Target Recon & Live Endpoints)]
-    T4 --> R2[(200+ Playbooks & Offline Knowledge)]
-    T5 --> R3[(Vulnerability & Credential Detections)]
-    T6 --> R4[(reports/TARGET_SLUG/ Workspace)]
+    MCP <--> Tools
+    Tools --> Out[(reports/SLUG/ Deliverables)]
 ```
 
 #### MCP Tooling & Interaction Lifecycle:
