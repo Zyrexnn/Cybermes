@@ -356,24 +356,48 @@ Add-MpPreference -ExclusionPath "C:\path\to\Cybermes"
 
 ---
 
-## 🧰 Available Capabilities Summary (10 Native Tools + 2 Resources + 2 Prompts)
+## 🧰 Available Capabilities Summary (16 Native Tools + 5 Resources + 6 Workflow Prompts)
 
-| Type | Name | Purpose |
+### 🛠️ 16 MCP Tools
+| Tool Name | Engine & Scope | Purpose |
 | :--- | :--- | :--- |
-| **Tool** | `cybermes_validate_scope` | Scope Guard: Target evaluation against `scope.yaml` (Wildcard, CIDR, Exclude rules). |
-| **Tool** | `cybermes_http_probe` | HTTP inspection, TLS certificate extraction, and framework fingerprinting. |
-| **Tool** | `cybermes_recon_crawl` | Endpoint discovery & JS bundle mining with Smart Pipe token budgeting. |
-| **Tool** | `cybermes_search_knowledge`| Sub-50ms query against 50,000+ curated payloads (PayloadsAllTheThings, HackTricks, Strix). |
-| **Tool** | `cybermes_list_skills` | Catalog and filter 200+ offensive security playbooks. |
-| **Tool** | `cybermes_get_skill` | Read complete offensive playbook SOPs or specific section headings. |
-| **Tool** | `cybermes_scan_secrets` | 48-pattern credential leak detector with automated masking. |
-| **Tool** | `cybermes_nuclei_scan` | Targeted vulnerability verification using community and custom templates. |
-| **Tool** | `cybermes_check_environment`| Diagnostics for local toolchain and security binary availability. |
-| **Tool** | `cybermes_record_evidence` | Record raw recon evidence, HTTP logs, and negative test results. |
-| **Resource** | `skills://{skill_name}` | Direct read-only URI access to offensive playbook SOPs. |
-| **Resource** | `reports://{target_slug}/summary` | Direct read-only URI access to executive engagement summaries. |
-| **Prompt** | `security_recon_audit` | Standardized reconnaissance & attack-surface mapping prompt workflow. |
-| **Prompt** | `api_security_review` | Deterministic REST, GraphQL, and gRPC vulnerability review workflow. |
+| `cybermes_validate_scope` | Scope Guard | Pre-flight validation against `scope.yaml` (Wildcard, CIDR, and Exclude rules). |
+| `cybermes_http_probe` | Native Go / httpx | HTTP inspection, TLS info, tech stack detection, custom headers & cookies. |
+| `cybermes_recon_crawl` | Native Go / katana | Deep recursive endpoint mining & JS asset discovery with auth session support. |
+| `cybermes_subdomain_discovery`| Subfinder / crt.sh | Dual-engine subdomain enumeration with certificate transparency fallback. |
+| `cybermes_fuzz_endpoints` | ffuf / Worker Pool | Rate-limited directory and parameter discovery (20-25 req/s) with common.txt fallback. |
+| `cybermes_filter_stream` | Smart Pipe Scoring | Entropy & high-signal stream filtering to conserve LLM context window tokens. |
+| `cybermes_search_knowledge` | BM25 Engine | Sub-50ms query over 50,000+ offensive payloads (PayloadsAllTheThings, HackTricks, Strix). |
+| `cybermes_list_skills` | Metadata Index | Catalog and filter 200+ offensive security playbooks and methodology SOPs. |
+| `cybermes_get_skill` | Markdown Parser | Retrieve complete offensive playbooks (e.g. `hunt-idor`, `hunt-llm-ai`, `jwt-oauth`). |
+| `cybermes_scan_secrets` | 48 Regex Patterns | High-precision credential & token leak scanner with automated value masking. |
+| `cybermes_nuclei_scan` | Nuclei Engine | Deterministic vulnerability verification with community and custom templates. |
+| `cybermes_check_environment`| Diagnostics | Real-time toolchain readiness check with on-demand installation guidance. |
+| `cybermes_record_finding` | Workspace Manager | Create structured finding reports in `reports/<slug>/findings/<sev>_<vuln>.md`. |
+| `cybermes_record_evidence` | Workspace Manager | Append raw observations, logs, and negative test tables to `recon_notes.md`. |
+| `cybermes_list_findings` | Aggregator | View all confirmed findings across active target engagement workspaces. |
+| `cybermes_aggregate_report` | Aggregator | Compile target findings into executive `SUMMARY.md` and `metadata.json`. |
+
+### 📂 5 Static & Dynamic Resources
+| Resource URI | Type | Purpose |
+| :--- | :---: | :--- |
+| `skills://index` | Static | Browseable catalog of all 200+ offensive playbooks. |
+| `reports://index` | Static | Overview matrix of all active engagement workspaces and severity counts. |
+| `knowledge://cheatsheets` | Static | Curated index of payload categories and methodologies. |
+| `skills://{skill_name}` | Dynamic | Read full playbook SOP for any skill (e.g. `skills://hunt-llm-ai`). |
+| `reports://{target_slug}/summary` | Dynamic | Real-time `SUMMARY.md` engagement report for a specific target. |
+
+### 🎯 6 Workflow Prompts
+| Prompt Name | Primary Use Case |
+| :--- | :--- |
+| `cybermes_hunt` | Full-scope autonomous hunting and attack-surface discovery workflow. |
+| `cybermes_triage` | Zero-False-Positive verification gate for candidate vulnerabilities. |
+| `cybermes_api_audit` | REST, GraphQL, OpenAPI, and token security assessment SOP. |
+| `cybermes_idor_matrix` | 4-step dual-account differential testing matrix (User A vs User B). |
+| `cybermes_403_bypass` | WAF & 403 Forbidden evasion checklist (headers, path normalization, verbs). |
+| `cybermes_ai_prompt_injection_audit`| OWASP LLM01/ASI01-ASI03 prompt injection, RAG, and agentic tool audit SOP. |
+
+For detailed prompting techniques and anti-filter guidance, see [`docs/prompt_guide.md`](prompt_guide.md).
 
 ---
 
