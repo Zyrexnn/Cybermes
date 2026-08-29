@@ -54,8 +54,9 @@ reports/<TARGET_SLUG>/
   - **NO INFO spam**: Do NOT create separate `.md` files in `findings/` for informational notices, missing HTTP security headers, version disclosures, or negative test tables. Group all info observations into `evidence/recon_notes.md`.
 - **`pocs/` Directory**:
   - Self-contained minimal-impact scripts: `pocs/poc_<vuln_name>.py`.
-- **Aggregation**:
-  - Always run `aggregate_reports <TARGET_SLUG>` after completing tests to update `SUMMARY.md`.
+- **Aggregation & Deliverables**:
+  - Always run `aggregate_reports <TARGET_SLUG>` (or `cybermes_aggregate_report`) after completing tests to update `SUMMARY.md`, `metadata.json`, and `report.html`.
+  - When the user explicitly requests an executive PDF deliverable, run `cybermes_generate_pdf <TARGET_SLUG>` (or `aggregate_reports --pdf <TARGET_SLUG>`).
 
 ---
 

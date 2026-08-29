@@ -376,7 +376,8 @@ Add-MpPreference -ExclusionPath "C:\path\to\Cybermes"
 | `cybermes_record_finding` | Workspace Manager | Create structured finding reports in `reports/<slug>/findings/<sev>_<vuln>.md`. |
 | `cybermes_record_evidence` | Workspace Manager | Append raw observations, logs, and negative test tables to `recon_notes.md`. |
 | `cybermes_list_findings` | Aggregator | View all confirmed findings across active target engagement workspaces. |
-| `cybermes_aggregate_report` | Aggregator | Compile target findings into executive `SUMMARY.md` and `metadata.json`. |
+| `cybermes_aggregate_report` | Aggregator | Compile target findings into executive `SUMMARY.md`, `metadata.json`, `report.html`, and `REPORT.pdf`. |
+| `cybermes_generate_pdf` | PDF Engine | Render pixel-perfect executive PDF and interactive HTML dashboard reports via native Chrome DevTools Protocol. |
 
 ### 📂 5 Static & Dynamic Resources
 | Resource URI | Type | Purpose |
