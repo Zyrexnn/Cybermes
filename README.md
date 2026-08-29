@@ -4,6 +4,12 @@
 
 **Autonomous Offensive Security & Bug Bounty Automation Framework**
 
+<p align="center">
+  <a href="https://trendshift.io/repositories/176726?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-176726" target="_blank" rel="noopener noreferrer">
+    <img src="https://trendshift.io/api/badge/trendshift/repositories/176726/daily?language=Python" alt="Zyrexnn%2FCybermes | Trendshift" width="250" height="55"/>
+  </a>
+</p>
+
 [![Release](https://img.shields.io/badge/Release-v3.3.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
