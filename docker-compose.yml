@@ -18,7 +18,7 @@ services:
       - ./.hermes:/root/.hermes
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: cybermes gateway run
+    command: gateway run
     restart: unless-stopped
     env_file:
       - path: .env

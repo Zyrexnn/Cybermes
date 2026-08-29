@@ -18,6 +18,7 @@ We would like to express our gratitude to everyone who helps build, research, ma
 ### Accepted Issue & Bug Report Contributors
 - **[xsoft](https://github.com/xsoft)** — Linux setup audit, Docker config mounts & workflow diagnostic report ([#7](https://github.com/Zyrexnn/Cybermes/issues/7))
 - **[Muzakie-ID](https://github.com/Muzakie-ID)** — Windows PowerShell setup & script parser bug report ([#10](https://github.com/Zyrexnn/Cybermes/issues/10))
+- **[sizoune](https://github.com/sizoune)** — Docker compose default gateway command & container crash-loop fix ([#17](https://github.com/Zyrexnn/Cybermes/issues/17))
 
 ---
 
@@ -30,6 +31,7 @@ We would like to express our gratitude to everyone who helps build, research, ma
 | **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
 | **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
 | **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
+| **[@sizoune](https://github.com/sizoune)** | `Accepted Issue` | Docker compose default gateway command & container crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17) |
 
 *Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and submit a Pull Request or Issue on the `dev` branch!*
 

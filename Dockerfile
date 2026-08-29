@@ -82,7 +82,8 @@ RUN go build -ldflags="-s -w" -o /usr/local/bin/smart_pipe /workspace/cmd/smart_
     go build -ldflags="-s -w" -o /usr/local/bin/secret_scan /workspace/cmd/secret_scan && \
     go build -ldflags="-s -w" -o /usr/local/bin/search_knowledge /workspace/cmd/search_knowledge && \
     go build -ldflags="-s -w" -o /usr/local/bin/aggregate_reports /workspace/cmd/aggregate_reports && \
-    chmod +x /usr/local/bin/smart_pipe /usr/local/bin/secret_scan /usr/local/bin/search_knowledge /usr/local/bin/aggregate_reports
+    go build -ldflags="-s -w" -o /usr/local/bin/cybermes-mcp /workspace/cmd/cybermes-mcp && \
+    chmod +x /usr/local/bin/smart_pipe /usr/local/bin/secret_scan /usr/local/bin/search_knowledge /usr/local/bin/aggregate_reports /usr/local/bin/cybermes-mcp
 
 # Setup Hermes configuration directories
 RUN mkdir -p /root/.hermes/skills /workspace/reports /workspace/recon /workspace/targets /workspace/output /workspace/logs && \
@@ -90,6 +91,7 @@ RUN mkdir -p /root/.hermes/skills /workspace/reports /workspace/recon /workspace
     cp /workspace/.hermes/config.yaml /root/.hermes/config.yaml 2>/dev/null || true && \
     cp /workspace/.hermes/auth.json /root/.hermes/auth.json 2>/dev/null || true && \
     cp /workspace/.hermes/.env /root/.hermes/.env 2>/dev/null || true && \
-    chmod +x /workspace/entrypoint.sh
+    chmod +x /workspace/entrypoint.sh /workspace/cybermes 2>/dev/null || true && \
+    ln -sf /workspace/cybermes /usr/local/bin/cybermes
 
 ENTRYPOINT ["/workspace/entrypoint.sh"]

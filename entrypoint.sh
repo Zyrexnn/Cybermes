@@ -57,6 +57,14 @@ if [ "$#" -eq 0 ]; then
     exec hermes gateway run
 fi
 
+# Strip redundant 'cybermes' or './cybermes' prefix if passed
+if [ "$1" = "cybermes" ] || [ "$1" = "./cybermes" ] || [ "$1" = "/workspace/cybermes" ]; then
+    shift
+    if [ "$#" -eq 0 ]; then
+        exec hermes gateway run
+    fi
+fi
+
 if command -v "$1" >/dev/null 2>&1; then
     exec "$@"
 else
