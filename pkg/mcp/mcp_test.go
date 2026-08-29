@@ -46,6 +46,7 @@ func TestNewServer(t *testing.T) {
 		"cybermes_get_skill",
 		"cybermes_scan_secrets",
 		"cybermes_aggregate_report",
+		"cybermes_generate_pdf",
 		"cybermes_list_findings",
 		"cybermes_record_finding",
 		"cybermes_validate_scope",
@@ -231,8 +232,9 @@ func TestToolReportAndRecord(t *testing.T) {
 		Params: mcp.CallToolParams{
 			Name: "cybermes_aggregate_report",
 			Arguments: map[string]any{
-				"target_slug": testSlug,
-				"format":      "markdown",
+				"target_slug":  testSlug,
+				"format":       "markdown",
+				"generate_pdf": false,
 			},
 		},
 	}
@@ -244,6 +246,25 @@ func TestToolReportAndRecord(t *testing.T) {
 	aggText, _ := mcp.AsTextContent(aggRes.Content[0])
 	if !strings.Contains(aggText.Text, testSlug) {
 		t.Errorf("Expected aggregate report to contain target slug, got: %s", aggText.Text)
+	}
+
+	// Verify Generate PDF tool
+	pdfReq := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_generate_pdf",
+			Arguments: map[string]any{
+				"target_slug": testSlug,
+				"format":      "markdown",
+			},
+		},
+	}
+	pdfRes, err := srv.handleGeneratePDF(ctx, pdfReq)
+	if err != nil {
+		t.Fatalf("handleGeneratePDF error: %v", err)
+	}
+	pdfText, _ := mcp.AsTextContent(pdfRes.Content[0])
+	if !strings.Contains(pdfText.Text, testSlug) {
+		t.Errorf("Expected PDF generation output to contain target slug, got: %s", pdfText.Text)
 	}
 }
 
