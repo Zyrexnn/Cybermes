@@ -76,7 +76,7 @@ async function runInstaller(options = {}) {
 
     let targetPath = client.paths.find(p => fs.existsSync(p));
     if (!targetPath) {
-      if (options.force || options.createAll || options.all || (targetClients && targetClients.includes(client.id))) {
+      if (options.force) {
         targetPath = client.paths[0];
       } else {
         continue;
@@ -108,7 +108,7 @@ async function runInstaller(options = {}) {
        ${ANSI.cyan}"Search Cybermes knowledge base for JWT vulnerabilities"${ANSI.reset}
     3. Run ${ANSI.cyan}cybermes-mcp doctor${ANSI.reset} anytime to verify system & handshake health.\n`);
   } else {
-    console.log(`  ${ANSI.yellow}[INFO]${ANSI.reset} No target client configuration detected. Use --force to generate automatically.\n`);
+    console.log(`  ${ANSI.yellow}[INFO]${ANSI.reset} No installed AI client configurations detected on your system. Use ${ANSI.cyan}--force${ANSI.reset} to create configuration files anyway.\n`);
   }
 }
 

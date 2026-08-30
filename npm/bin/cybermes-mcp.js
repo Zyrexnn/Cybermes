@@ -63,7 +63,7 @@ async function main() {
 
   // 2. Install Command: install, -i, --install
   if (firstArg === 'install' || firstArg === '--install' || firstArg === '-i') {
-    const force = args.includes('--force') || Boolean(targetClients);
+    const force = args.includes('--force');
     const all = args.includes('--all');
     await runInstaller({
       dryRun,
@@ -121,9 +121,10 @@ async function main() {
 
   // 9. Quick target flag directly (e.g. npx cybermes-mcp --kilo)
   if (targetClients && (firstArg.startsWith('--') || firstArg.startsWith('-'))) {
+    const force = args.includes('--force');
     await runInstaller({
       dryRun,
-      force: true,
+      force,
       useLocal,
       useGlobal,
       localBinPath: localBin,

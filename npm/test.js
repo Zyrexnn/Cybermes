@@ -15,7 +15,7 @@ console.log('[TEST] Starting cybermes-mcp Modular CLI Test Suite...');
 const SCRIPT_PATH = path.join(__dirname, 'bin', 'cybermes-mcp.js');
 
 // Test 1: CLI Syntax and Help Output (-help, --help, help, -h)
-console.log('[TEST 1/13] Testing CLI Help Variants (-help, --help, help, contextual help)...');
+console.log('[TEST 1/15] Testing CLI Help Variants (-help, --help, help, contextual help)...');
 for (const flag of ['-help', '--help', '-h', 'help']) {
   const helpRes = spawnSync(process.execPath, [SCRIPT_PATH, flag], { encoding: 'utf8' });
   assert(helpRes.stdout.includes('Offensive Security MCP Server'), 'Help text should contain header banner');
@@ -30,7 +30,7 @@ assert(helpInstallRes.stdout.includes('INSTALL COMMAND HELP'), 'Contextual help 
 console.log('  -> PASS: All help flags and contextual help verified.');
 
 // Test 2: Tools Matrix Catalog (tools)
-console.log('[TEST 2/13] Testing Tools Matrix Catalog (tools)...');
+console.log('[TEST 2/15] Testing Tools Matrix Catalog (tools)...');
 const toolsRes = spawnSync(process.execPath, [SCRIPT_PATH, 'tools'], { encoding: 'utf8' });
 assert.strictEqual(toolsRes.status, 0);
 assert(toolsRes.stdout.includes('cybermes_generate_pdf'), 'Tools matrix must contain cybermes_generate_pdf');
@@ -40,7 +40,7 @@ assert(toolsRes.stdout.includes('skills://{skill_name}'), 'Tools matrix must lis
 console.log('  -> PASS: Tools catalog verified.');
 
 // Test 3: Doctor Command & Diagnostics
-console.log('[TEST 3/13] Testing System Diagnostic (doctor)...');
+console.log('[TEST 3/15] Testing System Diagnostic (doctor)...');
 const docRes = spawnSync(process.execPath, [SCRIPT_PATH, 'doctor'], { encoding: 'utf8' });
 assert.strictEqual(docRes.status, 0);
 assert(docRes.stdout.includes('Environment & Runtime'), 'Doctor must audit environment');
@@ -49,7 +49,7 @@ assert(docRes.stdout.includes('Environment & Runtime'), 'Doctor must audit envir
 console.log('  -> PASS: Doctor diagnostics verified.');
 
 // Test 4: Status Discovery Matrix
-console.log('[TEST 4/13] Testing Client Discovery Status Matrix (status)...');
+console.log('[TEST 4/15] Testing Client Discovery Status Matrix (status)...');
 const statusRes = spawnSync(process.execPath, [SCRIPT_PATH, 'status'], { encoding: 'utf8' });
 assert.strictEqual(statusRes.status, 0);
 assert(statusRes.stdout.includes('Antigravity / Gemini'), 'Status matrix should discover Gemini');
@@ -58,7 +58,7 @@ assert(statusRes.stdout.includes('Cursor IDE'), 'Status matrix should discover C
 console.log('  -> PASS: Status matrix verified.');
 
 // Test 5: Config Command (list, set, get)
-console.log('[TEST 5/13] Testing Configuration Store (config)...');
+console.log('[TEST 5/15] Testing Configuration Store (config)...');
 const cfgListRes = spawnSync(process.execPath, [SCRIPT_PATH, 'config', 'list'], { encoding: 'utf8' });
 assert.strictEqual(cfgListRes.status, 0);
 assert(cfgListRes.stdout.includes('rateLimit'), 'Config list should show rateLimit');
@@ -73,15 +73,15 @@ assert(cfgGetRes.stdout.includes('15'), 'Config get should return updated value'
 console.log('  -> PASS: Config store get/set/list verified.');
 
 // Test 6: Skills Search Command
-console.log('[TEST 6/13] Testing Skills Search (skills)...');
+console.log('[TEST 6/15] Testing Skills Search (skills)...');
 const skillsRes = spawnSync(process.execPath, [SCRIPT_PATH, 'skills', 'jwt'], { encoding: 'utf8' });
 assert.strictEqual(skillsRes.status, 0);
 assert(skillsRes.stdout.includes('jwt') || skillsRes.stdout.includes('playbooks found'), 'Skills search should return results');
 console.log('  -> PASS: Skills search verified.');
 
 // Test 7: Selective Provider Flags in Global Mode
-console.log('[TEST 7/13] Testing Selective Provider Flags in Global Mode (--gemini --kilo --global)...');
-const selGlobalRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--gemini', '--kilo', '--global', '--dry-run'], { encoding: 'utf8' });
+console.log('[TEST 7/15] Testing Selective Provider Flags in Global Mode (--gemini --kilo --global --force)...');
+const selGlobalRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--gemini', '--kilo', '--global', '--force', '--dry-run'], { encoding: 'utf8' });
 assert.strictEqual(selGlobalRes.status, 0);
 assert(selGlobalRes.stdout.includes('Antigravity / Gemini'), 'Output should target Gemini');
 assert(selGlobalRes.stdout.includes('Kilo Code'), 'Output should target Kilo');
@@ -90,8 +90,8 @@ assert(selGlobalRes.stdout.includes('Mode: Global Executable (cybermes-mcp)'), '
 console.log('  -> PASS: Selective provider injection in global mode verified.');
 
 // Test 8: Selective Provider Flags in NPX Mode
-console.log('[TEST 8/13] Testing Selective Provider Flags in NPX Mode (--cursor --npx)...');
-const selNpxRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--cursor', '--npx', '--dry-run'], { encoding: 'utf8' });
+console.log('[TEST 8/15] Testing Selective Provider Flags in NPX Mode (--cursor --npx --force)...');
+const selNpxRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--cursor', '--npx', '--force', '--dry-run'], { encoding: 'utf8' });
 assert.strictEqual(selNpxRes.status, 0);
 assert(selNpxRes.stdout.includes('Cursor IDE'), 'Output should target Cursor');
 assert(!selNpxRes.stdout.includes('Antigravity / Gemini'), 'Output should NOT target unselected Gemini');
@@ -99,15 +99,14 @@ assert(selNpxRes.stdout.includes('Mode: NPX On-Demand (npx -y cybermes-mcp)'), '
 console.log('  -> PASS: Selective provider injection in npx mode verified.');
 
 // Test 9: Mass Provider Flag (--all --global)
-console.log('[TEST 9/13] Testing Mass Provider Flag (--all --global)...');
+console.log('[TEST 9/15] Testing Mass Provider Flag (--all --global)...');
 const allGlobalRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--all', '--global', '--dry-run'], { encoding: 'utf8' });
 assert.strictEqual(allGlobalRes.status, 0);
-assert(allGlobalRes.stdout.includes('Antigravity / Gemini'));
 assert(allGlobalRes.stdout.includes('Mode: Global Executable (cybermes-mcp)'));
 console.log('  -> PASS: Mass provider targeting verified.');
 
 // Test 10: End-to-End Config Injection & Rollback in Temp Directory
-console.log('[TEST 10/13] Testing End-to-End Config Injection & Rollback in Temp Directory...');
+console.log('[TEST 10/15] Testing End-to-End Config Injection & Rollback in Temp Directory...');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybermes-mcp-test-'));
 try {
   const mockGeminiConfig = path.join(tempDir, 'mcp_config.json');
@@ -121,7 +120,7 @@ try {
 }
 
 // Test 11: URL Preservation & JSONC Comment Parsing
-console.log('[TEST 11/13] Testing URL Preservation & JSONC Comment Parsing...');
+console.log('[TEST 11/15] Testing URL Preservation & JSONC Comment Parsing...');
 const testJsoncDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybermes-jsonc-test-'));
 try {
   const sampleJsonc = path.join(testJsoncDir, 'sample_config.json');
@@ -157,7 +156,7 @@ try {
 }
 
 // Test 12: Programmatic Public API Exports (npm/src/index.js)
-console.log('[TEST 12/13] Testing Programmatic Public API Exports (index.js)...');
+console.log('[TEST 12/15] Testing Programmatic Public API Exports (index.js)...');
 const api = require('./src/index');
 assert(typeof api.getClientDefinitions === 'function', 'API should export getClientDefinitions');
 assert(typeof api.resolveClientTarget === 'function', 'API should export resolveClientTarget');
@@ -170,7 +169,7 @@ assert(typeof api.runTools === 'function', 'API should export runTools');
 console.log('  -> PASS: All programmatic public API methods verified.');
 
 // Test 13: Prompt Engine, Line Counting & Path Truncation Integrity
-console.log('[TEST 13/13] Testing Interactive Prompt Engine & Terminal Safe Truncation...');
+console.log('[TEST 13/15] Testing Interactive Prompt Engine & Terminal Safe Truncation...');
 const { truncatePath, promptRadio, promptCheckbox, promptConfirm } = require('./src/utils/prompt');
 
 // 1. Path Truncation tests
@@ -201,5 +200,81 @@ assert(truncated.endsWith('cline_mcp_settings.json'), 'Truncated path must prese
   assert.strictEqual(confirmRes, true, 'Non-TTY promptConfirm should return default value');
 
   console.log('  -> PASS: Interactive prompt engine and path truncation verified.');
-  console.log('\n[SUCCESS] All 13 cybermes-mcp test suites passed cleanly with 0 errors!\n');
+
+  // Test 14: Non-Destructive Installer Guard (Uninstalled clients skipped without --force)
+  console.log('[TEST 14/15] Testing Non-Destructive Installer Guard (No Fake Directory Creation)...');
+  const fakeClientRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--kilo', '--dry-run'], { encoding: 'utf8' });
+  assert.strictEqual(fakeClientRes.status, 0);
+  // Without --force, if Kilo is not installed on disk, it should either skip or report info
+  if (!fs.existsSync(path.join(os.homedir(), '.kilo', 'mcp.json'))) {
+    assert(!fakeClientRes.stdout.includes('INJECTED') || fakeClientRes.stdout.includes('No installed AI client'), 'Must not inject uninstalled client without --force');
+  }
+  console.log('  -> PASS: Non-destructive installer guard verified.');
+
+  // Test 15: End-to-End TOML (Codex) & YAML (Hermes) Injection & Complete Cleanup
+  console.log('[TEST 15/15] Testing TOML & YAML Injection and Cleanup in Isolated Temp Directory...');
+  const e2eDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybermes-e2e-clean-'));
+  try {
+    // 15a. TOML Codex test
+    const mockTomlPath = path.join(e2eDir, 'config.toml');
+    fs.writeFileSync(mockTomlPath, '[general]\ntheme = "dark"\n', 'utf8');
+
+    const codexClient = {
+      id: 'codex',
+      name: 'Codex CLI',
+      type: 'toml-codex',
+      definition: { command: 'cybermes-mcp', args: [] }
+    };
+
+    // Inject
+    const injectTomlRes = api.injectClientConfig(codexClient, mockTomlPath, false);
+    assert.strictEqual(injectTomlRes.status, 'injected');
+    const tomlContentAfterInject = fs.readFileSync(mockTomlPath, 'utf8');
+    assert(tomlContentAfterInject.includes('[mcp_servers.cybermes]'), 'TOML must contain cybermes section');
+
+    // Status check
+    const statusTomlRes = api.checkClientStatus(codexClient, mockTomlPath);
+    assert.strictEqual(statusTomlRes.configured, true, 'TOML client status must be configured');
+
+    // Remove
+    const removeTomlRes = api.removeClientConfig(codexClient, mockTomlPath, false);
+    assert.strictEqual(removeTomlRes.status, 'removed', 'TOML removal must succeed');
+    const tomlContentAfterRemove = fs.readFileSync(mockTomlPath, 'utf8');
+    assert(!tomlContentAfterRemove.includes('[mcp_servers.cybermes]'), 'TOML must no longer contain cybermes section');
+    assert(tomlContentAfterRemove.includes('theme = "dark"'), 'User custom TOML settings must be preserved');
+
+    // 15b. YAML Hermes test
+    const mockYamlPath = path.join(e2eDir, 'config.yaml');
+    fs.writeFileSync(mockYamlPath, 'version: 1\nsettings:\n  debug: false\n', 'utf8');
+
+    const hermesClient = {
+      id: 'hermes',
+      name: 'Hermes Agent',
+      type: 'yaml-hermes',
+      definition: { command: 'cybermes-mcp', args: [] }
+    };
+
+    // Inject
+    const injectYamlRes = api.injectClientConfig(hermesClient, mockYamlPath, false);
+    assert.strictEqual(injectYamlRes.status, 'injected');
+    const yamlContentAfterInject = fs.readFileSync(mockYamlPath, 'utf8');
+    assert(yamlContentAfterInject.includes('cybermes:'), 'YAML must contain cybermes entry');
+
+    // Status check
+    const statusYamlRes = api.checkClientStatus(hermesClient, mockYamlPath);
+    assert.strictEqual(statusYamlRes.configured, true, 'YAML client status must be configured');
+
+    // Remove
+    const removeYamlRes = api.removeClientConfig(hermesClient, mockYamlPath, false);
+    assert.strictEqual(removeYamlRes.status, 'removed', 'YAML removal must succeed');
+    const yamlContentAfterRemove = fs.readFileSync(mockYamlPath, 'utf8');
+    assert(!yamlContentAfterRemove.includes('cybermes:'), 'YAML must no longer contain cybermes entry');
+    assert(yamlContentAfterRemove.includes('debug: false'), 'User custom YAML settings must be preserved');
+
+    console.log('  -> PASS: Complete TOML & YAML injection, status check, and cleanup verified.');
+  } finally {
+    try { fs.rmSync(e2eDir, { recursive: true, force: true }); } catch (_) {}
+  }
+
+  console.log('\n[SUCCESS] All 15 cybermes-mcp test suites passed cleanly with 0 errors!\n');
 })();
