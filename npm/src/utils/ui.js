@@ -48,7 +48,7 @@ function printBanner(subtitle = '') {
   for (const line of RAW_BANNER) {
     console.log(gradient(line, [6, 182, 212], [168, 85, 247]));
   }
-  console.log('  ' + ANSI.teal + '🛡️  Autonomous Offensive Security MCP Server' + ANSI.reset + ' ' + ANSI.dim + 'v3.3.0' + ANSI.reset);
+  console.log('  ' + ANSI.teal + '🛡️  Autonomous Offensive Security MCP Server' + ANSI.reset + ' ' + ANSI.dim + 'v3.4.0' + ANSI.reset);
   if (subtitle) {
     console.log('  ' + ANSI.gray + subtitle + ANSI.reset);
   }

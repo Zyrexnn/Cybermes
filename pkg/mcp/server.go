@@ -12,7 +12,7 @@ import (
 
 const (
 	ServerName    = "cybermes-mcp"
-	ServerVersion = "3.3.0"
+	ServerVersion = "3.4.0"
 )
 
 // Config holds paths and configuration options for the Cybermes MCP server.
