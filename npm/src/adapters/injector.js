@@ -355,8 +355,62 @@ function removeClientConfig(client, filePath, isDryRun) {
     return result;
   }
 
+  if (client.type === 'yaml-hermes') {
+    let content = '';
+    try {
+      content = fs.readFileSync(filePath, 'utf8');
+    } catch (_) {
+      result.status = 'error';
+      result.details = 'Unable to read YAML config file';
+      return result;
+    }
+    if (!content.includes('cybermes:')) {
+      result.status = 'unchanged';
+      result.details = 'Cybermes not present';
+      return result;
+    }
+    const cleaned = content.replace(/\n\s*cybermes:\s*\n\s*command:.*?\n\s*args:.*?(?=\n\S|\n\s*[a-zA-Z0-9_-]+:|$)/s, '');
+    if (!isDryRun) {
+      const bak = createBackup(filePath);
+      fs.writeFileSync(filePath, cleaned.trim() + '\n', 'utf8');
+      result.status = 'removed';
+      result.details = bak ? `Cleaned (backup: ${path.basename(bak)})` : 'Removed';
+    } else {
+      result.status = 'dry-run';
+      result.details = 'Would remove cybermes block from YAML';
+    }
+    return result;
+  }
+
+  if (client.type === 'toml-codex') {
+    let content = '';
+    try {
+      content = fs.readFileSync(filePath, 'utf8');
+    } catch (_) {
+      result.status = 'error';
+      result.details = 'Unable to read TOML config file';
+      return result;
+    }
+    if (!content.includes('[mcp_servers.cybermes]')) {
+      result.status = 'unchanged';
+      result.details = 'Cybermes not present';
+      return result;
+    }
+    const cleaned = content.replace(/\n*\[mcp_servers\.cybermes\][\s\S]*?(?=\n\[|$)/, '');
+    if (!isDryRun) {
+      const bak = createBackup(filePath);
+      fs.writeFileSync(filePath, cleaned.trim() + '\n', 'utf8');
+      result.status = 'removed';
+      result.details = bak ? `Cleaned (backup: ${path.basename(bak)})` : 'Removed';
+    } else {
+      result.status = 'dry-run';
+      result.details = 'Would remove [mcp_servers.cybermes] section';
+    }
+    return result;
+  }
+
   result.status = 'skipped';
-  result.details = 'Manual cleanup recommended for YAML/TOML';
+  result.details = 'Unsupported config format';
   return result;
 }
 
