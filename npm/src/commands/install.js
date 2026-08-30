@@ -76,7 +76,7 @@ async function runInstaller(options = {}) {
 
     let targetPath = client.paths.find(p => fs.existsSync(p));
     if (!targetPath) {
-      if (options.force || options.createAll || (targetClients && targetClients.includes(client.id))) {
+      if (options.force || options.createAll || options.all || (targetClients && targetClients.includes(client.id))) {
         targetPath = client.paths[0];
       } else {
         continue;
