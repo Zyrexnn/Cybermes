@@ -12,7 +12,7 @@ import (
 
 const (
 	ServerName    = "cybermes-mcp"
-	ServerVersion = "3.3.0"
+	ServerVersion = "3.4.0"
 )
 
 // Config holds paths and configuration options for the Cybermes MCP server.
@@ -130,7 +130,7 @@ You are operating with Cybermes MCP Server, an autonomous offensive security res
    - findings/: Confirmed vulnerabilities ONLY (reports/<target>/findings/<severity>_<vuln_name>.md, clean snake_case, no square brackets).
    - pocs/: Minimal standalone reproducible scripts (reports/<target>/pocs/poc_<vuln_name>.py).
    - evidence/: Raw HTTP logs, dumps, traces & recon notes (reports/<target>/evidence/recon_notes.md). Group all informational notices and negative test proofs into recon_notes.md.
-   - Aggregate: Run cybermes_aggregate_report after completing testing to generate SUMMARY.md and metadata.json.
+   - Aggregate & Deliverables: Run cybermes_aggregate_report after completing testing to generate SUMMARY.md, metadata.json, and interactive report.html. When the user explicitly requests an executive PDF export or printable document, run cybermes_generate_pdf.
 6. Tool Escalation & User Installation Guidance:
    - All core capabilities (probing, crawling, fuzzing, secret scans) operate 100% standalone using native Go engines.
    - If an optional advanced tool (such as Nuclei for CVE validation, SQLMap for deep DBMS extraction, or Dalfox for XSS) is deemed important to confirm a high-severity hypothesis:

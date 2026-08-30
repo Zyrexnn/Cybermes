@@ -118,7 +118,20 @@ func AggregateTarget(targetDir string) (*SummaryData, error) {
 		return nil, err
 	}
 
+	// Always generate interactive report.html dashboard
+	_, _ = GenerateHTMLDashboard(targetDir, summaryData)
+
 	return summaryData, nil
+}
+
+// AggregateTargetWithPDF aggregates findings, generates SUMMARY.md, metadata.json, report.html, and optionally REPORT.pdf
+func AggregateTargetWithPDF(targetDir string, generatePDF bool) (*SummaryData, *ReportArtifacts, error) {
+	summaryData, err := AggregateTarget(targetDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	artifacts, err := GenerateFullReport(targetDir, summaryData, generatePDF)
+	return summaryData, artifacts, err
 }
 
 func GenerateSummaryMD(targetDir string, data *SummaryData, customContent string) error {

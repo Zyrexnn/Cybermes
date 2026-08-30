@@ -1,103 +1,110 @@
 # 🔌 Cybermes MCP Server — Universal AI Client Setup & Integration Guide
 
-The **Cybermes MCP Server** implements the official **Model Context Protocol (MCP) JSON-RPC 2.0** standard over `stdio` transport. It is **100% Provider-Agnostic and Model-Agnostic** — compatible with any AI foundation model (**Claude 3.7/3.5, GPT-4o/o3, DeepSeek R1/V3, Gemini 2.0/1.5 Pro, Llama 3.3, Qwen 2.5 Coder**) and any MCP-enabled client (**OpenCode, Cursor, Claude Desktop, Windsurf, Cline, Roo Code, Claude Code, Continue.dev, Zed, Kilo, Hermes, Codex**, etc.).
+The **Cybermes MCP Server** implements the official **Model Context Protocol (MCP) JSON-RPC 2.0** standard over `stdio` transport. It is **100% Provider-Agnostic and Model-Agnostic** — compatible with any AI foundation model (**Claude 3.7/3.5, GPT-4o/o3, DeepSeek R1/V3, Gemini 2.0/1.5 Pro, Llama 3.3, Qwen 2.5 Coder**) and any MCP-enabled client (**Google Antigravity / Gemini CLI & IDE, Cursor, Kilo Code, Claude Desktop, Windsurf, OpenCode, Cline, Roo Code, Claude Code CLI, Continue.dev, Zed, Hermes, Codex**, etc.).
 
 ---
 
-## 🚀 Method 0: 1-Click Universal Auto-Installer (Recommended)
+## ⚡ Quick Decision Matrix: Which Installation Method to Use?
 
-Cybermes includes an intelligent, non-destructive **Universal Auto-Injector** that automatically detects your installed AI clients across **Windows, macOS, and Linux**, creates timestamped backups of your configurations (`.bak`), and cleanly wires Cybermes into all of them.
+| Method | Best For | Prerequisites | Command |
+| :--- | :--- | :--- | :--- |
+| **Method 0 (NPX Auto-Wizard)** | Fastest setup, zero manual editing | Node.js (v18+) | `npx -y cybermes-mcp install` |
+| **Method 1 (Global Binary)** | Zero-latency, instant startup, offline | Node.js (v18+) | `npm i -g cybermes-mcp`<br>`cybermes-mcp install --global` |
+| **Method 2 (Targeted Flags)** | Configuring 1 or 2 specific IDEs only | Node.js (v18+) | `npx cybermes-mcp install --gemini --cursor` |
+| **Method 3 (Native Go)** | Air-gapped / Enterprise / Core Devs | Go compiler (v1.23+) | `go build -o tools/bin/cybermes-mcp ./cmd/cybermes-mcp` |
 
-### Instant Global Installation (Zero-Go NPX)
+---
+
+## 🚀 Method 0: Universal 1-Click Auto-Installer (Recommended)
+
+Cybermes includes an intelligent, non-destructive **Universal Auto-Injector** that automatically detects your installed AI clients across **Windows, macOS, and Linux**, creates timestamped backups of your configurations (`.bak`), and cleanly wires Cybermes into your selected clients.
+
+### 1. Interactive 2-Step Terminal Setup Wizard
+Run the interactive wizard in your terminal:
 ```bash
-# Auto-detect and configure all installed AI clients
 npx -y cybermes-mcp install
+```
+- **Step 1 (Execution Mode)**: Choose between **Global Executable** (`cybermes-mcp`) or **NPX On-Demand** (`npx -y cybermes-mcp`).
+- **Step 2 (Provider Selection)**: Multi-select checklist with arrow keys (`↑/↓`), spacebar (`Space`), select all (`a`), and confirm (`Enter`).
 
-# Install ONLY to specific AI providers:
+---
+
+### 2. Targeted Provider Installation (Selective Flags)
+
+You can target specific AI IDEs directly without going through the wizard:
+
+```bash
+# Configure ONLY Google Antigravity / Gemini:
+npx -y cybermes-mcp install --gemini
+
+# Configure ONLY Kilo Code IDE:
 npx -y cybermes-mcp install --kilo
+
+# Configure Antigravity / Gemini and Cursor together:
 npx -y cybermes-mcp install --gemini --cursor
+
+# Configure Claude Desktop and OpenCode:
+npx -y cybermes-mcp install --claude --opencode
 ```
 
-### Global Installation (No NPX Latency)
+---
+
+### 3. Global Installation (Zero NPX Overhead & Offline Ready)
+
+Installing globally gives you instant startup without waiting for remote package checks:
+
 ```bash
-# Install globally via npm:
+# 1. Install package globally:
 npm install -g cybermes-mcp
 
-# Wire clients to use global 'cybermes-mcp' command:
-cybermes-mcp install --global
-cybermes-mcp install --gemini --global
-```
+# 2. Selectively configure clients with global binary:
+cybermes-mcp install --gemini --kilo --global
 
-### Auto-Installer Options & Provider Flags:
-| Flag / Option | Description | Example |
-| :--- | :--- | :--- |
-| `--gemini`, `--antigravity` | Install **only** into **Google Antigravity / Gemini** (`~/.gemini/config/mcp_config.json`) | `npx cybermes-mcp install --gemini` |
-| `--kilo`, `--kilo-code` | Install **only** into **Kilo Code IDE** (`~/.kilo/mcp.json`) | `npx cybermes-mcp install --kilo` |
-| `--cursor` | Install **only** into **Cursor IDE** (`~/.cursor/mcp.json`) | `npx cybermes-mcp install --cursor` |
-| `--claude` | Install **only** into **Claude Desktop** | `npx cybermes-mcp install --claude` |
-| `--claude-code` | Install **only** into **Claude Code CLI** (`~/.claude.json`) | `npx cybermes-mcp install --claude-code` |
-| `--windsurf` | Install **only** into **Windsurf IDE** (`~/.codeium/...`) | `npx cybermes-mcp install --windsurf` |
-| `--cline`, `--roo` | Install **only** into **Cline / Roo Code** | `npx cybermes-mcp install --cline` |
-| `--opencode` | Install **only** into **OpenCode Interpreter** | `npx cybermes-mcp install --opencode` |
-| `--zed`, `--continue` | Install **only** into **Zed Editor** / **Continue.dev** | `npx cybermes-mcp install --zed` |
-| `--hermes`, `--codex` | Install **only** into **Hermes Agent** / **Codex CLI** | `npx cybermes-mcp install --hermes` |
-| `--global`, `-g` | Wire clients to invoke global binary directly without `npx` | `cybermes-mcp install --global` |
-| `--dry-run` | Preview configuration changes without modifying files | `npx cybermes-mcp install --dry-run` |
-| `--status` | Display discovery matrix & health status for all AI clients | `npx cybermes-mcp status` |
-| `--uninstall` | Cleanly remove Cybermes from AI client configs | `npx cybermes-mcp uninstall` |
-| `--force` | Generate config files even if AI client is not yet detected | `npx cybermes-mcp install --force` |
+# 3. Or configure ALL detected clients with global binary:
+cybermes-mcp install --all --global
+```
 
 ---
 
-## 🛠️ Method 1: Local Cross-Platform MCP Manager & Optimizer
+## 🧰 Universal CLI Command Reference
 
-Cybermes includes a zero-dependency Python management CLI and interactive TUI for real-time latency diagnostics, server toggling, and startup optimization:
+The `cybermes-mcp` CLI contains built-in diagnostic and management utilities:
 
 ```bash
-# Windows (CMD / PowerShell)
-.\mcp.bat            # or .\mcp.ps1
+# View full colored documentation & contextual manuals:
+npx -y cybermes-mcp -help
+npx -y cybermes-mcp help install
 
-# Linux / macOS (Bash)
-./mcp.sh             # or python3 scripts/mcp.py
+# Perform deep healthcheck, binary audit & live JSON-RPC handshake:
+npx -y cybermes-mcp doctor
 
-# Direct CLI Commands:
-python scripts/mcp.py status          # Live stdio JSON-RPC latency probing
-python scripts/mcp.py toggle cybermes # Enable / disable server (RAM & token optimizer)
-python scripts/mcp.py optimize        # Pre-cache remote npx servers locally
-python scripts/mcp.py backup          # Create or restore timestamped snapshots
+# View configuration and discovery status across all AI IDEs:
+npx -y cybermes-mcp status
+
+# Inspect full capability table of all 14 active MCP tools and permissions:
+npx -y cybermes-mcp tools
+
+# Search 200+ offline security playbooks directly in terminal:
+npx -y cybermes-mcp skills jwt
+npx -y cybermes-mcp skills idor
+
+# Manage persistent settings in ~/.cybermes/config.json:
+cybermes-mcp config get workspace
+cybermes-mcp config set rateLimit 15
+cybermes-mcp config list
+
+# Cleanly uninstall Cybermes configuration from AI clients:
+npx -y cybermes-mcp uninstall
 ```
 
 ---
 
-## ⚡ Method 2: Manual Zero-Go NPX Setup (Instant)
+## 💻 Manual Configuration by AI Client
 
-If you prefer manual configuration, Node.js (v18+) automatically downloads the verified binary from GitHub Releases:
+If you prefer to configure your AI clients manually, add the JSON/YAML/TOML snippets below to your respective config file:
 
-```bash
-npx -y cybermes-mcp
-```
-
----
-
-### 1. OpenCode Interpreter / OpenCode CLI
-Add to your OpenCode configuration (`opencode.json` or `~/.config/opencode/config.json`):
-
-```json
-{
-  "mcp_servers": {
-    "cybermes": {
-      "command": "npx",
-      "args": ["-y", "cybermes-mcp"]
-    }
-  }
-}
-```
-
----
-
-### 2. Kilo Code / Kilo AI (VS Code Extension / Agent)
-In **Kilo MCP Settings** or in `.kilo/mcp.json`:
-
+### 1. Google Antigravity / Gemini
+Config Location: `~/.gemini/config/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -111,15 +118,23 @@ In **Kilo MCP Settings** or in `.kilo/mcp.json`:
 
 ---
 
-### 3. Cursor IDE
-1. Open **Cursor Settings** (`Ctrl + Shift + J` / `Cmd + Shift + J`) -> **Features** -> **MCP Servers**.
-2. Click **+ Add New MCP Server**.
-3. Configure:
-   - **Name**: `cybermes`
-   - **Type**: `command`
-   - **Command**: `npx -y cybermes-mcp`
+### 2. Cursor IDE
+Config Location: `~/.cursor/mcp.json` (or workspace `.cursor/mcp.json`)
+```json
+{
+  "mcpServers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "cybermes-mcp"]
+    }
+  }
+}
+```
 
-Or add `.cursor/mcp.json` to your project workspace root:
+---
+
+### 3. Kilo Code IDE (VS Code Extension / Standalone)
+Config Location: `~/.kilo/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -134,7 +149,7 @@ Or add `.cursor/mcp.json` to your project workspace root:
 ---
 
 ### 4. Claude Desktop
-Add to your `claude_desktop_config.json`:
+Config Location:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
@@ -152,9 +167,12 @@ Add to your `claude_desktop_config.json`:
 
 ---
 
-### 5. Windsurf IDE (Codeium)
-Add to `~/.codeium/windsurf/mcp_config.json` or workspace `mcp_config.json`:
-
+### 5. Claude Code CLI (`claude mcp`)
+Run directly in terminal:
+```bash
+claude mcp add cybermes npx -- -y cybermes-mcp
+```
+Or add to `~/.claude.json`:
 ```json
 {
   "mcpServers": {
@@ -168,9 +186,23 @@ Add to `~/.codeium/windsurf/mcp_config.json` or workspace `mcp_config.json`:
 
 ---
 
-### 6. Cline & Roo Code (VS Code Extensions)
-Open the MCP Servers extension tab, select **Edit Settings**, and add:
+### 6. Windsurf IDE (Codeium)
+Config Location: `~/.codeium/windsurf/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "cybermes-mcp"]
+    }
+  }
+}
+```
 
+---
+
+### 7. Cline & Roo Code (VS Code Extensions)
+Open extension MCP settings and add:
 ```json
 {
   "mcpServers": {
@@ -179,6 +211,7 @@ Open the MCP Servers extension tab, select **Edit Settings**, and add:
       "args": ["-y", "cybermes-mcp"],
       "disabled": false,
       "autoApprove": [
+        "cybermes_generate_pdf",
         "cybermes_search_knowledge",
         "cybermes_list_skills",
         "cybermes_get_skill",
@@ -192,9 +225,23 @@ Open the MCP Servers extension tab, select **Edit Settings**, and add:
 
 ---
 
-### 7. Continue.dev (VS Code / JetBrains)
-Add to `~/.continue/config.json`:
+### 8. OpenCode Interpreter
+Config Location: `~/.config/opencode/opencode.json` (or project `opencode.json`)
+```json
+{
+  "mcp_servers": {
+    "cybermes": {
+      "command": "npx",
+      "args": ["-y", "cybermes-mcp"]
+    }
+  }
+}
+```
 
+---
+
+### 9. Continue.dev
+Config Location: `~/.continue/config.json`
 ```json
 {
   "experimental": {
@@ -214,9 +261,8 @@ Add to `~/.continue/config.json`:
 
 ---
 
-### 8. Zed Editor
-Add to `~/.config/zed/settings.json`:
-
+### 10. Zed Editor
+Config Location: `~/.config/zed/settings.json`
 ```json
 {
   "context_servers": {
@@ -230,29 +276,8 @@ Add to `~/.config/zed/settings.json`:
 
 ---
 
-### 9. Claude Code CLI (`claude mcp`)
-Run via CLI or add to `~/.claude.json`:
-
-```bash
-claude mcp add cybermes npx -- -y cybermes-mcp
-```
-Or in `~/.claude.json`:
-```json
-{
-  "mcpServers": {
-    "cybermes": {
-      "command": "npx",
-      "args": ["-y", "cybermes-mcp"]
-    }
-  }
-}
-```
-
----
-
-### 10. Hermes Agent
-Add to `~/.hermes/config.yaml` or `.hermes/config.yaml`:
-
+### 11. Hermes Agent
+Config Location: `~/.hermes/config.yaml`
 ```yaml
 mcp_servers:
   cybermes:
@@ -262,9 +287,8 @@ mcp_servers:
 
 ---
 
-### 11. Codex CLI
-Add to `~/.codex/config.toml`:
-
+### 12. Codex CLI
+Config Location: `~/.codex/config.toml`
 ```toml
 [mcp_servers.cybermes]
 command = "npx"
@@ -273,137 +297,62 @@ args = ["-y", "cybermes-mcp"]
 
 ---
 
-### 12. Google Antigravity & Gemini Assistants
-Add to `~/.gemini/config/mcp_config.json`:
+## 🛠️ Method 3: Local Go Binary (Enterprise & Air-Gapped)
 
-```json
-{
-  "mcpServers": {
-    "cybermes": {
-      "command": "npx",
-      "args": ["-y", "cybermes-mcp"]
-    }
-  }
-}
-```
+For offline environments or custom security engine builds:
 
-Or install with direct flag:
 ```bash
-npx -y cybermes-mcp install --gemini
-```
-
----
-
-## 🛠️ Method 3: Direct Native Go Binary (Offline / Air-Gapped / Enterprise)
-
-If you have cloned the Cybermes repository or want to run the native pre-compiled Go binary directly without Node.js/npx:
-
-### 1. Build All Local Binaries (1-Click)
-```bash
-# Cross-platform build script (compiles all 5 Go tools to tools/bin/):
-go run scripts/build_tools.go
-
-# Or compile only the MCP server:
+# 1. Build native MCP binary:
 go build -o tools/bin/cybermes-mcp.exe ./cmd/cybermes-mcp
-```
 
-### 2. Auto-Wire Local Binary to All Clients
-```bash
-# Using Python auto-installer:
-python scripts/setup_mcp.py --local
-
-# Using NPX / NPM CLI:
+# 2. Auto-wire clients to local binary:
 npx -y cybermes-mcp install --local
-```
 
-### 3. Manual Configuration with Absolute Path (Windows Example)
-```json
-{
-  "mcpServers": {
-    "cybermes": {
-      "command": "C:\\path\\to\\Cybermes\\tools\\bin\\cybermes-mcp.exe",
-      "args": ["-workspace", "C:\\path\\to\\Cybermes"]
-    }
-  }
-}
-```
-
-### 4. Manual Configuration (Linux/macOS Example)
-```json
-{
-  "mcpServers": {
-    "cybermes": {
-      "command": "/path/to/Cybermes/tools/bin/cybermes-mcp",
-      "args": ["-workspace", "/path/to/Cybermes"]
-    }
-  }
-}
+# 3. Or specify absolute path in config:
+# Windows:
+# "command": "C:\\path\\to\\Cybermes\\tools\\bin\\cybermes-mcp.exe"
+# Linux/macOS:
+# "command": "/path/to/Cybermes/tools/bin/cybermes-mcp"
 ```
 
 ---
 
-## 🛡️ Windows Defender & Antivirus Exclusion Guide
+## 🛡️ Complete Capabilities Catalog (14 Tools, Resources & Prompts)
 
-Because Cybermes contains 50,000+ educational pentest payloads, webshell references (e.g. PHP/ASP one-liners in `knowledge/PayloadsAllTheThings`), and the EICAR test string in text markdown documentation, Windows Defender's real-time memory scanner may flag these text strings during deep indexing or unit tests.
-
-### How to Add Exclusion (PowerShell Administrator):
-```powershell
-# Run PowerShell as Administrator:
-Add-MpPreference -ExclusionPath "C:\path\to\Cybermes"
-```
-
-> **Note**: These files are inert Markdown documentation (`.md` / `.txt`) and not executable malware.
+### 🛠️ 14 Native MCP Tools
+| Tool Name | Engine & Scope | Auto-Approve | Purpose |
+| :--- | :--- | :---: | :--- |
+| `cybermes_generate_pdf` | PDF Engine / `chromedp` | ✔ Yes | Export pixel-perfect executive PDF security reports and interactive HTML dashboards. |
+| `cybermes_aggregate_report` | Aggregator Engine | ○ Ask | Compiles findings into `SUMMARY.md`, `metadata.json`, and `report.html`. |
+| `cybermes_validate_scope` | Scope Guard | ✔ Yes | Pre-flight validation against `scope.yaml` (Wildcard, CIDR, and Exclude rules). |
+| `cybermes_http_probe` | Native Go / `httpx` | ○ Ask | Web probing, TLS certificate inspection, response header analysis, and tech stack detection. |
+| `cybermes_recon_crawl` | Native Go / `katana` | ○ Ask | Smart Pipe token-budgeted crawler & JS bundle endpoint miner. |
+| `cybermes_subdomain_discovery`| Subfinder / crt.sh | ✔ Yes | Dual-engine subdomain discovery with certificate transparency stream deduplication. |
+| `cybermes_fuzz_endpoints` | ffuf / Worker Pool | ✔ Yes | Rate-limited directory and parameter discovery (20-25 req/s) with common.txt fallback. |
+| `cybermes_search_knowledge` | BM25 Engine | ✔ Yes | Sub-50ms query against 50,000+ curated offensive security payloads. |
+| `cybermes_list_skills` | Metadata Index | ✔ Yes | Catalog and filter 200+ offensive security playbooks and methodology SOPs. |
+| `cybermes_get_skill` | Markdown Parser | ✔ Yes | Retrieve complete offensive playbooks (e.g. `hunt-idor`, `hunt-llm-ai`, `jwt-oauth`). |
+| `cybermes_scan_secrets` | 48 Regex Patterns | ✔ Yes | High-precision credential & token leak scanner with automated value masking. |
+| `cybermes_filter_stream` | Smart Pipe Scoring | ✔ Yes | Entropy & high-signal stream filtering to conserve LLM context window tokens. |
+| `cybermes_record_finding` | Workspace Manager | ○ Ask | Create structured finding reports in `reports/<slug>/findings/<sev>_<vuln>.md`. |
+| `cybermes_list_findings` | Aggregator Engine | ○ Ask | View all confirmed findings and severity matrix across active target workspaces. |
 
 ---
 
-## 🧰 Available Capabilities Summary (16 Native Tools + 5 Resources + 6 Workflow Prompts)
-
-### 🛠️ 16 MCP Tools
-| Tool Name | Engine & Scope | Purpose |
-| :--- | :--- | :--- |
-| `cybermes_validate_scope` | Scope Guard | Pre-flight validation against `scope.yaml` (Wildcard, CIDR, and Exclude rules). |
-| `cybermes_http_probe` | Native Go / httpx | HTTP inspection, TLS info, tech stack detection, custom headers & cookies. |
-| `cybermes_recon_crawl` | Native Go / katana | Deep recursive endpoint mining & JS asset discovery with auth session support. |
-| `cybermes_subdomain_discovery`| Subfinder / crt.sh | Dual-engine subdomain enumeration with certificate transparency fallback. |
-| `cybermes_fuzz_endpoints` | ffuf / Worker Pool | Rate-limited directory and parameter discovery (20-25 req/s) with common.txt fallback. |
-| `cybermes_filter_stream` | Smart Pipe Scoring | Entropy & high-signal stream filtering to conserve LLM context window tokens. |
-| `cybermes_search_knowledge` | BM25 Engine | Sub-50ms query over 50,000+ offensive payloads (PayloadsAllTheThings, HackTricks, Strix). |
-| `cybermes_list_skills` | Metadata Index | Catalog and filter 200+ offensive security playbooks and methodology SOPs. |
-| `cybermes_get_skill` | Markdown Parser | Retrieve complete offensive playbooks (e.g. `hunt-idor`, `hunt-llm-ai`, `jwt-oauth`). |
-| `cybermes_scan_secrets` | 48 Regex Patterns | High-precision credential & token leak scanner with automated value masking. |
-| `cybermes_nuclei_scan` | Nuclei Engine | Deterministic vulnerability verification with community and custom templates. |
-| `cybermes_check_environment`| Diagnostics | Real-time toolchain readiness check with on-demand installation guidance. |
-| `cybermes_record_finding` | Workspace Manager | Create structured finding reports in `reports/<slug>/findings/<sev>_<vuln>.md`. |
-| `cybermes_record_evidence` | Workspace Manager | Append raw observations, logs, and negative test tables to `recon_notes.md`. |
-| `cybermes_list_findings` | Aggregator | View all confirmed findings across active target engagement workspaces. |
-| `cybermes_aggregate_report` | Aggregator | Compile target findings into executive `SUMMARY.md` and `metadata.json`. |
-
-### 📂 5 Static & Dynamic Resources
-| Resource URI | Type | Purpose |
+### 📂 MCP Resources & URI Schemes
+| Resource URI | Type | Description |
 | :--- | :---: | :--- |
-| `skills://index` | Static | Browseable catalog of all 200+ offensive playbooks. |
-| `reports://index` | Static | Overview matrix of all active engagement workspaces and severity counts. |
-| `knowledge://cheatsheets` | Static | Curated index of payload categories and methodologies. |
-| `skills://{skill_name}` | Dynamic | Read full playbook SOP for any skill (e.g. `skills://hunt-llm-ai`). |
+| `skills://index` | Static | Catalog index of all 200+ security playbooks. |
+| `skills://{skill_name}` | Dynamic | Full markdown SOP for any skill (e.g. `skills://hunt-idor`). |
+| `reports://index` | Static | Overview matrix of all active engagement workspaces and severity statistics. |
 | `reports://{target_slug}/summary` | Dynamic | Real-time `SUMMARY.md` engagement report for a specific target. |
-
-### 🎯 6 Workflow Prompts
-| Prompt Name | Primary Use Case |
-| :--- | :--- |
-| `cybermes_hunt` | Full-scope autonomous hunting and attack-surface discovery workflow. |
-| `cybermes_triage` | Zero-False-Positive verification gate for candidate vulnerabilities. |
-| `cybermes_api_audit` | REST, GraphQL, OpenAPI, and token security assessment SOP. |
-| `cybermes_idor_matrix` | 4-step dual-account differential testing matrix (User A vs User B). |
-| `cybermes_403_bypass` | WAF & 403 Forbidden evasion checklist (headers, path normalization, verbs). |
-| `cybermes_ai_prompt_injection_audit`| OWASP LLM01/ASI01-ASI03 prompt injection, RAG, and agentic tool audit SOP. |
-
-For detailed prompting techniques and anti-filter guidance, see [`docs/prompt_guide.md`](prompt_guide.md).
+| `knowledge://cheatsheets` | Static | Curated index of payload categories and methodologies. |
 
 ---
 
-## 🧪 Verification & Health Check
+## 🧪 Post-Installation Verification
 
-After saving the configuration and restarting your AI client:
-1. In your AI client chat, ask:
-   > *"List all available Cybermes MCP tools and search the knowledge base for 'JWT algorithm confusion'."*
-2. The AI model will execute `cybermes_search_knowledge` and return validated payload snippets with zero latency.
+1. Restart your AI IDE / Client.
+2. In your chat window, enter this test prompt:
+   > *"Check Cybermes system health and search knowledge base for JWT authentication bypasses."*
+3. Your AI model will execute `cybermes_search_knowledge` and return structured security intelligence instantly.
