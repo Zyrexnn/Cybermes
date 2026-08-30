@@ -23,7 +23,7 @@ async function runInstaller(options = {}) {
 
   // Step 1: Interactive Execution Mode Prompt (if not explicitly passed via flag and in interactive TTY)
   if (useGlobal === undefined && !options.useNpx && process.stdin.isTTY && !options.dryRun && !options.clients && !options.all) {
-    const selectedMode = await promptRadio('Choose how AI Clients should launch Cybermes MCP:', [
+    const selectedMode = await promptRadio('Choose how AI Clients should launch Cybermes MCP', [
       { id: 'global', name: 'Global Executable (cybermes-mcp)', desc: '— [Faster, Zero-Latency, Offline Ready]' },
       { id: 'npx', name: 'NPX On-Demand (npx -y cybermes-mcp)', desc: '— [Always Latest Release, No npm -g needed]' }
     ], 0);
@@ -53,7 +53,7 @@ async function runInstaller(options = {}) {
       ? 'Mode: Global Command (cybermes-mcp)' 
       : 'Mode: NPX Command (npx -y cybermes-mcp)';
 
-    const selectedIds = await promptCheckbox('Select AI Clients to configure for Cybermes MCP:', promptItems, modeSubtitle);
+    const selectedIds = await promptCheckbox('Select AI Clients to configure for Cybermes MCP', promptItems, modeSubtitle);
     if (!selectedIds || selectedIds.length === 0) {
       console.log(`  ${ANSI.yellow}[INFO]${ANSI.reset} No clients selected. Exiting installer without making changes.\n`);
       return;
