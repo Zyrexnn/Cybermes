@@ -1,10 +1,34 @@
 /**
  * npm/src/utils/prompt.js
  * Zero-dependency interactive checkbox, radio selection, and confirmation menus using native Node.js readline.
+ * Includes dynamic frame tracking, universal line-erasing, smart path truncation, and terminal cursor lifecycle management.
  */
 
 const readline = require('readline');
 const { ANSI } = require('./ui');
+
+function getTerminalWidth() {
+  return (process.stdout && process.stdout.columns) ? process.stdout.columns : 80;
+}
+
+function truncatePath(pathStr, maxLen = 45) {
+  if (!pathStr || typeof pathStr !== 'string' || pathStr.length <= maxLen) return pathStr;
+  const startLen = Math.max(8, Math.floor((maxLen - 3) * 0.35));
+  const endLen = Math.max(12, (maxLen - 3) - startLen);
+  return pathStr.substring(0, startLen) + '...' + pathStr.substring(pathStr.length - endLen);
+}
+
+function hideCursor() {
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1b[?25l');
+  }
+}
+
+function showCursor() {
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1b[?25h');
+  }
+}
 
 /**
  * Single-select radio prompt.
@@ -20,6 +44,7 @@ function promptRadio(title, options, defaultIndex = 0) {
     }
 
     let cursor = Math.max(0, Math.min(defaultIndex, options.length - 1));
+    let lastRenderedLineCount = 0;
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -31,16 +56,24 @@ function promptRadio(title, options, defaultIndex = 0) {
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
+    hideCursor();
 
-    function render(first = false) {
-      if (!first) {
-        const totalLines = options.length + 3;
+    const cleanTitle = title.replace(/[:\s]+$/, '');
+
+    function render() {
+      if (lastRenderedLineCount > 0) {
         readline.cursorTo(process.stdout, 0);
-        readline.moveCursor(process.stdout, 0, -totalLines);
+        readline.moveCursor(process.stdout, 0, -lastRenderedLineCount);
       }
 
-      console.log(`  ${ANSI.bold}${ANSI.cyan}? ${title}${ANSI.reset}`);
-      console.log(`    ${ANSI.dim}Use [↑/↓] to navigate, [Enter] to select${ANSI.reset}`);
+      let linesRendered = 0;
+      function writeLine(str = '') {
+        process.stdout.write(`\x1b[2K\r${str}\n`);
+        linesRendered++;
+      }
+
+      writeLine(`  ${ANSI.bold}${ANSI.cyan}? ${cleanTitle}:${ANSI.reset}`);
+      writeLine(`    ${ANSI.dim}Use [↑/↓] to navigate, [Enter] to select${ANSI.reset}`);
 
       options.forEach((opt, idx) => {
         const isCurrent = idx === cursor;
@@ -51,14 +84,16 @@ function promptRadio(title, options, defaultIndex = 0) {
           : `${ANSI.gray}${opt.name}${ANSI.reset}`;
         const descStr = opt.desc ? ` ${ANSI.dim}${opt.desc}${ANSI.reset}` : '';
 
-        readline.clearLine(process.stdout, 0);
-        console.log(`  ${pointer} ${radio} ${nameStr}${descStr}`);
+        writeLine(`  ${pointer} ${radio} ${nameStr}${descStr}`);
       });
+
+      lastRenderedLineCount = linesRendered;
     }
 
-    render(true);
+    render();
 
     function cleanup() {
+      showCursor();
       process.stdin.removeListener('keypress', onKeyPress);
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
@@ -107,6 +142,7 @@ function promptCheckbox(title, items, subtitle = '') {
 
     const state = items.map(item => ({ ...item }));
     let cursor = 0;
+    let lastRenderedLineCount = 0;
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -118,19 +154,30 @@ function promptCheckbox(title, items, subtitle = '') {
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
+    hideCursor();
 
-    function render(first = false) {
-      if (!first) {
-        const totalLines = state.length + (subtitle ? 4 : 3);
+    const cleanTitle = title.replace(/[:\s]+$/, '');
+
+    function render() {
+      if (lastRenderedLineCount > 0) {
         readline.cursorTo(process.stdout, 0);
-        readline.moveCursor(process.stdout, 0, -totalLines);
+        readline.moveCursor(process.stdout, 0, -lastRenderedLineCount);
       }
 
-      console.log(`  ${ANSI.bold}${ANSI.cyan}? ${title}${ANSI.reset}`);
-      if (subtitle) {
-        console.log(`    ${ANSI.teal}${subtitle}${ANSI.reset}`);
+      let linesRendered = 0;
+      function writeLine(str = '') {
+        process.stdout.write(`\x1b[2K\r${str}\n`);
+        linesRendered++;
       }
-      console.log(`    ${ANSI.dim}Use [↑/↓] to navigate, [Space] to toggle, [a] to select all, [Enter] to confirm${ANSI.reset}`);
+
+      const termWidth = getTerminalWidth();
+      const maxPathLen = Math.max(20, termWidth - 48);
+
+      writeLine(`  ${ANSI.bold}${ANSI.cyan}? ${cleanTitle}:${ANSI.reset}`);
+      if (subtitle) {
+        writeLine(`    ${ANSI.teal}${subtitle}${ANSI.reset}`);
+      }
+      writeLine(`    ${ANSI.dim}Use [↑/↓] to navigate, [Space] to toggle, [a] to select all, [Enter] to confirm${ANSI.reset}`);
 
       state.forEach((item, idx) => {
         const isCurrent = idx === cursor;
@@ -142,19 +189,22 @@ function promptCheckbox(title, items, subtitle = '') {
         
         let pathBadge = '';
         if (item.installed) {
-          pathBadge = `${ANSI.teal}(Detected)${ANSI.reset} ${ANSI.dim}${item.path}${ANSI.reset}`;
+          const displayPath = truncatePath(item.path, maxPathLen);
+          pathBadge = `${ANSI.teal}(Detected)${ANSI.reset} ${ANSI.dim}${displayPath}${ANSI.reset}`;
         } else {
           pathBadge = `${ANSI.darkGray}(Not installed)${ANSI.reset}`;
         }
 
-        readline.clearLine(process.stdout, 0);
-        console.log(`  ${pointer} ${box} ${nameStr} ${pathBadge}`);
+        writeLine(`  ${pointer} ${box} ${nameStr} ${pathBadge}`);
       });
+
+      lastRenderedLineCount = linesRendered;
     }
 
-    render(true);
+    render();
 
     function cleanup() {
+      showCursor();
       process.stdin.removeListener('keypress', onKeyPress);
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
@@ -215,7 +265,12 @@ function promptConfirm(question, defaultYes = true) {
   });
 }
 
+process.on('exit', () => {
+  showCursor();
+});
+
 module.exports = {
+  truncatePath,
   promptRadio,
   promptCheckbox,
   promptConfirm

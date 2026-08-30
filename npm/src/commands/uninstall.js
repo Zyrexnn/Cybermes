@@ -35,7 +35,7 @@ async function runUninstaller(options = {}) {
       .filter(i => i.path);
 
     if (installedItems.length > 0) {
-      const selectedIds = await promptCheckbox('Select AI Clients to remove Cybermes configuration from:', installedItems);
+      const selectedIds = await promptCheckbox('Select AI Clients to remove Cybermes configuration from', installedItems);
       if (!selectedIds || selectedIds.length === 0) {
         console.log(`  ${ANSI.yellow}[INFO]${ANSI.reset} No clients selected. Exiting without changes.\n`);
         return;
