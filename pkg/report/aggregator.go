@@ -124,7 +124,7 @@ func AggregateTarget(targetDir string) (*SummaryData, error) {
 	return summaryData, nil
 }
 
-// AggregateTargetWithPDF aggregates findings, generates SUMMARY.md, metadata.json, report.html, and optionally REPORT.pdf
+// AggregateTargetWithPDF aggregates findings, generates SUMMARY.md, metadata.json, report.html, and optionally REPORT_<target>.pdf
 func AggregateTargetWithPDF(targetDir string, generatePDF bool) (*SummaryData, *ReportArtifacts, error) {
 	summaryData, err := AggregateTarget(targetDir)
 	if err != nil {

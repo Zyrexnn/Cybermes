@@ -85,6 +85,6 @@ func main() {
 		fmt.Printf("  Dashboard: reports/%s/report.html\n", summary.Target)
 	}
 	if artifacts != nil && artifacts.PDFGenerated {
-		fmt.Printf("  Executive PDF: reports/%s/REPORT.pdf\n", summary.Target)
+		fmt.Printf("  Executive PDF: reports/%s/REPORT_%s.pdf\n", summary.Target, summary.Target)
 	}
 }

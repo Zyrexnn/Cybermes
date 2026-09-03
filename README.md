@@ -199,7 +199,7 @@ flowchart LR
 3. **High-Speed Stream Filtering (`smart_pipe`)**: Raw outputs are archived to disk in `recon/` while `smart_pipe` streams only relevant endpoints, HTTP status codes, and leaked secrets into Hermes' context window.
 4. **Hypothesis & Skill Retrieval**: Hermes queries the offline database (`search_knowledge`) and loads relevant offensive playbooks from `skills/`.
 5. **Deterministic PoC Validation Gate**: Hermes writes and executes a non-destructive script (`pocs/poc_<vuln>.py`), capturing raw HTTP request/response evidence.
-6. **Report Compilation**: Calls native Go `aggregate_reports` and `generate_pdf.py` to compile `SUMMARY.md`, `metadata.json`, interactive `report.html`, and `REPORT.pdf`.
+6. **Report Compilation**: Calls native Go `aggregate_reports` and `generate_pdf.py` to compile `SUMMARY.md`, `metadata.json`, interactive `report.html`, and `REPORT_<target>.pdf`.
 
 ---
 
@@ -259,7 +259,7 @@ flowchart LR
 | **LLM Token & Context Noise** | Fuzzer/crawler outputs flood context with thousands of lines of 404s and static assets. | **High-Speed Stream Filter (`smart_pipe`)**: Pure Go filter that archives raw logs to disk while streaming only high-signal endpoints, status codes, and secrets. |
 | **Exploit Verification** | Speculative or pattern-matched alerts without reproducible verification. | **Zero-False-Positive PoC Gate**: Requires standalone, non-destructive Python scripts (`pocs/poc_<name>.py`) and raw HTTP traces before logging findings. |
 | **Payload & Methodology Retrieval** | Manually searching external wikis, repositories, and cheat sheets online. | **Sub-50ms Local Knowledge Base (`search_knowledge`)**: Instant offline query engine across 200+ SOP playbooks, PayloadsAllTheThings, and HackTricks datasets. |
-| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT.pdf`. |
+| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT_<target>.pdf`. |
 | **OS & Environment Portability** | Most offensive tools assume Kali/Linux, complicating Windows setups. | **Native Multi-Platform Support**: Automated native installers for Windows (PowerShell), Linux, macOS, and Docker with a built-in health check and repair tool (`doctor.py`). |
 
 ---
@@ -271,7 +271,7 @@ flowchart LR
 - **200+ Offensive Playbooks**: Standard operating procedures in `skills/` covering API security (IDOR/BOLA, JWT, BPLA), web vulnerabilities (SSRF, XSS, SQLi, Race Conditions), and cloud misconfigurations.
 - **Integrated Reconnaissance**: Pre-configured pipelines for `subfinder`, `httpx`, `katana`, `ffuf`, `nuclei`, and `sqlmap`.
 - **Target Workspace Isolation**: Strict target-scoped evidence tracking, preventing context contamination across engagements.
-- **Multi-Format Reporting**: Automated output generation in Markdown (`SUMMARY.md`), JSON metrics (`metadata.json`), standalone HTML dashboards, and PDF reports (`REPORT.pdf`).
+- **Multi-Format Reporting**: Automated output generation in Markdown (`SUMMARY.md`), JSON metrics (`metadata.json`), standalone HTML dashboards, and PDF reports (`REPORT_<target>.pdf`).
 - **Cross-Platform Compatibility**: Fully supported on Windows (native PowerShell), Linux, macOS, and Docker.
 
 ---
@@ -286,7 +286,7 @@ Cybermes/
 │   ├── SUMMARY.md                # Consolidated executive findings matrix
 │   ├── metadata.json             # Structured JSON metrics & counters
 │   ├── report.html               # Standalone interactive HTML report
-│   ├── REPORT.pdf                # Print-ready PDF report
+│   ├── REPORT_<target>.pdf       # Print-ready PDF report (named per assessed target)
 │   ├── findings/                 # Confirmed vulnerability writeups (low, medium, high, critical)
 │   │   └── high_idor_orders.md
 │   ├── pocs/                     # Standalone Python proof-of-concept scripts
