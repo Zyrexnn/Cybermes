@@ -19,14 +19,14 @@ var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
 func (s *Server) registerReportsTools() {
 	aggTool := mcp.NewTool(
 		"cybermes_aggregate_report",
-		mcp.WithDescription("Aggregate vulnerability findings, PoC scripts, and evidence files for a target (or all targets) into executive SUMMARY.md, metadata.json, report.html, and REPORT.pdf."),
+		mcp.WithDescription("Aggregate vulnerability findings, PoC scripts, and evidence files for a target (or all targets) into executive SUMMARY.md, metadata.json, report.html, and REPORT_<target>.pdf."),
 		mcp.WithString(
 			"target_slug",
 			mcp.Description("Target slug/directory name in reports/ (e.g. 'example_com', '127_0_0_1_8888'). If empty or 'all', aggregates all targets."),
 		),
 		mcp.WithBoolean(
 			"generate_pdf",
-			mcp.Description("Whether to automatically render optional REPORT.pdf via Chrome DevTools Protocol (default: false)."),
+			mcp.Description("Whether to automatically render optional REPORT_<target>.pdf via Chrome DevTools Protocol (default: false)."),
 			mcp.DefaultBool(false),
 		),
 		mcp.WithString(
@@ -187,7 +187,7 @@ func (s *Server) handleAggregateReport(ctx context.Context, request mcp.CallTool
 		sb.WriteString(fmt.Sprintf("- **Interactive Dashboard**: `reports/%s/report.html`\n", summary.Target))
 	}
 	if artifacts != nil && artifacts.PDFGenerated {
-		sb.WriteString(fmt.Sprintf("- **Executive PDF**: `reports/%s/REPORT.pdf`\n", summary.Target))
+		sb.WriteString(fmt.Sprintf("- **Executive PDF**: `reports/%s/REPORT_%s.pdf`\n", summary.Target, summary.Target))
 	} else if artifacts != nil && artifacts.ErrorMessage != "" {
 		sb.WriteString(fmt.Sprintf("- **PDF Status**: Not generated (%s)\n", artifacts.ErrorMessage))
 	}
@@ -225,7 +225,7 @@ func (s *Server) handleGeneratePDF(ctx context.Context, request mcp.CallToolRequ
 	sb.WriteString(fmt.Sprintf("- **HTML Dashboard**: `reports/%s/report.html`\n", targetSlug))
 
 	if artifacts.PDFGenerated {
-		sb.WriteString(fmt.Sprintf("- **Executive PDF**: `reports/%s/REPORT.pdf`\n", targetSlug))
+		sb.WriteString(fmt.Sprintf("- **Executive PDF**: `reports/%s/REPORT_%s.pdf`\n", targetSlug, targetSlug))
 		if artifacts.BrowserUsed != "" {
 			sb.WriteString(fmt.Sprintf("- **Browser Engine**: `%s`\n", artifacts.BrowserUsed))
 		}
