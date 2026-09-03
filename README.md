@@ -382,6 +382,13 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
       <a href="https://github.com/Mortify4315"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
     </td>
     <td align="center" width="130px">
+      <a href="https://github.com/sizoune">
+        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
+        <sub><b>sizoune</b></sub>
+      </a><br />
+      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
+    </td>
+    <td align="center" width="130px">
       <a href="https://github.com/xsoft">
         <img src="https://github.com/xsoft.png?size=100" width="65px" height="65px" alt="xsoft" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
         <sub><b>xsoft</b></sub>
@@ -395,13 +402,6 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
       </a><br />
       <a href="https://github.com/Muzakie-ID"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
     </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/sizoune">
-        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>sizoune</b></sub>
-      </a><br />
-      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
   </tr>
 </table>
 
@@ -412,9 +412,9 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
 | **[@Zyrexnn](https://github.com/Zyrexnn)** | `Project Lead` | Creator, Core Architecture & Offensive Framework | Main |
 | **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
 | **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
+| **[@sizoune](https://github.com/sizoune)** | `Fork / PR` | Target-specific PDF report filename & Docker gateway crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20) |
 | **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
 | **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
-| **[@sizoune](https://github.com/sizoune)** | `Accepted Issue` | Docker compose default gateway command & container crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17) |
 
 Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and [Contributors List](CONTRIBUTORS.md).
 
