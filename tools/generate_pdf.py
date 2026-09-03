@@ -462,7 +462,7 @@ def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tup
     except Exception:
         pass
 
-    pdf_file = target_dir / "REPORT.pdf"
+    pdf_file = target_dir / f"REPORT_{target_dir.name}.pdf"
 
     if output_pdf:
         try:

@@ -174,12 +174,12 @@ func RenderPDF(htmlPath string, pdfPath string) (string, error) {
 	return browserPath, nil
 }
 
-// GenerateFullReport generates SUMMARY.md, metadata.json, report.html, and optionally REPORT.pdf
+// GenerateFullReport generates SUMMARY.md, metadata.json, report.html, and optionally REPORT_<target>.pdf
 func GenerateFullReport(targetDir string, data *SummaryData, generatePDF bool) (*ReportArtifacts, error) {
 	targetName := filepath.Base(targetDir)
 	summaryPath := filepath.Join(targetDir, "SUMMARY.md")
 	metaPath := filepath.Join(targetDir, "metadata.json")
-	pdfPath := filepath.Join(targetDir, "REPORT.pdf")
+	pdfPath := filepath.Join(targetDir, fmt.Sprintf("REPORT_%s.pdf", targetName))
 
 	artifacts := &ReportArtifacts{
 		Target:       targetName,
@@ -195,7 +195,7 @@ func GenerateFullReport(targetDir string, data *SummaryData, generatePDF bool) (
 	}
 	artifacts.HTMLPath = htmlPath
 
-	// 2. Generate REPORT.pdf if requested
+	// 2. Generate REPORT_<target>.pdf if requested
 	if generatePDF {
 		browserUsed, err := RenderPDF(htmlPath, pdfPath)
 		if err != nil {

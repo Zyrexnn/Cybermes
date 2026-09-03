@@ -94,7 +94,7 @@ python tools/generate_pdf.py --no-pdf
 
 Outputs generated in `reports/<TARGET_SLUG>/`:
 - `report.html`: Standalone interactive HTML dashboard with Dark/Light theme toggle.
-- `REPORT.pdf`: Executive printable PDF with CVSS badges, risk charts, and PoC breakdown.
+- `REPORT_<target>.pdf`: Executive printable PDF with CVSS badges, risk charts, and PoC breakdown.
 
 ---
 

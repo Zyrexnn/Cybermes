@@ -199,7 +199,7 @@ flowchart LR
 3. **High-Speed Stream Filtering (`smart_pipe`)**: Raw outputs are archived to disk in `recon/` while `smart_pipe` streams only relevant endpoints, HTTP status codes, and leaked secrets into Hermes' context window.
 4. **Hypothesis & Skill Retrieval**: Hermes queries the offline database (`search_knowledge`) and loads relevant offensive playbooks from `skills/`.
 5. **Deterministic PoC Validation Gate**: Hermes writes and executes a non-destructive script (`pocs/poc_<vuln>.py`), capturing raw HTTP request/response evidence.
-6. **Report Compilation**: Calls native Go `aggregate_reports` and `generate_pdf.py` to compile `SUMMARY.md`, `metadata.json`, interactive `report.html`, and `REPORT.pdf`.
+6. **Report Compilation**: Calls native Go `aggregate_reports` and `generate_pdf.py` to compile `SUMMARY.md`, `metadata.json`, interactive `report.html`, and `REPORT_<target>.pdf`.
 
 ---
 
@@ -259,7 +259,7 @@ flowchart LR
 | **LLM Token & Context Noise** | Fuzzer/crawler outputs flood context with thousands of lines of 404s and static assets. | **High-Speed Stream Filter (`smart_pipe`)**: Pure Go filter that archives raw logs to disk while streaming only high-signal endpoints, status codes, and secrets. |
 | **Exploit Verification** | Speculative or pattern-matched alerts without reproducible verification. | **Zero-False-Positive PoC Gate**: Requires standalone, non-destructive Python scripts (`pocs/poc_<name>.py`) and raw HTTP traces before logging findings. |
 | **Payload & Methodology Retrieval** | Manually searching external wikis, repositories, and cheat sheets online. | **Sub-50ms Local Knowledge Base (`search_knowledge`)**: Instant offline query engine across 200+ SOP playbooks, PayloadsAllTheThings, and HackTricks datasets. |
-| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT.pdf`. |
+| **Structured Deliverables** | Unorganized text dumps requiring tedious manual report compilation. | **Multi-Format Report Aggregator**: Automated generation of `SUMMARY.md`, `metadata.json`, standalone interactive HTML, and print-ready `REPORT_<target>.pdf`. |
 | **OS & Environment Portability** | Most offensive tools assume Kali/Linux, complicating Windows setups. | **Native Multi-Platform Support**: Automated native installers for Windows (PowerShell), Linux, macOS, and Docker with a built-in health check and repair tool (`doctor.py`). |
 
 ---
@@ -271,7 +271,7 @@ flowchart LR
 - **200+ Offensive Playbooks**: Standard operating procedures in `skills/` covering API security (IDOR/BOLA, JWT, BPLA), web vulnerabilities (SSRF, XSS, SQLi, Race Conditions), and cloud misconfigurations.
 - **Integrated Reconnaissance**: Pre-configured pipelines for `subfinder`, `httpx`, `katana`, `ffuf`, `nuclei`, and `sqlmap`.
 - **Target Workspace Isolation**: Strict target-scoped evidence tracking, preventing context contamination across engagements.
-- **Multi-Format Reporting**: Automated output generation in Markdown (`SUMMARY.md`), JSON metrics (`metadata.json`), standalone HTML dashboards, and PDF reports (`REPORT.pdf`).
+- **Multi-Format Reporting**: Automated output generation in Markdown (`SUMMARY.md`), JSON metrics (`metadata.json`), standalone HTML dashboards, and PDF reports (`REPORT_<target>.pdf`).
 - **Cross-Platform Compatibility**: Fully supported on Windows (native PowerShell), Linux, macOS, and Docker.
 
 ---
@@ -286,7 +286,7 @@ Cybermes/
 │   ├── SUMMARY.md                # Consolidated executive findings matrix
 │   ├── metadata.json             # Structured JSON metrics & counters
 │   ├── report.html               # Standalone interactive HTML report
-│   ├── REPORT.pdf                # Print-ready PDF report
+│   ├── REPORT_<target>.pdf       # Print-ready PDF report (named per assessed target)
 │   ├── findings/                 # Confirmed vulnerability writeups (low, medium, high, critical)
 │   │   └── high_idor_orders.md
 │   ├── pocs/                     # Standalone Python proof-of-concept scripts
@@ -382,6 +382,13 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
       <a href="https://github.com/Mortify4315"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
     </td>
     <td align="center" width="130px">
+      <a href="https://github.com/sizoune">
+        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
+        <sub><b>sizoune</b></sub>
+      </a><br />
+      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
+    </td>
+    <td align="center" width="130px">
       <a href="https://github.com/xsoft">
         <img src="https://github.com/xsoft.png?size=100" width="65px" height="65px" alt="xsoft" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
         <sub><b>xsoft</b></sub>
@@ -395,13 +402,6 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
       </a><br />
       <a href="https://github.com/Muzakie-ID"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
     </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/sizoune">
-        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>sizoune</b></sub>
-      </a><br />
-      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
   </tr>
 </table>
 
@@ -412,9 +412,9 @@ Thank you to everyone who helps build, maintain, and research Cybermes:
 | **[@Zyrexnn](https://github.com/Zyrexnn)** | `Project Lead` | Creator, Core Architecture & Offensive Framework | Main |
 | **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
 | **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
+| **[@sizoune](https://github.com/sizoune)** | `Fork / PR` | Target-specific PDF report filename & Docker gateway crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20) |
 | **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
 | **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
-| **[@sizoune](https://github.com/sizoune)** | `Accepted Issue` | Docker compose default gateway command & container crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17) |
 
 Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and [Contributors List](CONTRIBUTORS.md).
 
