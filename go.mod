@@ -1,6 +1,8 @@
 module cybermes
 
-go 1.26
+go 1.26.0
+
+toolchain go1.26.0
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20260714215040-dc233986426f
