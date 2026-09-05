@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, dev ]
 
+permissions:
+  contents: read
+
 jobs:
   go-ci:
     name: Go Tests & Binaries Build
@@ -17,11 +20,17 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: 'go.mod'
           cache: true
 
       - name: Run Go Unit Tests
         run: go test -v -race ./pkg/...
+
+      - name: Run Go Vulnerability Check (govulncheck)
+        uses: golang/govulncheck-action@v1
+        continue-on-error: true
+        with:
+          go-version-file: 'go.mod'
 
       - name: Verify Go Binaries Compilation
         run: |

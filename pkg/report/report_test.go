@@ -55,6 +55,75 @@ severity: CRITICAL
 	}
 }
 
+func TestParseFindingFile_RecordFindingFormat(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "report_test_record_finding")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	findingPath := filepath.Join(tempDir, "high_unauthenticated_device.md")
+	content := `# Unauthenticated Device Configuration Access
+
+- **Severity**: HIGH
+- **Endpoint**: ` + "`" + `GET http://target:8000/api/v1/device_config` + "`" + `
+- **Date**: 2026-09-05
+
+## Description
+
+The API endpoint exposes sensitive device configuration without requiring authentication.
+Note: Target parameter or URL in description should not override the endpoint.
+
+## Steps to Reproduce
+
+1. Send GET request to target endpoint.
+`
+	if err := os.WriteFile(findingPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write finding file: %v", err)
+	}
+
+	meta, err := ParseFindingFile(findingPath)
+	if err != nil {
+		t.Fatalf("ParseFindingFile failed: %v", err)
+	}
+
+	if meta.Title != "Unauthenticated Device Configuration Access" {
+		t.Errorf("unexpected title: %q", meta.Title)
+	}
+	if meta.Severity != "HIGH" {
+		t.Errorf("expected severity HIGH, got %q", meta.Severity)
+	}
+	if meta.Endpoint != "GET http://target:8000/api/v1/device_config" {
+		t.Errorf("expected endpoint 'GET http://target:8000/api/v1/device_config', got %q", meta.Endpoint)
+	}
+}
+
+func TestParseFindingFile_LowercasePrefixFallback(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "report_test_prefix")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	findingPath := filepath.Join(tempDir, "medium_cors_misconfiguration.md")
+	content := `# CORS Misconfiguration
+
+No explicit severity table or key-value list here.
+`
+	if err := os.WriteFile(findingPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write finding file: %v", err)
+	}
+
+	meta, err := ParseFindingFile(findingPath)
+	if err != nil {
+		t.Fatalf("ParseFindingFile failed: %v", err)
+	}
+
+	if meta.Severity != "MEDIUM" {
+		t.Errorf("expected fallback severity MEDIUM from filename prefix, got %q", meta.Severity)
+	}
+}
+
 func TestAggregateTarget(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "target_test")
 	if err != nil {

@@ -15,19 +15,18 @@ var (
 	headingTitleRe = regexp.MustCompile(`(?m)^#\s+(?:(?:Vulnerability Report|Finding|Vuln):\s*)?(?:\[[A-Z]+\]\s*[-:]?\s*)?(?:[0-9]+\.\s*)?(.+)$`)
 
 	tableSevRe = regexp.MustCompile(`(?i)\|\s*\*{0,2}(?:Severity|Severity Rating|Risk Level)\*{0,2}\s*\|\s*[\x60*]?([A-Za-z]+)`)
-	kvSevRe    = regexp.MustCompile(`(?i)(?:Severity|Severity Rating|Risk Level)\s*[:=]\s*[\x60*]?([A-Za-z]+)`)
+	kvSevRe    = regexp.MustCompile(`(?i)(?:Severity|Severity Rating|Risk Level)\*{0,2}\s*[:=]\s*[\x60*]?([A-Za-z]+)`)
 
 	tableCvssRe = regexp.MustCompile(`(?i)\|\s*\*{0,2}CVSS(?:\s*v?3(?:\.1)?)?(?:\s*Score)?\*{0,2}\s*\|\s*[\x60*]?([0-9\.]+(?:\s*\([^\)\|\n]+\))?)`)
-	kvCvssRe    = regexp.MustCompile(`(?i)CVSS(?:\s*v?3(?:\.1)?)?(?:\s*Score)?\s*[:=]\s*[\x60*]?([0-9\.]+(?:\s*\([^\)\|\n]+\))?)`)
+	kvCvssRe    = regexp.MustCompile(`(?i)CVSS(?:\s*v?3(?:\.1)?)?(?:\s*Score)?\*{0,2}\s*[:=]\s*[\x60*]?([0-9\.]+(?:\s*\([^\)\|\n]+\))?)`)
 
 	tableCweRe = regexp.MustCompile(`(?i)\|\s*\*{0,2}CWE\*{0,2}\s*\|\s*[\x60*]?((?:CWE-)?\d+[^|*\n\x60]*)`)
-	kvCweRe    = regexp.MustCompile(`(?i)CWE\s*[:=]\s*[\x60*]?((?:CWE-)?\d+[^|*\n\x60]*)`)
+	kvCweRe    = regexp.MustCompile(`(?i)CWE\*{0,2}\s*[:=]\s*[\x60*]?((?:CWE-)?\d+[^|*\n\x60]*)`)
 
 	tableEpRe = regexp.MustCompile(`(?i)\|\s*\*{0,2}(?:Affected Endpoint|Affected Asset|Target|Endpoint|URL/Host|URL)\*{0,2}\s*\|\s*[\x60*]?([^|*\n\x60]+)`)
-	kvEpRe    = regexp.MustCompile(`(?i)(?:Affected Endpoint|Affected Asset|Target|Endpoint|URL/Host|URL)\s*[:=]\s*[\x60*]?([^|*\n\x60]+)`)
+	kvEpRe    = regexp.MustCompile(`(?i)(?:Affected Endpoint|Affected Asset|Target|Endpoint|URL/Host|URL)\*{0,2}\s*[:=]\s*[\x60*]?([^|*\n\x60]+)`)
 
-	prefixSevRe = regexp.MustCompile(`^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?[-_]`)
-	cleanValRe  = regexp.MustCompile("[\x60*_]")
+	prefixSevRe = regexp.MustCompile(`(?i)^(?:\[)?(CRITICAL|HIGH|MEDIUM|LOW|INFO|INFORMATIONAL)(?:\])?[-_]`)
 )
 
 var severityWeights = map[string]int{
@@ -51,7 +50,7 @@ type FindingMeta struct {
 }
 
 func CleanExtractedValue(val string) string {
-	return strings.TrimSpace(cleanValRe.ReplaceAllString(val, ""))
+	return strings.Trim(strings.TrimSpace(val), "`*_")
 }
 
 func ParseFindingFile(filePath string) (*FindingMeta, error) {
