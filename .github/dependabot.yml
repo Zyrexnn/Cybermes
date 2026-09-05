@@ -1,46 +1,67 @@
 version: 2
 updates:
-  # Maintain GitHub Actions dependencies
+  # Maintain GitHub Actions dependencies (grouped monthly)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "ci"
 
-  # Maintain Go modules
+  # Maintain Go modules (grouped monthly)
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "go"
 
-  # Maintain Python requirements
-  - package-ecosystem: "pip"
-    directory: "/"
+  # Maintain Python / Tools Strix dependencies (grouped monthly)
+  - package-ecosystem: "uv"
+    directory: "/tools/strix"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      strix-dependencies:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "python"
 
-  # Maintain NPM package dependencies
+  # Maintain NPM package dependencies (grouped monthly)
   - package-ecosystem: "npm"
     directory: "/npm"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "javascript"
 
-  # Maintain Dockerfile base images
+  # Maintain Dockerfile base images (monthly)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     labels:
       - "dependencies"
       - "docker"
