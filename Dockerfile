@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ARG TARGETARCH
 # A RUN step must fail when any command in a pipe fails, not only the last one.
