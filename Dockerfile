@@ -1,6 +1,8 @@
 FROM ubuntu:24.04
 
 ARG TARGETARCH
+# A RUN step must fail when any command in a pipe fails, not only the last one.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -11,6 +13,9 @@ ENV PATH="/opt/hermes-venv/bin:/usr/local/bin:/workspace/tools/bin:${PATH}"
 ENV HERMES_HOME=/root/.hermes
 
 WORKDIR /workspace
+
+# Retry a transient mirror failure instead of continuing with a broken index.
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 
 # 1. Essential runtime packages, network tools, and Chrome/Playwright dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -57,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 2. Node.js LTS & MCP servers
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
+    node --version && npm --version && \
     npm install -g @modelcontextprotocol/server-puppeteer @modelcontextprotocol/server-filesystem && \
     npm cache clean --force && \
     rm -rf /var/lib/apt/lists/*
