@@ -44,13 +44,16 @@ func main() {
 	}
 
 	rootDir := findProjectRoot()
-	targetReconDir := filepath.Join(rootDir, "recon", *target)
-	if err := os.MkdirAll(targetReconDir, 0777); err != nil {
+	cleanTarget := stream.SanitizeSlug(*target)
+	cleanTool := stream.SanitizeSlug(*tool)
+
+	targetReconDir := filepath.Join(rootDir, "recon", cleanTarget)
+	if err := os.MkdirAll(targetReconDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating recon directory: %v\n", err)
 		os.Exit(1)
 	}
 
-	rawLogPath := filepath.Join(targetReconDir, fmt.Sprintf("%s_raw.txt", *tool))
+	rawLogPath := filepath.Join(targetReconDir, fmt.Sprintf("%s_raw.txt", cleanTool))
 	rawFile, err := os.OpenFile(rawLogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening raw log file: %v\n", err)

@@ -26,6 +26,7 @@ var (
 		".env", ".git", "swagger", "openapi", "graphql",
 		"id_rsa", "password", "secret_key", "bearer ", "token=", "jwt",
 	}
+	slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
 )
 
 type ScoredLine struct {
@@ -127,6 +128,17 @@ func ScoreLine(line string) int {
 	return score
 }
 
+// SanitizeSlug normalizes target domains, URLs, or arbitrary inputs into a clean alphanumeric slug safe for paths.
+func SanitizeSlug(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	clean := slugRegex.ReplaceAllString(lower, "_")
+	clean = strings.Trim(clean, "_")
+	if clean == "" {
+		return "default_target"
+	}
+	return clean
+}
+
 func ProcessStream(r io.Reader, stdout io.Writer, rawOut io.Writer, limit int) (ProcessResult, error) {
 	scanner := bufio.NewScanner(r)
 	buf := make([]byte, 64*1024)
@@ -148,8 +160,9 @@ func ProcessStream(r io.Reader, stdout io.Writer, rawOut io.Writer, limit int) (
 		rawBuf.WriteString(cleaned)
 		rawBuf.WriteByte('\n')
 
-		if _, exists := seen[cleaned]; !exists {
-			seen[cleaned] = struct{}{}
+		seenKey := strings.ToLower(cleaned)
+		if _, exists := seen[seenKey]; !exists {
+			seen[seenKey] = struct{}{}
 			score := ScoreLine(cleaned)
 			if score > 0 {
 				scored = append(scored, ScoredLine{Score: score, Text: cleaned})

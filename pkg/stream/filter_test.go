@@ -88,3 +88,23 @@ func TestProcessStream(t *testing.T) {
 		t.Errorf("stdout should prioritize critical finding")
 	}
 }
+
+func TestSanitizeSlug(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{"http://127.0.0.1:8888", "http_127_0_0_1_8888"},
+		{"https://api.example.com/v1/", "https_api_example_com_v1"},
+		{"target.com:443", "target_com_443"},
+		{"!!!special???chars***", "special_chars"},
+		{"", "default_target"},
+	}
+
+	for _, c := range cases {
+		got := SanitizeSlug(c.input)
+		if got != c.expected {
+			t.Errorf("SanitizeSlug(%q) = %q, want %q", c.input, got, c.expected)
+		}
+	}
+}
