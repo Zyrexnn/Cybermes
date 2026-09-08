@@ -78,9 +78,17 @@ type Snippet struct {
 	SourceKB  string `json:"source_kb"`
 }
 
+type indexedFile struct {
+	path      string
+	nameLower string
+	relLower  string
+}
+
 type Searcher struct {
-	BaseDir string
-	RootDir string
+	BaseDir   string
+	RootDir   string
+	cacheMu   sync.RWMutex
+	fileCache []indexedFile
 }
 
 func NewSearcher(baseDir, rootDir string) *Searcher {
@@ -93,6 +101,70 @@ func NewSearcher(baseDir, rootDir string) *Searcher {
 type candidateFile struct {
 	path  string
 	score int
+}
+
+func (s *Searcher) getFileList(searchPath string) []indexedFile {
+	s.cacheMu.RLock()
+	if len(s.fileCache) > 0 {
+		cached := s.fileCache
+		s.cacheMu.RUnlock()
+		if searchPath == s.BaseDir {
+			return cached
+		}
+		var subset []indexedFile
+		for _, f := range cached {
+			if strings.HasPrefix(f.path, searchPath) {
+				subset = append(subset, f)
+			}
+		}
+		return subset
+	}
+	s.cacheMu.RUnlock()
+
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	if len(s.fileCache) > 0 {
+		return s.fileCache
+	}
+
+	var allFiles []indexedFile
+	_ = filepath.WalkDir(s.BaseDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if name == ".git" || name == "node_modules" || name == "site" || name == "vendor" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		name := strings.ToLower(d.Name())
+		if strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".txt") {
+			if name != "summary.md" && name != "_sidebar.md" && name != "toc.md" {
+				rel, _ := filepath.Rel(s.BaseDir, path)
+				allFiles = append(allFiles, indexedFile{
+					path:      path,
+					nameLower: name,
+					relLower:  strings.ToLower(filepath.ToSlash(rel)),
+				})
+			}
+		}
+		return nil
+	})
+
+	s.fileCache = allFiles
+	if searchPath == s.BaseDir {
+		return allFiles
+	}
+	var subset []indexedFile
+	for _, f := range allFiles {
+		if strings.HasPrefix(f.path, searchPath) {
+			subset = append(subset, f)
+		}
+	}
+	return subset
 }
 
 func (s *Searcher) Search(query string, source string, limit int, maxChars int) ([]Snippet, error) {
@@ -138,42 +210,60 @@ func (s *Searcher) Search(query string, source string, limit int, maxChars int) 
 }
 
 func (s *Searcher) findCandidateFiles(searchPath string, keywords []string) ([]candidateFile, error) {
-	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
+	files := s.getFileList(searchPath)
+	if len(files) == 0 {
 		return nil, nil
 	}
-	var fileList []string
 
-	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			name := d.Name()
-			if name == ".git" || name == "node_modules" || name == "site" || name == "vendor" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	// Fast-path in-memory pre-ranking based on path and file name tokens
+	type prioritizedItem struct {
+		file      indexedFile
+		pathScore int
+	}
+	var prioritized []prioritizedItem
+	var rest []indexedFile
 
-		name := strings.ToLower(d.Name())
-		if strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".txt") {
-			if name != "summary.md" && name != "_sidebar.md" && name != "toc.md" {
-				fileList = append(fileList, path)
+	for _, f := range files {
+		pScore := 0
+		for _, kw := range keywords {
+			if strings.Contains(f.nameLower, kw) {
+				pScore += 60
+			}
+			if strings.Contains(f.relLower, kw) {
+				pScore += 25
 			}
 		}
-		return nil
+		if pScore > 0 {
+			prioritized = append(prioritized, prioritizedItem{file: f, pathScore: pScore})
+		} else {
+			rest = append(rest, f)
+		}
+	}
+
+	sort.SliceStable(prioritized, func(i, j int) bool {
+		return prioritized[i].pathScore > prioritized[j].pathScore
 	})
-	if err != nil {
-		return nil, err
+
+	// Select top candidate subset to scan content (max 100 files, not all 2,919)
+	var candidatesToCheck []indexedFile
+	for _, p := range prioritized {
+		candidatesToCheck = append(candidatesToCheck, p.file)
+		if len(candidatesToCheck) >= 100 {
+			break
+		}
+	}
+	if len(candidatesToCheck) < 25 {
+		for _, r := range rest {
+			candidatesToCheck = append(candidatesToCheck, r)
+			if len(candidatesToCheck) >= 100 {
+				break
+			}
+		}
 	}
 
-	type fileJob struct {
-		path string
-	}
-
-	jobs := make(chan fileJob, len(fileList))
-	for _, f := range fileList {
-		jobs <- fileJob{path: f}
+	jobs := make(chan indexedFile, len(candidatesToCheck))
+	for _, f := range candidatesToCheck {
+		jobs <- f
 	}
 	close(jobs)
 
@@ -205,7 +295,16 @@ func (s *Searcher) findCandidateFiles(searchPath string, keywords []string) ([]c
 					}
 				}
 				if totalHits > 0 {
-					score := totalHits + (uniqueHits * 15)
+					pathBonus := 0
+					for _, kw := range keywords {
+						if strings.Contains(job.nameLower, kw) {
+							pathBonus += 40
+						}
+						if strings.Contains(job.relLower, kw) {
+							pathBonus += 20
+						}
+					}
+					score := totalHits + (uniqueHits * 15) + pathBonus
 					mu.Lock()
 					scored = append(scored, candidateFile{path: job.path, score: score})
 					mu.Unlock()
@@ -327,7 +426,12 @@ func (s *Searcher) extractSnippets(filePath string, keywords []string, maxChars 
 			if len(matches) > 0 && len(matches[0]) < maxChars {
 				trimmedText = sec.heading + "\n\n" + matches[0] + "\n\n*(Truncated for context efficiency)*"
 			} else {
-				trimmedText = strings.TrimRight(sec.text[:maxChars], " \t\r\n") + "\n\n*(Truncated for context efficiency)*"
+				cutoff := strings.LastIndex(sec.text[:maxChars], "\n")
+				if cutoff > maxChars/2 {
+					trimmedText = strings.TrimRight(sec.text[:cutoff], " \t\r\n") + "\n\n*(Truncated for context efficiency)*"
+				} else {
+					trimmedText = strings.TrimRight(sec.text[:maxChars], " \t\r\n") + "...\n\n*(Truncated for context efficiency)*"
+				}
 			}
 		}
 
