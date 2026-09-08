@@ -33,7 +33,51 @@ type patternDef struct {
 	re       *regexp.Regexp
 }
 
-var compiledPatterns []patternDef
+var (
+	compiledPatterns []patternDef
+
+	ignoredDirs = map[string]struct{}{
+		".git":              {},
+		"node_modules":      {},
+		"venv":              {},
+		".hermes":           {},
+		"dist":              {},
+		"bin":               {},
+		"tools/bin":         {},
+		"__pycache__":       {},
+		".system_generated": {},
+	}
+
+	binaryExtensions = map[string]struct{}{
+		".exe":   {},
+		".dll":   {},
+		".so":    {},
+		".dylib": {},
+		".bin":   {},
+		".png":   {},
+		".jpg":   {},
+		".jpeg":  {},
+		".gif":   {},
+		".ico":   {},
+		".webp":  {},
+		".pdf":   {},
+		".zip":   {},
+		".tar":   {},
+		".gz":    {},
+		".tgz":   {},
+		".7z":    {},
+		".rar":   {},
+		".woff":  {},
+		".woff2": {},
+		".ttf":   {},
+		".eot":   {},
+		".mp4":   {},
+		".mp3":   {},
+		".webm":  {},
+		".avi":   {},
+		".mov":   {},
+	}
+)
 
 func init() {
 	raw := []struct {
@@ -202,9 +246,25 @@ func ScanDirectory(dirPath string, maxWorkers int) ([]Finding, error) {
 		if err != nil {
 			return nil
 		}
-		if !info.IsDir() {
-			files = append(files, path)
+		if info.IsDir() {
+			name := strings.ToLower(info.Name())
+			if _, ignore := ignoredDirs[name]; ignore {
+				return filepath.SkipDir
+			}
+			return nil
 		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		if _, isBinary := binaryExtensions[ext]; isBinary {
+			return nil
+		}
+
+		// Skip excessively large files (> 10MB) to prevent memory exhaustion
+		if info.Size() > 10*1024*1024 {
+			return nil
+		}
+
+		files = append(files, path)
 		return nil
 	})
 	if err != nil {
