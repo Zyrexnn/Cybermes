@@ -240,16 +240,6 @@ def get_client_definitions(use_local=False, local_bin=None):
             "definition": default_def,
         },
         {
-            "id": "hermes",
-            "name": "Hermes Agent",
-            "paths": [
-                home / ".hermes" / "config.yaml",
-                CYBERMES_ROOT / ".hermes" / "config.yaml",
-            ],
-            "type": "yaml-hermes",
-            "definition": default_def,
-        },
-        {
             "id": "codex",
             "name": "Codex CLI",
             "paths": [
@@ -356,26 +346,6 @@ def inject_config(client: dict, file_path: Path, dry_run: bool):
             return {"status": "injected", "details": f"Updated (backup: {Path(bak).name})" if bak else "Created config"}
         return {"status": "dry-run", "details": "Would inject context_servers.cybermes"}
 
-    if ctype == "yaml-hermes":
-        content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
-        if "cybermes:" in content and ("cybermes-mcp" in content or "@zyrexnn/cybermes-mcp" in content):
-            return {"status": "unchanged", "details": "Already up-to-date in YAML"}
-
-        cmd_json = json.dumps(cdef["command"])
-        args_json = json.dumps(cdef["args"])
-        if "mcp_servers:" in content:
-            block = f"\n  cybermes:\n    command: {cmd_json}\n    args: {args_json}\n"
-        else:
-            block = f"\nmcp_servers:\n  cybermes:\n    command: {cmd_json}\n    args: {args_json}\n"
-
-        if not dry_run:
-            bak = create_backup(file_path)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(file_path, "a", encoding="utf-8") as f:
-                f.write(block)
-            return {"status": "injected", "details": f"Appended (backup: {Path(bak).name})" if bak else "Created config"}
-        return {"status": "dry-run", "details": "Would append YAML block"}
-
     if ctype == "toml-codex":
         content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
         if "[mcp_servers.cybermes]" in content:
@@ -449,7 +419,7 @@ def check_status(client: dict, file_path: Path):
         has_cb = bool(data and ((data.get("mcp") and "cybermes" in data["mcp"]) or (data.get("mcp_servers") and "cybermes" in data["mcp_servers"])))
         return {"installed": True, "configured": has_cb, "details": "Configured" if has_cb else "Detected (Missing Cybermes)"}
 
-    if ctype in ("yaml-hermes", "toml-codex"):
+    if ctype == "toml-codex":
         content = file_path.read_text(encoding="utf-8")
         has_cb = "cybermes" in content
         return {"installed": True, "configured": has_cb, "details": "Configured" if has_cb else "Detected (Missing Cybermes)"}
