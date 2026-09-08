@@ -14,6 +14,7 @@ import datetime
 import json
 import os
 import platform
+import re
 import shutil
 import sys
 from pathlib import Path
