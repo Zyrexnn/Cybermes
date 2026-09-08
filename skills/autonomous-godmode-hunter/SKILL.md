@@ -50,11 +50,12 @@ description: Autonomous end-to-end security research and full-surface bug huntin
 
 ## 3. Autonomous Tooling Integration Guide
 
-- **Reconnaissance**: `subfinder -d <target> | httpx -silent -status-code -title`
-- **Crawling**: `katana -u <url> -silent -depth 3`
-- **Fuzzing**: `ffuf -u <url>/FUZZ -w /home/ikhsan/Documents/Cybermes/tools/wordlists/common.txt -mc 200,301,302,403`
-- **XSS Analysis**: `dalfox url <url> --silence`
-- **SQLi Verification**: `sqlmap -u "<url>?param=1" --batch --banner`
+- **Reconnaissance**: `subfinder -d <target> -silent | httpx -silent -status-code -title -rate-limit 10 -t 5`
+- **Crawling**: `katana -u <url> -silent -depth 3 -rate-limit 10 -concurrency 3`
+- **Fuzzing & Content Discovery**: `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -rate 5 -t 5 -mc 200,301,302,403` (fallback: `katana` crawl + `httpx` probe)
+- **Vulnerability Scanning**: `nuclei -u <url> -tags cve,auth-bypass -rate-limit 10 -c 5 -silent`
+- **XSS Analysis**: `dalfox url <url> --silence` (fallback: `nuclei` xss templates or Puppeteer MCP)
+- **SQLi Verification**: `sqlmap -u "<url>?param=1" --batch --banner` (fallback: `nuclei` sqli templates or deterministic Python PoC)
 - **Browser Automation**: Use MCP tools (`puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate`) for dynamic JavaScript and DOM verification.
 
 ## 4. Verification Checkpoint Matrix

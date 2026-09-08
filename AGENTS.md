@@ -62,23 +62,30 @@ reports/<TARGET_SLUG>/
 
 ## 4. 🧰 Available Security Toolchain
 
-All pre-compiled security binaries are located in `tools/bin/` and exposed on your system `$PATH`:
+### Core Pre-compiled Toolchain (`tools/bin/` on system `$PATH`)
+These tools operate 100% standalone and should always be prioritized:
 
-| Tool | Primary Purpose | Standard Syntax |
+| Tool | Primary Purpose | Standard Safe Syntax |
 | :--- | :--- | :--- |
 | **subfinder** | Passive Subdomain Discovery | `subfinder -d <target> -silent` |
-| **httpx** | Web Probing & Tech Detection | `httpx -silent -status-code -title -tech-detect` |
-| **katana** | Crawler & SPA Endpoint Miner | `katana -u <url> -silent -depth 3` |
-| **gau** | Wayback / AlienVault URL Mining | `gau <target> --threads 5` |
-| **ffuf** | Directory & Parameter Fuzzing | `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -mc 200,301,302,403` |
+| **httpx** | Web Probing & Tech Detection | `httpx -silent -status-code -title -tech-detect -rate-limit 10 -t 5` |
+| **katana** | Crawler & SPA Endpoint Miner | `katana -u <url> -silent -depth 3 -rate-limit 10 -concurrency 3` |
 | **smart_pipe**| Stream Output Filter & Token Saver| `<tool_cmd> \| smart_pipe --target <SLUG> --tool <NAME>` |
-| **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -silent` |
-| **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` |
-| **dalfox** | XSS Scanner & Parameter Analyzer| `dalfox url <url> --silence` |
 | **secret_scan**| 48-Pattern Secret & Credential Miner| `secret_scan <target_file_or_dir>` or `cat blob \| secret_scan` |
 | **search_knowledge**| Offline Payload & CheatSheet Search | `search_knowledge "<query>" --limit 3` |
 | **aggregate_reports**| Automated Report Aggregator & Indexer| `aggregate_reports <TARGET_SLUG>` |
+| **nuclei** | Vulnerability Verification | `nuclei -u <url> -tags cve,auth-bypass -rate-limit 10 -c 5 -silent` |
 | **Puppeteer MCP** | Browser Automation & DOM Audit | Use `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate` |
+
+### Optional External Toolchain & Fallbacks
+If available on the host, these tools provide auxiliary capabilities:
+
+| Tool | Primary Purpose | Standard Safe Syntax | Native Fallback if Missing |
+| :--- | :--- | :--- | :--- |
+| **gau** | Historical URL Mining | `gau <target> --threads 5` | `katana -u <url> -depth 3` |
+| **ffuf** | Directory & Parameter Fuzzing | `ffuf -u <url>/FUZZ -w tools/wordlists/common.txt -rate 5 -t 5 -mc 200,301,302,403` | `katana` crawler + `httpx` probe |
+| **sqlmap** | SQL Injection Auditor | `sqlmap -u "<url>?id=1" --batch --banner` | `nuclei` sqli templates or Python PoC |
+| **dalfox** | XSS Scanner & Parameter Analyzer| `dalfox url <url> --silence` | `nuclei` xss templates or Puppeteer MCP |
 
 ---
 
@@ -89,8 +96,9 @@ All pre-compiled security binaries are located in `tools/bin/` and exposed on yo
 - **Target Returns 403 (Forbidden / WAF)**:
   - Switch to header mutation testing (`tools/wordlists/bypass-headers.txt`).
   - Test alternate casing, path normalization (`/api/v1/..;/admin`), or client-side SPA routing.
-- **Tool Missing Dependency or Fails**:
-  - All core capabilities (probing, crawling, fuzzing, secret detection) operate 100% standalone with native Go engines.
-  - If an optional advanced tool (`nuclei`, `sqlmap`, `dalfox`) is evaluated as **important/high-value** for verifying a specific vulnerability hypothesis:
-    1. Proactively notify the operator and provide the exact 1-line installation command (e.g., `pdtm -i nuclei`, `pip install sqlmap`), or propose running the installation directly on their behalf.
-    2. Continue the assessment using Cybermes native capabilities (`cybermes_http_probe`, `cybermes_fuzz_endpoints`, `cybermes_search_knowledge`) without stalling the engagement.
+- **Tool Missing Dependency or Fails (Non-Stalling Fallback)**:
+  - All core capabilities (probing, crawling, secret detection, knowledge lookup) operate 100% standalone with native Go engines in `tools/bin/`.
+  - If an optional external tool (`ffuf`, `sqlmap`, `dalfox`, `arjun`, `gau`) is not installed:
+    1. **Do NOT pause or stall** the engagement waiting for external package installation.
+    2. Fall back immediately to Cybermes native capabilities (`httpx`, `katana`, `smart_pipe`, `search_knowledge`, `nuclei`) or generate a deterministic, self-contained Python validation script (`pocs/poc_<vuln_name>.py`).
+    3. If an external tool is uniquely necessary for advanced verification, optionally mention its one-line install command to the operator while continuing the rest of the assessment.
