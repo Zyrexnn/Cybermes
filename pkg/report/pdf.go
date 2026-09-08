@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,10 +29,14 @@ type ReportArtifacts struct {
 // BuildFileURL converts a local absolute filesystem path into a valid file:/// URI across OS platforms
 func BuildFileURL(absPath string) string {
 	cleanPath := filepath.ToSlash(absPath)
-	if strings.HasPrefix(cleanPath, "/") {
-		return "file://" + cleanPath
+	if !strings.HasPrefix(cleanPath, "/") {
+		cleanPath = "/" + cleanPath
 	}
-	return "file:///" + cleanPath
+	u := &url.URL{
+		Scheme: "file",
+		Path:   cleanPath,
+	}
+	return u.String()
 }
 
 // FindChromiumBrowser scans known filesystem paths and system PATH for a Chromium-based browser

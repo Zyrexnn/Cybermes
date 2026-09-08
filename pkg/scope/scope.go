@@ -132,7 +132,7 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		}
 	}
 
-	_, host, port, path, err := NormalizeTarget(rawTarget)
+	scheme, host, port, path, err := NormalizeTarget(rawTarget)
 	if err != nil {
 		return ValidationResult{
 			Allowed:    false,
@@ -148,7 +148,7 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		if outRule == "" {
 			continue
 		}
-		if matchesRule(host, port, path, rawTarget, outRule) {
+		if matchesRule(scheme, host, port, path, rawTarget, outRule) {
 			return ValidationResult{
 				Allowed:    false,
 				Target:     rawTarget,
@@ -180,7 +180,7 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		if inRule == "" {
 			continue
 		}
-		if matchesRule(host, port, path, rawTarget, inRule) {
+		if matchesRule(scheme, host, port, path, rawTarget, inRule) {
 			return ValidationResult{
 				Allowed:    true,
 				Target:     rawTarget,
@@ -206,8 +206,23 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 	}
 }
 
+// effectivePort resolves empty port to protocol defaults (80 for http, 443 for https).
+func effectivePort(scheme, port string) string {
+	if port != "" {
+		return port
+	}
+	switch strings.ToLower(scheme) {
+	case "https":
+		return "443"
+	case "http":
+		return "80"
+	default:
+		return ""
+	}
+}
+
 // matchesRule evaluates host, port, path, or rawTarget against a single rule pattern.
-func matchesRule(host, port, path, rawTarget, rule string) bool {
+func matchesRule(scheme, host, port, path, rawTarget, rule string) bool {
 	rule = strings.ToLower(rule)
 	host = strings.ToLower(host)
 
@@ -227,9 +242,12 @@ func matchesRule(host, port, path, rawTarget, rule string) bool {
 
 	// Full URL or Path match
 	if strings.Contains(rule, "://") {
-		_, rHost, rPort, rPath, err := NormalizeTarget(rule)
+		rScheme, rHost, rPort, rPath, err := NormalizeTarget(rule)
 		if err == nil {
-			if host == rHost && (rPort == "" || port == rPort) {
+			effPort := effectivePort(scheme, port)
+			effRPort := effectivePort(rScheme, rPort)
+			portMatch := (rPort == "" || port == rPort || effPort == effRPort)
+			if host == rHost && portMatch {
 				if rPath == "/" || strings.HasPrefix(path, rPath) {
 					return true
 				}
@@ -256,6 +274,9 @@ func matchesRule(host, port, path, rawTarget, rule string) bool {
 
 	// Host + Port match (e.g. example.com:8080 or 127.0.0.1:8888)
 	if port != "" && fmt.Sprintf("%s:%s", host, port) == rule {
+		return true
+	}
+	if effPort := effectivePort(scheme, port); effPort != "" && fmt.Sprintf("%s:%s", host, effPort) == rule {
 		return true
 	}
 
