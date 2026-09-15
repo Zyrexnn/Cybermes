@@ -124,6 +124,8 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
 	if targetSlug == "" {
 		targetSlug = sanitizeSlug(targetURL)
+	} else {
+		targetSlug = sanitizeSlug(targetSlug)
 	}
 
 	tags := strings.TrimSpace(request.GetString("tags", "cve,auth-bypass,misconfig"))
