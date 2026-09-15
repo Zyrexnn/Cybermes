@@ -1,0 +1,11 @@
+admin
+login
+register
+profile
+forgot-password
+dashboard
+settings
+api
+internal
+data
+public

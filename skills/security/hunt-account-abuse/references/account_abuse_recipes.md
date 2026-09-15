@@ -1,6 +1,6 @@
 # Non-ATO Account-Abuse — Verified Reproduction Recipes
 
-Condensed from an authorized assessment of a Next.js/Vercel AI gateway.
+Condensed from a live assessment of `https://xyrusrouter.xyz` (Next.js/Vercel AI gateway).
 All requests below were executed; responses are real, not hypothetical.
 
 ## A. Per-Email Account-Lockout DoS (verified High)
@@ -56,4 +56,4 @@ for i in range(1,a.attempts+1):
 ## Coverage gaps to record (not "clean" results)
 - SQLi: sqlmap install broken in that env (`python` missing / "missing modules") -> note as gap.
 - dalfox/katana flag drift across versions -> verify with `--help`.
-- `aggregate_reports` expected `reports/<target>`; copy there first.
+- aggregate_reports.py expected `/workspace/reports/<target>`; copy there first.
