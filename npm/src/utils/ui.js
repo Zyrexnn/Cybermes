@@ -43,12 +43,17 @@ const RAW_BANNER = [
   '  ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝'
 ];
 
+let PKG_VERSION = '3.5.0';
+try {
+  PKG_VERSION = require('../../package.json').version || '3.5.0';
+} catch (_) {}
+
 function printBanner(subtitle = '') {
   console.log('');
   for (const line of RAW_BANNER) {
     console.log(gradient(line, [6, 182, 212], [168, 85, 247]));
   }
-  console.log('  ' + ANSI.teal + '🛡️  Autonomous Offensive Security MCP Server' + ANSI.reset + ' ' + ANSI.dim + 'v3.4.2' + ANSI.reset);
+  console.log('  ' + ANSI.teal + '🛡️  Autonomous Offensive Security MCP Server' + ANSI.reset + ' ' + ANSI.dim + 'v' + PKG_VERSION + ANSI.reset);
   if (subtitle) {
     console.log('  ' + ANSI.gray + subtitle + ANSI.reset);
   }
