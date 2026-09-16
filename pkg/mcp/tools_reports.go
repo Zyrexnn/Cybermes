@@ -150,6 +150,7 @@ func (s *Server) handleAggregateReport(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultText(sb.String()), nil
 	}
 
+	targetSlug = sanitizeSlug(targetSlug)
 	targetDir := filepath.Join(s.cfg.ReportsDir, targetSlug)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -244,7 +245,7 @@ func (s *Server) handleListFindings(ctx context.Context, request mcp.CallToolReq
 		return mcp.NewToolResultError("Missing required parameter: 'target_slug'"), nil
 	}
 
-	targetSlug = strings.TrimSpace(targetSlug)
+	targetSlug = sanitizeSlug(targetSlug)
 	format := request.GetString("format", "markdown")
 	targetDir := filepath.Join(s.cfg.ReportsDir, targetSlug)
 

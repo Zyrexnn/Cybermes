@@ -81,6 +81,8 @@ func (s *Server) handleFuzzEndpoints(ctx context.Context, request mcp.CallToolRe
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
 	if targetSlug == "" {
 		targetSlug = sanitizeSlug(targetURL)
+	} else {
+		targetSlug = sanitizeSlug(targetSlug)
 	}
 
 	wordlist := strings.TrimSpace(request.GetString("wordlist", ""))

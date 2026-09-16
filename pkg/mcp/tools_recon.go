@@ -201,6 +201,9 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 	}
 
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
+	if targetSlug != "" {
+		targetSlug = sanitizeSlug(targetSlug)
+	}
 	format := request.GetString("format", "markdown")
 
 	cfg, _, _ := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
@@ -246,6 +249,9 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 	}
 
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
+	if targetSlug != "" {
+		targetSlug = sanitizeSlug(targetSlug)
+	}
 	headersRaw := request.GetString("headers", "")
 	cookies := strings.TrimSpace(request.GetString("cookies", ""))
 	followRedirects := request.GetBool("follow_redirects", false)
@@ -330,6 +336,8 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
 	if targetSlug == "" {
 		targetSlug = sanitizeSlug(targetURL)
+	} else {
+		targetSlug = sanitizeSlug(targetSlug)
 	}
 
 	headersRaw := request.GetString("headers", "")
@@ -408,6 +416,8 @@ func (s *Server) handleSubdomainDiscovery(ctx context.Context, request mcp.CallT
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
 	if targetSlug == "" {
 		targetSlug = sanitizeSlug(domain)
+	} else {
+		targetSlug = sanitizeSlug(targetSlug)
 	}
 
 	timeoutSec := request.GetInt("timeout_seconds", 30)
