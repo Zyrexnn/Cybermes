@@ -103,6 +103,73 @@ out_of_scope:
 	}
 }
 
+func TestScopeTargetsField(t *testing.T) {
+	// Root scope.yaml program format: `targets` allowlist instead of `in_scope`.
+	yamlContent := `
+program: "Cybermes Security Assessment & Bug Bounty"
+authorization: "AUTHORIZED"
+targets:
+  - "*.example.com"
+  - "http://127.0.0.1:8888"
+out_of_scope:
+  - "evil.example.com"
+`
+	cfg, err := ParseScopeYAML([]byte(yamlContent))
+	if err != nil {
+		t.Fatalf("Failed to parse scope YAML: %v", err)
+	}
+	if len(cfg.EffectiveInScope()) != 2 {
+		t.Fatalf("Expected 2 effective in-scope rules from targets, got %v", cfg.EffectiveInScope())
+	}
+
+	tests := []struct {
+		target   string
+		expected bool
+		name     string
+	}{
+		{"https://app.example.com/api", true, "Targets wildcard match"},
+		{"http://127.0.0.1:8888/api/documents/101", true, "Targets URL match"},
+		{"https://evil.example.com", false, "Out-of-scope exclusion wins over targets"},
+		{"https://unrelated.example.org", false, "Unlisted target blocked"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := ValidateTarget(tt.target, cfg)
+			if res.Allowed != tt.expected {
+				t.Errorf("Target '%s' expected allowed=%v, got allowed=%v (reason: %s)",
+					tt.target, tt.expected, res.Allowed, res.Reason)
+			}
+		})
+	}
+}
+
+func TestScopeWildcardAllowAll(t *testing.T) {
+	// Mirrors the shipped root scope.yaml: targets ["*"] allows operator
+	// targets while out_of_scope exclusions still apply.
+	yamlContent := `
+targets:
+  - "*"
+out_of_scope:
+  - "blocked.example.com"
+`
+	cfg, err := ParseScopeYAML([]byte(yamlContent))
+	if err != nil {
+		t.Fatalf("Failed to parse scope YAML: %v", err)
+	}
+
+	if res := ValidateTarget("https://anything.example.net/path", cfg); !res.Allowed {
+		t.Errorf("Expected wildcard '*' to allow arbitrary target (reason: %s)", res.Reason)
+	}
+	if res := ValidateTarget("https://blocked.example.com", cfg); res.Allowed {
+		t.Errorf("Expected out_of_scope to win over wildcard '*'")
+	}
+	// out_of_scope wildcard blocks everything.
+	cfgDenyAll := &ScopeConfig{OutOfScope: []string{"*"}}
+	if res := ValidateTarget("https://anything.example.net", cfgDenyAll); res.Allowed {
+		t.Errorf("Expected out_of_scope '*' to block all targets")
+	}
+}
+
 func TestScopeDirectOperatorAuthFallback(t *testing.T) {
 	// If cfg is nil, Direct Operator Authorization applies
 	res := ValidateTarget("https://custom-target.com:8443/api", nil)

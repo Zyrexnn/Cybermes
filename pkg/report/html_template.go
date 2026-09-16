@@ -686,7 +686,7 @@ func GenerateHTMLDashboard(targetDir string, data *SummaryData) (string, error) 
 	}
 
 	htmlPath := filepath.Join(targetDir, "report.html")
-	if err := os.WriteFile(htmlPath, buf.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(htmlPath, buf.Bytes(), 0644); err != nil {
 		return "", fmt.Errorf("failed to write report.html: %w", err)
 	}
 

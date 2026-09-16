@@ -317,9 +317,9 @@ npx -y cybermes-mcp install --local
 
 ---
 
-## 🛡️ Complete Capabilities Catalog (14 Tools, Resources & Prompts)
+## 🛡️ Complete Capabilities Catalog (15 Tools, Resources & Prompts)
 
-### 🛠️ 14 Native MCP Tools
+### 🛠️ 15 Native MCP Tools
 | Tool Name | Engine & Scope | Auto-Approve | Purpose |
 | :--- | :--- | :---: | :--- |
 | `cybermes_generate_pdf` | PDF Engine / `chromedp` | ✔ Yes | Export pixel-perfect executive PDF security reports and interactive HTML dashboards. |
@@ -329,6 +329,7 @@ npx -y cybermes-mcp install --local
 | `cybermes_recon_crawl` | Native Go / `katana` | ○ Ask | Smart Pipe token-budgeted crawler & JS bundle endpoint miner. |
 | `cybermes_subdomain_discovery`| Subfinder / crt.sh | ✔ Yes | Dual-engine subdomain discovery with certificate transparency stream deduplication. |
 | `cybermes_fuzz_endpoints` | ffuf / Worker Pool | ✔ Yes | Rate-limited directory and parameter discovery (20-25 req/s) with common.txt fallback. |
+| `cybermes_nmap_scan` | nmap / Native Go | ○ Ask | Rate-limited TCP port discovery & service fingerprinting with validated port specs. |
 | `cybermes_search_knowledge` | BM25 Engine | ✔ Yes | Sub-50ms query against 50,000+ curated offensive security payloads. |
 | `cybermes_list_skills` | Metadata Index | ✔ Yes | Catalog and filter 200+ offensive security playbooks and methodology SOPs. |
 | `cybermes_get_skill` | Markdown Parser | ✔ Yes | Retrieve complete offensive playbooks (e.g. `hunt-idor`, `hunt-llm-ai`, `jwt-oauth`). |

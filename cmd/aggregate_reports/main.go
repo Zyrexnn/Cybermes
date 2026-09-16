@@ -58,7 +58,7 @@ func main() {
 
 	targetDir := filepath.Join(reportsDir, target)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(targetDir, 0777); err != nil {
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating target report directory: %v\n", err)
 			os.Exit(1)
 		}

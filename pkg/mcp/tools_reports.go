@@ -111,6 +111,14 @@ func (s *Server) registerReportsTools() {
 			"remediation",
 			mcp.Description("Specific code or architecture remediation advice."),
 		),
+		mcp.WithString(
+			"cvss",
+			mcp.Description("Optional CVSS v3.x base score 0.0-10.0 (e.g. '8.1'). Invalid values are rejected."),
+		),
+		mcp.WithString(
+			"cwe",
+			mcp.Description("Optional CWE reference (e.g. 'CWE-79' or '79'). Invalid values are rejected."),
+		),
 	)
 
 	s.mcpServer.AddTool(aggTool, s.handleAggregateReport)
@@ -310,6 +318,15 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	pocScript := request.GetString("poc_script", "")
 	remediation := request.GetString("remediation", "Implement strict authorization checks and validate user access permissions.")
 
+	cvss, err := report.ValidateCVSSScore(request.GetString("cvss", ""))
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid 'cvss': %v", err)), nil
+	}
+	cwe, err := report.NormalizeCWE(request.GetString("cwe", ""))
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid 'cwe': %v", err)), nil
+	}
+
 	targetSlug = sanitizeSlug(targetSlug)
 	severity = strings.ToLower(strings.TrimSpace(severity))
 
@@ -325,6 +342,13 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 		}
 	}
 
+	// Deduplication gate: same title+endpoint already recorded → skip with pointer.
+	if dupPath, err := report.FindDuplicateFinding(findingsDir, title, endpoint); err == nil && dupPath != "" {
+		rel, _ := filepath.Rel(s.cfg.RootDir, dupPath)
+		return mcp.NewToolResultText(fmt.Sprintf("Finding already recorded, skipping duplicate:\n- **Existing File**: `%s`\n- **Target**: `%s`\n- **Summary**: `reports/%s/SUMMARY.md`",
+			rel, targetSlug, targetSlug)), nil
+	}
+
 	vulnSlug := sanitizeSlug(title)
 	if len(vulnSlug) > 40 {
 		vulnSlug = vulnSlug[:40]
@@ -336,6 +360,12 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	doc.WriteString(fmt.Sprintf("# %s\n\n", title))
 	doc.WriteString(fmt.Sprintf("- **Severity**: %s\n", strings.ToUpper(severity)))
 	doc.WriteString(fmt.Sprintf("- **Endpoint**: `%s`\n", endpoint))
+	if cvss != "" {
+		doc.WriteString(fmt.Sprintf("- **CVSS**: %s\n", cvss))
+	}
+	if cwe != "" {
+		doc.WriteString(fmt.Sprintf("- **CWE**: %s\n", cwe))
+	}
 	doc.WriteString(fmt.Sprintf("- **Date**: %s\n\n", time.Now().Format("2006-01-02")))
 	doc.WriteString("## Description\n\n")
 	doc.WriteString(description + "\n\n")

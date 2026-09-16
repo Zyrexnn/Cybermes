@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,7 +27,18 @@ type SkillMetadata struct {
 var (
 	skillsIndexCache []SkillMetadata
 	skillsIndexMu    sync.RWMutex
+
+	// safeSkillNameRe confines skill lookups to direct child directories of
+	// the skills library. Rejects path separators and ".." so a crafted
+	// skill_name cannot escape into arbitrary SKILL.md files on disk.
+	safeSkillNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 )
+
+// isValidSkillName reports whether name is a plain skill directory name
+// without any path traversal elements.
+func isValidSkillName(name string) bool {
+	return safeSkillNameRe.MatchString(name)
+}
 
 // ParseSkillMetadata extracts frontmatter or fallback info from a SKILL.md file.
 func ParseSkillMetadata(filePath string) (SkillMetadata, error) {
@@ -254,6 +266,9 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 	}
 
 	skillName = strings.TrimSpace(skillName)
+	if !isValidSkillName(skillName) {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid skill name '%s': must be a plain skill directory name (letters, digits, '-', '_', '.').", skillName)), nil
+	}
 	sectionFilter := strings.ToLower(strings.TrimSpace(request.GetString("section", "")))
 
 	skillPath := filepath.Join(s.cfg.SkillsDir, skillName, "SKILL.md")

@@ -8,9 +8,11 @@ Utilizes Playwright Chromium for pixel-perfect print layout and modern typograph
 import os
 import re
 import sys
+import html
 import json
 import argparse
 from datetime import datetime
+from html.parser import HTMLParser
 from pathlib import Path
 import markdown
 
@@ -382,11 +384,115 @@ REPORT_HTML_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
+def _is_safe_resource_url(url: str) -> bool:
+    """Allow http/https/mailto links, relative URLs, and page fragments.
+    Block javascript:, vbscript:, file:, and non-image data: targets."""
+    norm = re.sub(r'[\s\x00-\x1f]+', '', html.unescape(url or '')).lower()
+    if re.match(r'^(javascript|vbscript|file):', norm):
+        return False
+    if norm.startswith('data:') and not re.match(r'^data:image/(png|jpeg|gif|webp);base64,', norm):
+        return False
+    return True
+
+
+class _ReportHTMLSanitizer(HTMLParser):
+    """Whitelist sanitizer for markdown-generated report HTML.
+
+    Only structural tags produced by the markdown converter survive;
+    everything else (script/style/iframe, event handlers, dangerous URLs)
+    is dropped while keeping the inner text.
+    """
+
+    ALLOWED_TAGS = frozenset({
+        'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+        'table', 'thead', 'tbody', 'tr', 'td', 'th',
+        'pre', 'code', 'blockquote', 'br', 'hr',
+        'strong', 'em', 'b', 'i', 'a', 'img',
+        'abbr', 'sup', 'sub', 'div', 'span',
+    })
+    ALLOWED_ATTRS = {'a': frozenset({'href'}), 'img': frozenset({'src', 'alt'})}
+    VOID_TAGS = frozenset({'br', 'hr', 'img'})
+    DROP_CONTENT_TAGS = frozenset({'script', 'style'})
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self._out = []
+        self._dropped_depth = 0
+
+    def _emit_start(self, tag, attrs):
+        if tag in self.DROP_CONTENT_TAGS:
+            self._dropped_depth += 1
+            return
+        if tag not in self.ALLOWED_TAGS:
+            return
+        safe = []
+        for name, value in attrs:
+            name = (name or '').lower()
+            if name not in self.ALLOWED_ATTRS.get(tag, ()):
+                continue
+            if name in ('href', 'src') and not _is_safe_resource_url(value or ''):
+                continue
+            safe.append(f'{name}="{html.escape(value or "", quote=True)}"')
+        suffix = ' /' if tag in self.VOID_TAGS else ''
+        self._out.append(f'<{tag}' + ((' ' + ' '.join(safe)) if safe else '') + suffix + '>')
+
+    def handle_starttag(self, tag, attrs):
+        if self._dropped_depth:
+            if (tag or '').lower() in self.DROP_CONTENT_TAGS:
+                self._dropped_depth += 1
+            return
+        self._emit_start((tag or '').lower(), attrs)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        tag = (tag or '').lower()
+        if self._dropped_depth:
+            if tag in self.DROP_CONTENT_TAGS:
+                self._dropped_depth -= 1
+            return
+        if tag in self.ALLOWED_TAGS and tag not in self.VOID_TAGS:
+            self._out.append(f'</{tag}>')
+
+    def handle_data(self, data):
+        if not self._dropped_depth:
+            self._out.append(html.escape(data))
+
+    def handle_entityref(self, name):
+        if not self._dropped_depth:
+            self._out.append(f'&{name};')
+
+    def handle_charref(self, name):
+        if not self._dropped_depth:
+            self._out.append(f'&#{name};')
+
+    def handle_comment(self, data):
+        pass
+
+    def result(self) -> str:
+        return ''.join(self._out)
+
+
+def _sanitize_report_html(html_text: str) -> str:
+    sanitizer = _ReportHTMLSanitizer()
+    sanitizer.feed(html_text)
+    sanitizer.close()
+    return sanitizer.result()
+
+
 def clean_markdown_for_html(content: str) -> str:
-    """Pre-process markdown content for clean HTML conversion."""
+    """Convert finding markdown to HTML safe for embedding in report.html.
+
+    Finding text (endpoints, PoC output, server reflections) routinely
+    carries attacker-influenced markup. Convert markdown first (preserving
+    code samples verbatim), then whitelist-sanitize the HTML so only
+    structural tags, safe links, and text survive.
+    """
     # Convert markdown tables, codeblocks and lists
     md = markdown.Markdown(extensions=['extra', 'tables', 'fenced_code', 'nl2br'])
-    return md.convert(content)
+    return _sanitize_report_html(md.convert(content))
 
 def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tuple:
     """Render HTML and export PDF via Playwright for a specific target directory."""
@@ -442,9 +548,11 @@ def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tup
             "html_content": html_body
         })
 
-    # Render template using Jinja2
-    from jinja2 import Template
-    template = Template(REPORT_HTML_TEMPLATE)
+    # Render template using Jinja2 with autoescaping enabled. Finding
+    # titles, endpoints, and metadata are attacker-influenced and must be
+    # escaped; only pre-sanitized df.html_content keeps its | safe mark.
+    from jinja2 import Environment
+    template = Environment(autoescape=True).from_string(REPORT_HTML_TEMPLATE)
     html_rendered = template.render(
         target=target_name,
         scan_time=scan_time,
@@ -458,7 +566,7 @@ def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tup
     html_file = target_dir / "report.html"
     html_file.write_text(html_rendered, encoding="utf-8")
     try:
-        os.chmod(html_file, 0o666)
+        os.chmod(html_file, 0o644)
     except Exception:
         pass
 
@@ -485,7 +593,7 @@ def generate_report_for_target(target_dir: Path, output_pdf: bool = True) -> tup
                 )
                 browser.close()
             try:
-                os.chmod(pdf_file, 0o666)
+                os.chmod(pdf_file, 0o644)
             except Exception:
                 pass
         except Exception as e:

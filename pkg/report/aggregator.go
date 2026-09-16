@@ -107,7 +107,7 @@ func AggregateTarget(targetDir string) (*SummaryData, error) {
 	metaFile := filepath.Join(targetDir, "metadata.json")
 	metaBytes, err := json.MarshalIndent(summaryData, "", "  ")
 	if err == nil {
-		os.WriteFile(metaFile, metaBytes, 0666)
+		os.WriteFile(metaFile, metaBytes, 0644)
 	}
 
 	summaryFile := filepath.Join(targetDir, "SUMMARY.md")
@@ -206,7 +206,7 @@ func GenerateSummaryMD(targetDir string, data *SummaryData, customContent string
 	sb.WriteString("\n")
 
 	summaryPath := filepath.Join(targetDir, "SUMMARY.md")
-	return os.WriteFile(summaryPath, []byte(sb.String()), 0666)
+	return os.WriteFile(summaryPath, []byte(sb.String()), 0644)
 }
 
 func AggregateAll(reportsDir string) ([]*SummaryData, error) {

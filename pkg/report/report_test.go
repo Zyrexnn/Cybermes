@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -292,5 +293,137 @@ func TestBuildFileURL(t *testing.T) {
 	windowsURL := BuildFileURL(windowsPath)
 	if windowsURL != "file:///C:/Users/name/reports/target/report.html" {
 		t.Errorf("unexpected Windows URL: %q", windowsURL)
+	}
+}
+
+func TestAggregateArtifactPermissions(t *testing.T) {
+	// Regression test: report artifacts must never be world-writable.
+	// Pentest evidence tampered by another local user must be impossible.
+	//
+	// NOTE: file mode arguments to os.WriteFile are filtered by the process
+	// umask, so the test neutralizes it first. Otherwise a typical umask of
+	// 022 would mask the bug (0666 silently landing as 0644) and the test
+	// would pass on unfixed code.
+	oldMask := syscall.Umask(0)
+	defer syscall.Umask(oldMask)
+
+	tempDir, err := os.MkdirTemp("", "perms_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	findingsDir := filepath.Join(tempDir, "findings")
+	if err := os.MkdirAll(findingsDir, 0755); err != nil {
+		t.Fatalf("failed to create findings dir: %v", err)
+	}
+	findingPath := filepath.Join(findingsDir, "high_idor.md")
+	content := `# IDOR in Profile Endpoint
+
+| Property | Details |
+| :--- | :--- |
+| Severity | HIGH |
+| CVSS | 8.1 |
+| CWE | 639 |
+| Endpoint | /api/v1/users/{id} |
+`
+	if err := os.WriteFile(findingPath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write finding file: %v", err)
+	}
+
+	if _, err := AggregateTarget(tempDir); err != nil {
+		t.Fatalf("AggregateTarget failed: %v", err)
+	}
+
+	for _, name := range []string{"SUMMARY.md", "metadata.json", "report.html"} {
+		p := filepath.Join(tempDir, name)
+		info, err := os.Stat(p)
+		if err != nil {
+			t.Fatalf("%s was not generated: %v", name, err)
+		}
+		if perm := info.Mode().Perm(); perm&0o022 != 0 {
+			t.Errorf("%s is group/other-writable (mode %04o), want no write bits outside owner", name, perm)
+		}
+	}
+}
+
+func TestValidateCVSSScore(t *testing.T) {
+	valid := map[string]string{
+		"9.8": "9.8", "8": "8.0", " 7.5 ": "7.5", "10": "10.0",
+		"10.0": "10.0", "0": "0.0", "9.8 (Critical)": "9.8",
+		"": "", "N/A": "", "-": "",
+	}
+	for in, want := range valid {
+		got, err := ValidateCVSSScore(in)
+		if err != nil {
+			t.Errorf("ValidateCVSSScore(%q) unexpected error: %v", in, err)
+		} else if got != want {
+			t.Errorf("ValidateCVSSScore(%q) = %q, want %q", in, got, want)
+		}
+	}
+	for _, in := range []string{"10.1", "-1", "high", "9.8.1", "abc", "NaN"} {
+		if _, err := ValidateCVSSScore(in); err == nil {
+			t.Errorf("ValidateCVSSScore(%q) expected error, got nil", in)
+		}
+	}
+}
+
+func TestNormalizeCWE(t *testing.T) {
+	valid := map[string]string{
+		"79": "CWE-79", "CWE-79": "CWE-79", "cwe-89": "CWE-89",
+		" CWE-639 ": "CWE-639", "007": "CWE-7", "": "", "N/A": "",
+	}
+	for in, want := range valid {
+		got, err := NormalizeCWE(in)
+		if err != nil {
+			t.Errorf("NormalizeCWE(%q) unexpected error: %v", in, err)
+		} else if got != want {
+			t.Errorf("NormalizeCWE(%q) = %q, want %q", in, got, want)
+		}
+	}
+	for _, in := range []string{"XSS", "CWE-", "CWE-abc", "79a", "--1"} {
+		if _, err := NormalizeCWE(in); err == nil {
+			t.Errorf("NormalizeCWE(%q) expected error, got nil", in)
+		}
+	}
+}
+
+func TestFindDuplicateFinding(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "dedup_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	findingsDir := filepath.Join(tempDir, "findings")
+	if err := os.MkdirAll(findingsDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	content := `# IDOR in Profile Endpoint
+
+- **Severity**: HIGH
+- **Endpoint**: ` + "`GET /api/v1/users/{id}`" + `
+`
+	if err := os.WriteFile(filepath.Join(findingsDir, "high_idor.md"), []byte(content), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	// Same finding despite case/whitespace differences.
+	dup, err := FindDuplicateFinding(findingsDir, "  idor IN profile endpoint ", "get  /API/v1/users/{id}")
+	if err != nil {
+		t.Fatalf("FindDuplicateFinding: %v", err)
+	}
+	if dup == "" {
+		t.Error("expected duplicate to be detected")
+	}
+
+	// Same title but different endpoint is a distinct finding.
+	if dup, _ := FindDuplicateFinding(findingsDir, "IDOR in Profile Endpoint", "GET /api/v1/orders/{id}"); dup != "" {
+		t.Errorf("false positive duplicate: %s", dup)
+	}
+
+	// Missing directory is not an error.
+	if dup, err := FindDuplicateFinding(filepath.Join(tempDir, "nope"), "X", "Y"); err != nil || dup != "" {
+		t.Errorf("expected empty result for missing dir, got %q, %v", dup, err)
 	}
 }

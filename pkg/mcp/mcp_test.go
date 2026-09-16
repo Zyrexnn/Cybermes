@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -56,6 +58,7 @@ func TestNewServer(t *testing.T) {
 		"cybermes_fuzz_endpoints",
 		"cybermes_filter_stream",
 		"cybermes_nuclei_scan",
+		"cybermes_nmap_scan",
 		"cybermes_check_environment",
 		"cybermes_record_evidence",
 	}
@@ -809,4 +812,268 @@ func TestPrompts_MissingArguments(t *testing.T) {
 	}
 }
 
+func setupTraversalTestServer(t *testing.T) *Server {
+	t.Helper()
+	tmp := t.TempDir()
 
+	write := func(path, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	// Legit skill inside the library.
+	write(filepath.Join(tmp, "skills", "hunt-idor", "SKILL.md"), "# Hunt IDOR Playbook")
+	// Canary OUTSIDE the skills library: must never be readable via skill_name.
+	write(filepath.Join(tmp, "secret", "SKILL.md"), "CANARY_SKILL_ESCAPE")
+	// Legit report summary.
+	write(filepath.Join(tmp, "reports", "victim", "SUMMARY.md"), "# Victim Summary")
+	// Canary OUTSIDE the reports workspace.
+	write(filepath.Join(tmp, "secret", "SUMMARY.md"), "CANARY_REPORT_ESCAPE")
+
+	srv, err := NewServer(Config{RootDir: tmp})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	return srv
+}
+
+func toolResultText(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if res == nil {
+		t.Fatal("nil tool result")
+	}
+	var sb strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := mcp.AsTextContent(c); ok {
+			sb.WriteString(tc.Text)
+		}
+	}
+	return sb.String()
+}
+
+func TestSkillPathTraversalBlocked(t *testing.T) {
+	srv := setupTraversalTestServer(t)
+	ctx := context.Background()
+
+	call := func(skillName string) *mcp.CallToolResult {
+		req := mcp.CallToolRequest{Params: mcp.CallToolParams{
+			Name:      "cybermes_get_skill",
+			Arguments: map[string]any{"skill_name": skillName},
+		}}
+		res, err := srv.handleGetSkill(ctx, req)
+		if err != nil {
+			t.Fatalf("handleGetSkill(%q) unexpected error: %v", skillName, err)
+		}
+		return res
+	}
+
+	for _, evil := range []string{"../secret", "..", "a/../../secret", ".", "/etc", "a/b"} {
+		out := toolResultText(t, call(evil))
+		if strings.Contains(out, "CANARY_SKILL_ESCAPE") {
+			t.Errorf("PATH TRAVERSAL: skill_name %q leaked file outside skills dir", evil)
+		}
+	}
+
+	legit := toolResultText(t, call("hunt-idor"))
+	if !strings.Contains(legit, "Hunt IDOR Playbook") {
+		t.Errorf("legit skill unreadable after fix, got: %s", legit)
+	}
+}
+
+func TestResourcePathTraversalBlocked(t *testing.T) {
+	srv := setupTraversalTestServer(t)
+	ctx := context.Background()
+
+	// skills:// traversal must be rejected, never serve the outside canary.
+	if _, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://../secret"},
+	}); err == nil {
+		t.Error("PATH TRAVERSAL: skills://../secret was served without error")
+	}
+
+	// reports:// traversal must not escape the reports workspace.
+	if _, err := srv.handleReadReportResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "reports://../../secret/summary"},
+	}); err == nil {
+		t.Error("PATH TRAVERSAL: reports://../../secret/summary was served without error")
+	}
+
+	// Legit resources keep working.
+	skillContents, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://hunt-idor"},
+	})
+	if err != nil || len(skillContents) == 0 {
+		t.Fatalf("legit skill resource failed: %v", err)
+	}
+	reportContents, err := srv.handleReadReportResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "reports://victim/summary"},
+	})
+	if err != nil || len(reportContents) == 0 {
+		t.Fatalf("legit report resource failed: %v", err)
+	}
+}
+
+func recordFindingReq(targetSlug string, extra map[string]any) mcp.CallToolRequest {
+	args := map[string]any{
+		"target_slug":        targetSlug,
+		"severity":           "high",
+		"title":              "Test IDOR Invoices",
+		"endpoint":           "GET /api/v1/invoices/99",
+		"description":        "Unit test description for IDOR vulnerability.",
+		"reproduction_steps": "1. Send request with user B cookie\n2. Observe 200 OK",
+		"remediation":        "Validate object ownership.",
+	}
+	for k, v := range extra {
+		args[k] = v
+	}
+	return mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_record_finding",
+		Arguments: args,
+	}}
+}
+
+func TestRecordFindingDedupAndEnrichment(t *testing.T) {
+	tmp := t.TempDir()
+	srv, err := NewServer(Config{RootDir: tmp})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	ctx := context.Background()
+	slug := "dedup_target"
+	entries := func() []os.DirEntry {
+		es, _ := os.ReadDir(filepath.Join(tmp, "reports", slug, "findings"))
+		return es
+	}
+
+	// 1. Record with valid CVSS/CWE enrichment.
+	res, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, map[string]any{
+		"cvss": "8.1", "cwe": "79",
+	}))
+	if err != nil {
+		t.Fatalf("handleRecordFinding: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got error: %s", toolResultText(t, res))
+	}
+	if n := len(entries()); n != 1 {
+		t.Fatalf("expected 1 finding file, got %d", n)
+	}
+
+	// Enrichment must be parseable back by the aggregator matrix.
+	agg, err := srv.handleListFindings(ctx, mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_list_findings",
+		Arguments: map[string]any{"target_slug": slug, "format": "json"},
+	}})
+	if err != nil {
+		t.Fatalf("handleListFindings: %v", err)
+	}
+	listed := toolResultText(t, agg)
+	if !strings.Contains(listed, "8.1") || !strings.Contains(listed, "CWE-79") {
+		t.Errorf("CVSS/CWE enrichment missing from findings matrix: %s", listed)
+	}
+
+	// 2. Recording the same title+endpoint again must NOT create a second file.
+	res2, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, nil))
+	if err != nil {
+		t.Fatalf("second handleRecordFinding: %v", err)
+	}
+	if !strings.Contains(strings.ToLower(toolResultText(t, res2)), "already recorded") {
+		t.Errorf("expected duplicate-skip message, got: %s", toolResultText(t, res2))
+	}
+	if n := len(entries()); n != 1 {
+		t.Errorf("duplicate created a second file: %d files", n)
+	}
+
+	// 3. Invalid CVSS/CWE values are rejected.
+	for _, bad := range []map[string]any{{"cvss": "11"}, {"cvss": "high"}, {"cwe": "XSS"}} {
+		resBad, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, bad))
+		if err != nil {
+			t.Fatalf("handleRecordFinding: %v", err)
+		}
+		if !resBad.IsError {
+			t.Errorf("expected validation error for %v", bad)
+		}
+	}
+}
+
+func TestToolNmapScan(t *testing.T) {
+	srv, rootDir := setupTestServer(t)
+	ctx := context.Background()
+
+	// Local listener so the native engine has a deterministic open port.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	openPort := ln.Addr().(*net.TCPAddr).Port
+	testSlug := "mcp_test_nmap"
+	defer func() {
+		_ = os.RemoveAll(filepath.Join(rootDir, "recon", testSlug))
+	}()
+
+	// 1. Native engine scan finds the open listener port.
+	openPortStr := strconv.Itoa(openPort)
+	req := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name: "cybermes_nmap_scan",
+		Arguments: map[string]any{
+			"target":          "127.0.0.1",
+			"target_slug":     testSlug,
+			"ports":           openPortStr,
+			"prefer_nmap":     false,
+			"timeout_seconds": float64(20),
+			"format":          "markdown",
+		},
+	}}
+
+	res, err := srv.handleNmapScan(ctx, req)
+	if err != nil {
+		t.Fatalf("handleNmapScan error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Nmap Port Scan Results") || !strings.Contains(text.Text, openPortStr) {
+		t.Errorf("Expected port scan summary with open port, got: %s", text.Text)
+	}
+	if !strings.Contains(text.Text, "native-go") {
+		t.Errorf("Expected native-go engine marker, got: %s", text.Text)
+	}
+
+	// 2. Flag-injection style ports input is rejected, not executed.
+	badReq := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name: "cybermes_nmap_scan",
+		Arguments: map[string]any{
+			"target":      "127.0.0.1",
+			"target_slug": testSlug,
+			"ports":       "-oN /tmp/pwned",
+			"prefer_nmap": false,
+		},
+	}}
+	badRes, err := srv.handleNmapScan(ctx, badReq)
+	if err != nil {
+		t.Fatalf("handleNmapScan error: %v", err)
+	}
+	if !badRes.IsError {
+		t.Error("Expected error result for flag-shaped ports input")
+	}
+
+	// 3. Missing target is rejected.
+	emptyReq := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_nmap_scan",
+		Arguments: map[string]any{},
+	}}
+	emptyRes, err := srv.handleNmapScan(ctx, emptyReq)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !emptyRes.IsError {
+		t.Error("Expected error result on missing target")
+	}
+}

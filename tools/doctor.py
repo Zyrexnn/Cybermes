@@ -218,6 +218,7 @@ def check_tools(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]:
         ("subfinder", "Subdomain Discovery", False),
         ("httpx", "HTTP Prober", False),
         ("katana", "Web Crawler", False),
+        ("nmap", "Port & Service Scanner", False),
         ("nuclei", "Vulnerability Scanner", True),
     ]
 
