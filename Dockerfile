@@ -1,4 +1,4 @@
-FROM ubuntu:26.04
+FROM ubuntu:24.04
 
 ARG TARGETARCH
 # A RUN step must fail when any command in a pipe fails, not only the last one.
@@ -60,8 +60,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Node.js LTS & MCP servers
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+RUN (curl -fsSL https://deb.nodesource.com/setup_22.x | bash - || true) && \
     apt-get install -y --no-install-recommends nodejs && \
+    (command -v npm >/dev/null 2>&1 || apt-get install -y --no-install-recommends npm) && \
     node --version && npm --version && \
     npm install -g @modelcontextprotocol/server-puppeteer @modelcontextprotocol/server-filesystem && \
     npm cache clean --force && \

@@ -65,3 +65,5 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    ignore:
+      - dependency-name: "ubuntu"
