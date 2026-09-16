@@ -13,6 +13,8 @@ We would like to express our gratitude to everyone who helps build, research, ma
 - **[msarg44](https://github.com/msarg44)** — Playwright PDF rendering engine fix ([#1](https://github.com/Zyrexnn/Cybermes/issues/1))
 - **[Mortify4315](https://github.com/Mortify4315)** — Windows Python launcher fallback & Long Path documentation ([#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5))
 - **[sizoune](https://github.com/sizoune)** — Target-specific PDF report filename & Docker gateway crash-loop fix ([#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20))
+- **[avp9-nexus](https://github.com/avp9-nexus)** — Docker build pipefail hardening & CI dev pipeline execution ([#23](https://github.com/Zyrexnn/Cybermes/pull/23), [#34](https://github.com/Zyrexnn/Cybermes/pull/34))
+- **[Anai-Guo](https://github.com/Anai-Guo)** — Fix missing `import re` in MCP setup script JSONC parser ([#41](https://github.com/Zyrexnn/Cybermes/pull/41))
 
 ---
 
@@ -30,6 +32,8 @@ We would like to express our gratitude to everyone who helps build, research, ma
 | **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
 | **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
 | **[@sizoune](https://github.com/sizoune)** | `Fork / PR` | Target-specific PDF report filename & Docker gateway crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20) |
+| **[@avp9-nexus](https://github.com/avp9-nexus)** | `Fork / PR` | Docker build pipefail hardening & CI dev pipeline execution | [#23](https://github.com/Zyrexnn/Cybermes/pull/23), [#34](https://github.com/Zyrexnn/Cybermes/pull/34) |
+| **[@Anai-Guo](https://github.com/Anai-Guo)** | `Fork / PR` | Fix missing `import re` in MCP setup script JSONC parser | [#41](https://github.com/Zyrexnn/Cybermes/pull/41) |
 | **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
 | **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
 
