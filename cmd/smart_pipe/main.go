@@ -54,7 +54,7 @@ func main() {
 	}
 
 	rawLogPath := filepath.Join(targetReconDir, fmt.Sprintf("%s_raw.txt", cleanTool))
-	rawFile, err := os.OpenFile(rawLogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	rawFile, err := os.OpenFile(rawLogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening raw log file: %v\n", err)
 		os.Exit(1)

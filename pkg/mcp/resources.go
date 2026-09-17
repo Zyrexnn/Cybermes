@@ -149,7 +149,10 @@ func (s *Server) handleReadSkillResource(ctx context.Context, request mcp.ReadRe
 		return nil, fmt.Errorf("invalid skill URI: %s", uri)
 	}
 
-	skillName := strings.TrimPrefix(uri, prefix)
+	skillName := strings.TrimSpace(strings.TrimPrefix(uri, prefix))
+	if !isValidSkillName(skillName) {
+		return nil, fmt.Errorf("invalid skill name: %s", skillName)
+	}
 	skillPath := filepath.Join(s.cfg.SkillsDir, skillName, "SKILL.md")
 
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
@@ -187,7 +190,10 @@ func (s *Server) handleReadReportResource(ctx context.Context, request mcp.ReadR
 	}
 
 	trimmed := strings.TrimPrefix(uri, prefix)
-	targetSlug := strings.TrimSuffix(trimmed, suffix)
+	targetSlug := sanitizeSlug(strings.TrimSuffix(trimmed, suffix))
+	if targetSlug == "" {
+		return nil, fmt.Errorf("invalid report URI: %s (expected reports://<target_slug>/summary)", uri)
+	}
 	summaryPath := filepath.Join(s.cfg.ReportsDir, targetSlug, "SUMMARY.md")
 
 	data, err := os.ReadFile(summaryPath)

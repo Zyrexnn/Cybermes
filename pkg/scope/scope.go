@@ -13,13 +13,31 @@ import (
 )
 
 // ScopeConfig represents target scope definitions from scope.yaml.
+//
+// Two schema flavors are supported and merged:
+//   - in_scope / out_of_scope (granular rule lists used by per-target files)
+//   - targets (program-level allowlist used by the root scope.yaml)
 type ScopeConfig struct {
 	Name        string   `yaml:"name" json:"name"`
 	TargetSlug  string   `yaml:"target_slug" json:"target_slug"`
 	InScope     []string `yaml:"in_scope" json:"in_scope"`
 	OutOfScope  []string `yaml:"out_of_scope" json:"out_of_scope"`
+	Targets     []string `yaml:"targets" json:"targets"`
 	AllowIPs    bool     `yaml:"allow_ips" json:"allow_ips"`
 	MaxRequests int      `yaml:"max_requests" json:"max_requests"`
+}
+
+// EffectiveInScope merges InScope and Targets into a single allowlist.
+// A "*" entry acts as an allow-all wildcard (out_of_scope rules are still
+// evaluated first, so explicit exclusions always win).
+func (c *ScopeConfig) EffectiveInScope() []string {
+	if c == nil {
+		return nil
+	}
+	merged := make([]string, 0, len(c.InScope)+len(c.Targets))
+	merged = append(merged, c.InScope...)
+	merged = append(merged, c.Targets...)
+	return merged
 }
 
 // ValidationResult contains the outcome of a target scope evaluation.
@@ -162,8 +180,9 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		}
 	}
 
-	// 2. Check In-Scope rules
-	if len(cfg.InScope) == 0 {
+	// 2. Check effective in-scope rules (in_scope merged with targets).
+	effective := cfg.EffectiveInScope()
+	if len(effective) == 0 {
 		return ValidationResult{
 			Allowed:    true,
 			Target:     rawTarget,
@@ -175,10 +194,22 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		}
 	}
 
-	for _, inRule := range cfg.InScope {
+	for _, inRule := range effective {
 		inRule = strings.TrimSpace(inRule)
 		if inRule == "" {
 			continue
+		}
+		if inRule == "*" {
+			return ValidationResult{
+				Allowed:    true,
+				Target:     rawTarget,
+				Host:       host,
+				Port:       port,
+				Path:       path,
+				MatchedBy:  "in_scope: *",
+				Reason:     fmt.Sprintf("Target '%s' is IN SCOPE (wildcard '*' allowlist; passed out-of-scope check)", rawTarget),
+				ScopeFound: true,
+			}
 		}
 		if matchesRule(scheme, host, port, path, rawTarget, inRule) {
 			return ValidationResult{
@@ -223,8 +254,13 @@ func effectivePort(scheme, port string) string {
 
 // matchesRule evaluates host, port, path, or rawTarget against a single rule pattern.
 func matchesRule(scheme, host, port, path, rawTarget, rule string) bool {
-	rule = strings.ToLower(rule)
+	rule = strings.ToLower(strings.TrimSpace(rule))
 	host = strings.ToLower(host)
+
+	// Global wildcard: matches any target.
+	if rule == "*" {
+		return true
+	}
 
 	// CIDR check (e.g. 192.168.1.0/24)
 	if strings.Contains(rule, "/") && !strings.Contains(rule, "://") {

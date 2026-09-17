@@ -106,6 +106,7 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		{"katana", "Core (Go fallback available)", "SPA & Endpoint Crawler"},
 		{"subfinder", "Core (Go fallback available)", "Passive Subdomain Discovery"},
 		{"ffuf", "Core (Go fallback available)", "Directory & Endpoint Fuzzer"},
+		{"nmap", "Core (Go fallback available)", "TCP Port & Service Scanner"},
 		{"nuclei", "Optional (On-Demand)", "Vulnerability Template & CVE Scanner (~150MB)"},
 		{"sqlmap", "Optional (On-Demand)", "Automated SQL Injection Auditor"},
 	}
@@ -180,6 +181,8 @@ func getToolInstallCommand(name string) string {
 		return "`pdtm -i nuclei` or `go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest`"
 	case "sqlmap":
 		return "`pip install sqlmap`"
+	case "nmap":
+		return "`sudo apt install nmap` (Debian/Ubuntu), `brew install nmap` (macOS), or `winget install Insecure.Nmap` (Windows)"
 	case "dalfox":
 		return "`go install github.com/hahwul/dalfox/v2@latest`"
 	default:
