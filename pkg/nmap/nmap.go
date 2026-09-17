@@ -84,6 +84,9 @@ func ExtractHost(raw string) (string, int, error) {
 	if strings.ContainsAny(s, " \t\r\n") {
 		return "", 0, fmt.Errorf("invalid target %q: contains whitespace", raw)
 	}
+	if strings.Contains(s, "..") {
+		return "", 0, fmt.Errorf("invalid target %q", raw)
+	}
 
 	host := s
 	port := 0
@@ -97,7 +100,7 @@ func ExtractHost(raw string) (string, int, error) {
 			port, _ = strconv.Atoi(p)
 		}
 	} else {
-		host = strings.SplitN(s, "/", 1)[0]
+		host = strings.SplitN(s, "/", 2)[0]
 		if ip := net.ParseIP(strings.Trim(host, "[]")); ip != nil {
 			host = strings.Trim(host, "[]")
 		} else if h, p, err := net.SplitHostPort(host); err == nil {

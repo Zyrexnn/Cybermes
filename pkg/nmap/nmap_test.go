@@ -15,6 +15,7 @@ func TestExtractHost(t *testing.T) {
 		port int
 	}{
 		"example.com":                {host: "example.com"},
+		"example.com/api/v1":         {host: "example.com"},
 		"https://api.example.com/v1": {host: "api.example.com"},
 		"http://127.0.0.1:8888/x":    {host: "127.0.0.1", port: 8888},
 		"127.0.0.1:8080":             {host: "127.0.0.1", port: 8080},
