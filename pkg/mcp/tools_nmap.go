@@ -149,8 +149,12 @@ func (s *Server) handleNmapScan(ctx context.Context, request mcp.CallToolRequest
 		if detail == "" {
 			detail = "-"
 		}
+		svc := strings.TrimSpace(p.Service)
+		if svc == "" {
+			svc = "-"
+		}
 		sb.WriteString(fmt.Sprintf("| `%d/%s` | `%s` | `%s` | `%s` |\n",
-			p.Port, p.Protocol, p.State, p.Service, detail))
+			p.Port, p.Protocol, p.State, svc, detail))
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil

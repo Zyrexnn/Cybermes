@@ -31,7 +31,10 @@ func TestExtractHost(t *testing.T) {
 			t.Errorf("ExtractHost(%q) = (%q,%d), want (%q,%d)", in, host, port, want.host, want.port)
 		}
 	}
-	for _, in := range []string{"", "  ", "exa mple.com", "http://", "foo/bar/baz/qux/../../../etc"} {
+	for _, in := range []string{
+		"", "  ", "exa mple.com", "http://", "foo/bar/baz/qux/../../../etc",
+		"-sV", "--script=vuln", "-oN", ".example.com", "-target.com",
+	} {
 		if _, _, err := ExtractHost(in); err == nil {
 			t.Errorf("ExtractHost(%q) expected error, got nil", in)
 		}
@@ -106,17 +109,68 @@ func TestNativeScanLocalhost(t *testing.T) {
 	if len(res.OpenPorts) != 1 || res.OpenPorts[0].Port != openPort {
 		t.Errorf("expected only port %d open, got %+v", openPort, res.OpenPorts)
 	}
+	if res.OpenPorts[0].Service == "" {
+		t.Errorf("expected non-empty Service for open port %d, got empty", openPort)
+	}
 }
 
 func TestScanTargetInvalidInput(t *testing.T) {
 	ctx := context.Background()
 	for _, opts := range []NmapOptions{
 		{Target: ""},
+		{Target: "-sV"},
+		{Target: "--script=vuln"},
 		{Target: "127.0.0.1", Ports: "-oN"},
 		{Target: "exa mple.com"},
 	} {
 		if _, err := ScanTarget(ctx, opts); err == nil {
 			t.Errorf("ScanTarget(%+v) expected error, got nil", opts)
+		}
+	}
+}
+
+func TestLookupCommonService(t *testing.T) {
+	cases := map[int]string{
+		21:    "ftp",
+		22:    "ssh",
+		80:    "http",
+		443:   "https",
+		3306:  "mysql",
+		5432:  "postgresql",
+		6379:  "redis",
+		8080:  "http-proxy",
+		27017: "mongodb",
+		49999: "unknown",
+	}
+	for port, want := range cases {
+		if got := lookupCommonService(port); got != want {
+			t.Errorf("lookupCommonService(%d) = %q, want %q", port, got, want)
+		}
+	}
+}
+
+func TestIdentifyServiceFromBanner(t *testing.T) {
+	cases := []struct {
+		banner string
+		port   int
+		want   string
+	}{
+		{"SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6", 2222, "ssh"},
+		{"HTTP/1.1 200 OK\r\nServer: nginx\r\n", 8080, "http"},
+		{"HTTP/1.1 200 OK\r\nServer: nginx\r\n", 443, "https"},
+		{"<!DOCTYPE html><html><body>Welcome</body></html>", 8000, "http"},
+		{"220 (vsFTPd 3.0.3)", 2121, "ftp"},
+		{"220 mail.example.com ESMTP Postfix", 2525, "smtp"},
+		{"+OK Dovecot ready.", 1100, "pop3"},
+		{"* OK [CAPABILITY IMAP4rev1] Courier-IMAP ready.", 1430, "imap"},
+		{"RFB 003.008\n", 5901, "vnc"},
+		{"5.7.34-0ubuntu0.18.04.1\x00mysql_native_password", 3306, "mysql"},
+		{"-ERR unknown command 'HELP'", 6379, "redis"},
+		{"UNKNOWN PROTOCOL DATA", 9999, ""},
+	}
+	for _, tc := range cases {
+		if got := identifyServiceFromBanner(tc.banner, tc.port); got != tc.want {
+			t.Errorf("identifyServiceFromBanner(%q, %d) = %q, want %q", tc.banner, tc.port, got, tc.want)
 		}
 	}
 }

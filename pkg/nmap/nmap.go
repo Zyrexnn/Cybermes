@@ -38,7 +38,7 @@ var (
 	listPortsRe = regexp.MustCompile(`^[\d,\s\-]+$`)
 	topPortsRe  = regexp.MustCompile(`(?i)^top-(\d+)$`)
 	nmapLineRe  = regexp.MustCompile(`^(\d+)/(tcp|udp)\s+(\S+)\s+(\S+)(?:\s+(.*))?$`)
-	hostOKRe    = regexp.MustCompile(`^[A-Za-z0-9_.\-]+$`)
+	hostOKRe    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\-]*$`)
 )
 
 type PortResult struct {
@@ -112,6 +112,9 @@ func ExtractHost(raw string) (string, int, error) {
 	host = strings.Trim(host, "[]")
 	if host == "" {
 		return "", 0, fmt.Errorf("could not resolve scan host from %q", raw)
+	}
+	if strings.HasPrefix(host, "-") || strings.HasPrefix(host, ".") {
+		return "", 0, fmt.Errorf("invalid scan host %q: cannot start with '-' or '.'", raw)
 	}
 	if ip := net.ParseIP(host); ip == nil && !hostOKRe.MatchString(host) {
 		return "", 0, fmt.Errorf("invalid scan host %q", host)
@@ -290,7 +293,7 @@ func runNmapBinary(ctx context.Context, bin, host string, useTop bool, topN int,
 		}
 		args = append(args, "-p", strings.Join(strs, ","))
 	}
-	args = append(args, host)
+	args = append(args, "--", host)
 
 	cmd := exec.CommandContext(ctx, bin, args...)
 	var stdout, stderr bytes.Buffer
@@ -375,6 +378,124 @@ func nativeConnectScan(ctx context.Context, host string, ports []int, rate int) 
 	return open
 }
 
+var wellKnownServices = map[int]string{
+	20:    "ftp-data",
+	21:    "ftp",
+	22:    "ssh",
+	23:    "telnet",
+	25:    "smtp",
+	53:    "domain",
+	69:    "tftp",
+	80:    "http",
+	88:    "kerberos-sec",
+	110:   "pop3",
+	111:   "rpcbind",
+	135:   "msrpc",
+	137:   "netbios-ns",
+	138:   "netbios-dgm",
+	139:   "netbios-ssn",
+	143:   "imap",
+	161:   "snmp",
+	162:   "snmptrap",
+	389:   "ldap",
+	443:   "https",
+	445:   "microsoft-ds",
+	465:   "smtps",
+	500:   "isakmp",
+	587:   "submission",
+	636:   "ldaps",
+	873:   "rsync",
+	993:   "imaps",
+	995:   "pop3s",
+	1099:  "rmiregistry",
+	1352:  "lotusnotes",
+	1433:  "ms-sql-s",
+	1434:  "ms-sql-m",
+	1521:  "oracle",
+	1723:  "pptp",
+	2049:  "nfs",
+	2121:  "ccproxy-ftp",
+	2383:  "ms-olap4",
+	3128:  "squid-http",
+	3306:  "mysql",
+	3307:  "opsnav-ordg",
+	3389:  "ms-wbt-server",
+	5060:  "sip",
+	5061:  "sip-tls",
+	5432:  "postgresql",
+	5672:  "amqp",
+	5900:  "vnc",
+	6000:  "x11",
+	6379:  "redis",
+	6666:  "irc",
+	8000:  "http-alt",
+	8008:  "http-alt",
+	8080:  "http-proxy",
+	8081:  "blackice-icecap",
+	8443:  "https-alt",
+	8888:  "sun-answerbook",
+	8889:  "ddi-tcp-2",
+	9000:  "cslistener",
+	9090:  "zeus-admin",
+	9200:  "wap-wsp",
+	9418:  "git",
+	11211: "memcache",
+	27017: "mongodb",
+}
+
+// lookupCommonService maps well-known TCP ports to standard service names.
+func lookupCommonService(port int) string {
+	if svc, ok := wellKnownServices[port]; ok {
+		return svc
+	}
+	return "unknown"
+}
+
+// identifyServiceFromBanner parses initial response bytes from an open port
+// to recognize running application protocols dynamically.
+func identifyServiceFromBanner(banner string, port int) string {
+	b := strings.ToUpper(strings.TrimSpace(banner))
+	if strings.HasPrefix(b, "SSH-") {
+		return "ssh"
+	}
+	if strings.HasPrefix(b, "HTTP/") || strings.Contains(b, "<!DOCTYPE HTML") || strings.Contains(b, "<HTML") {
+		if port == 443 || port == 8443 {
+			return "https"
+		}
+		return "http"
+	}
+	if strings.HasPrefix(b, "220") {
+		if strings.Contains(b, "FTP") || strings.Contains(b, "FILEZILLA") || strings.Contains(b, "PURE-FTPD") || strings.Contains(b, "VSFTPD") {
+			return "ftp"
+		}
+		if strings.Contains(b, "SMTP") || strings.Contains(b, "ESMTP") || strings.Contains(b, "POSTFIX") || strings.Contains(b, "EXIM") || strings.Contains(b, "MAIL") {
+			return "smtp"
+		}
+		if port == 21 {
+			return "ftp"
+		}
+		if port == 25 || port == 465 || port == 587 {
+			return "smtp"
+		}
+	}
+	if strings.HasPrefix(b, "+OK") {
+		return "pop3"
+	}
+	if strings.HasPrefix(b, "* OK") {
+		return "imap"
+	}
+	if strings.HasPrefix(b, "RFB") {
+		return "vnc"
+	}
+	if strings.Contains(b, "MYSQL") || strings.Contains(b, "MARIADB") {
+		return "mysql"
+	}
+	if strings.Contains(b, "REDIS") || strings.HasPrefix(b, "-ERR") || strings.HasPrefix(b, "-NOAUTH") {
+		return "redis"
+	}
+	return ""
+}
+
 func probePort(ctx context.Context, host string, port int) (PortResult, bool) {
 	dialer := &net.Dialer{Timeout: 3 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, strconv.Itoa(port)))
@@ -396,6 +517,10 @@ func probePort(ctx context.Context, host string, port int) (PortResult, bool) {
 		if len(pr.Banner) > 120 {
 			pr.Banner = pr.Banner[:120]
 		}
+		pr.Service = identifyServiceFromBanner(pr.Banner, port)
+	}
+	if pr.Service == "" {
+		pr.Service = lookupCommonService(port)
 	}
 	return pr, true
 }
@@ -405,7 +530,7 @@ func renderNativeDump(res *ScanResult) []byte {
 	sb.WriteString(fmt.Sprintf("# Cybermes native-go port scan: %s\n", res.Host))
 	for _, p := range res.OpenPorts {
 		line := fmt.Sprintf("%d/%s open %s", p.Port, p.Protocol, p.Service)
-		if p.Banner != "" {
+		if p.Banner != "" && p.Banner != p.Service {
 			line += " " + p.Banner
 		}
 		sb.WriteString(line + "\n")

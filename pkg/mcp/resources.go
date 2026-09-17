@@ -150,25 +150,15 @@ func (s *Server) handleReadSkillResource(ctx context.Context, request mcp.ReadRe
 	}
 
 	skillName := strings.TrimSpace(strings.TrimPrefix(uri, prefix))
-	if !isValidSkillName(skillName) {
-		return nil, fmt.Errorf("invalid skill name: %s", skillName)
-	}
-	skillPath := filepath.Join(s.cfg.SkillsDir, skillName, "SKILL.md")
-
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-		// Fallback fuzzy search
-		skills, _ := s.GetSkillsIndex(false)
-		for _, sk := range skills {
-			if strings.EqualFold(sk.Name, skillName) {
-				skillPath = sk.Path
-				break
-			}
-		}
+	skills, _ := s.GetSkillsIndex(false)
+	skillPath, err := resolveSkillFile(s.cfg.SkillsDir, skillName, skills)
+	if err != nil {
+		return nil, fmt.Errorf("skill resource resolution error: %w", err)
 	}
 
 	data, err := os.ReadFile(skillPath)
 	if err != nil {
-		return nil, fmt.Errorf("skill not found: %s", skillName)
+		return nil, fmt.Errorf("failed to read skill file '%s': %w", skillPath, err)
 	}
 
 	return []mcp.ResourceContents{

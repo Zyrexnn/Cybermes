@@ -918,6 +918,101 @@ func TestResourcePathTraversalBlocked(t *testing.T) {
 	}
 }
 
+func TestNestedSkillsAccessAndSecurity(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	// 1. Get nested skill via short name
+	resShort, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_get_skill",
+			Arguments: map[string]any{
+				"skill_name": "academic-platform-audit",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleGetSkill short name unexpected error: %v", err)
+	}
+	if resShort.IsError {
+		t.Fatalf("expected success for short name, got error: %s", toolResultText(t, resShort))
+	}
+	textShort := toolResultText(t, resShort)
+	if !strings.Contains(textShort, "Academic") {
+		t.Errorf("expected text to contain 'Academic', got: %s", textShort)
+	}
+
+	// 2. Get nested skill via subpath
+	resSubpath, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_get_skill",
+			Arguments: map[string]any{
+				"skill_name": "security/academic-platform-audit",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleGetSkill subpath unexpected error: %v", err)
+	}
+	if resSubpath.IsError {
+		t.Fatalf("expected success for subpath, got error: %s", toolResultText(t, resSubpath))
+	}
+	textSubpath := toolResultText(t, resSubpath)
+	if !strings.Contains(textSubpath, "Academic") {
+		t.Errorf("expected text to contain 'Academic', got: %s", textSubpath)
+	}
+
+	// 3. Traversal and malformed path injection attempts must fail
+	for _, bad := range []string{
+		"../../etc/passwd",
+		"security/../../etc/passwd",
+		"/etc/passwd",
+		"security/",
+		"security//academic-platform-audit",
+		"security\\academic-platform-audit",
+		"non-existent-skill-xyz",
+	} {
+		resBad, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_get_skill",
+				Arguments: map[string]any{
+					"skill_name": bad,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected go error for %q: %v", bad, err)
+		}
+		if !resBad.IsError {
+			t.Errorf("expected error for bad skill name %q, got success: %s", bad, toolResultText(t, resBad))
+		}
+	}
+
+	// 4. Resource URI reader supports nested skills
+	resContent, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://security/academic-platform-audit"},
+	})
+	if err != nil || len(resContent) == 0 {
+		t.Fatalf("expected nested skill resource to load, got error: %v", err)
+	}
+
+	// 5. Resource URI reader rejects traversal in subpaths
+	if _, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://security/../../etc/passwd"},
+	}); err == nil {
+		t.Error("expected error for traversal URI, got nil")
+	}
+
+	// 6. List skills includes all skills (including nested ones)
+	allSkills, err := srv.GetSkillsIndex(false)
+	if err != nil {
+		t.Fatalf("GetSkillsIndex error: %v", err)
+	}
+	if len(allSkills) < 220 {
+		t.Errorf("expected >= 220 indexed skills, got %d", len(allSkills))
+	}
+}
+
 func recordFindingReq(targetSlug string, extra map[string]any) mcp.CallToolRequest {
 	args := map[string]any{
 		"target_slug":        targetSlug,

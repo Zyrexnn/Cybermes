@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,16 +29,74 @@ var (
 	skillsIndexCache []SkillMetadata
 	skillsIndexMu    sync.RWMutex
 
-	// safeSkillNameRe confines skill lookups to direct child directories of
-	// the skills library. Rejects path separators and ".." so a crafted
-	// skill_name cannot escape into arbitrary SKILL.md files on disk.
-	safeSkillNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
+	// safeSkillSegmentRe validates individual path segments (directory names)
+	// within a skill reference. Each segment must start with an alphanumeric
+	// character and contain only letters, digits, '-', '_', or '.'.
+	safeSkillSegmentRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 )
 
-// isValidSkillName reports whether name is a plain skill directory name
-// without any path traversal elements.
+// isValidSkillName reports whether name is a valid skill directory name or
+// relative subpath (e.g. "hunt-idor" or "security/academic-platform-audit")
+// without any path traversal or invalid characters.
 func isValidSkillName(name string) bool {
-	return safeSkillNameRe.MatchString(name)
+	s := strings.TrimSpace(name)
+	if s == "" {
+		return false
+	}
+	if strings.Contains(s, "\\") || strings.Contains(s, "..") {
+		return false
+	}
+	if strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") {
+		return false
+	}
+	segments := strings.Split(s, "/")
+	if len(segments) > 4 {
+		return false
+	}
+	for _, seg := range segments {
+		if !safeSkillSegmentRe.MatchString(seg) {
+			return false
+		}
+	}
+	return true
+}
+
+// resolveSkillFile safely determines the absolute path to SKILL.md for a given
+// skillName, supporting direct relative paths, short names, and indexed metadata.
+func resolveSkillFile(skillsDir, skillName string, skills []SkillMetadata) (string, error) {
+	if !isValidSkillName(skillName) {
+		return "", fmt.Errorf("invalid skill name '%s': must be a valid skill directory name or relative subpath without traversal", skillName)
+	}
+
+	cleanBase := filepath.Clean(skillsDir)
+	baseWithSep := cleanBase + string(filepath.Separator)
+
+	// 1. Direct candidate path
+	candidate := filepath.Clean(filepath.Join(cleanBase, filepath.FromSlash(skillName), "SKILL.md"))
+	if !strings.HasPrefix(candidate, baseWithSep) {
+		return "", fmt.Errorf("invalid skill path '%s': attempted traversal outside skills directory", skillName)
+	}
+	if fi, err := os.Stat(candidate); err == nil && !fi.IsDir() {
+		return candidate, nil
+	}
+
+	// 2. Lookup in indexed skills: match by relative subpath, Name, or directory base
+	for _, sk := range skills {
+		rel, err := filepath.Rel(cleanBase, filepath.Dir(sk.Path))
+		if err == nil {
+			if strings.EqualFold(filepath.ToSlash(rel), skillName) {
+				return sk.Path, nil
+			}
+		}
+		if strings.EqualFold(sk.Name, skillName) {
+			return sk.Path, nil
+		}
+		if strings.EqualFold(filepath.Base(filepath.Dir(sk.Path)), skillName) {
+			return sk.Path, nil
+		}
+	}
+
+	return "", fmt.Errorf("skill '%s' not found", skillName)
 }
 
 // ParseSkillMetadata extracts frontmatter or fallback info from a SKILL.md file.
@@ -128,8 +187,27 @@ func (s *Server) GetSkillsIndex(forceRefresh bool) ([]SkillMetadata, error) {
 	}
 
 	var results []SkillMetadata
+	cleanBase := filepath.Clean(s.cfg.SkillsDir)
 
-	entries, err := os.ReadDir(s.cfg.SkillsDir)
+	err := filepath.WalkDir(cleanBase, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if strings.HasPrefix(name, ".") && path != cleanBase {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() == "SKILL.md" {
+			meta, err := ParseSkillMetadata(path)
+			if err == nil {
+				results = append(results, meta)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []SkillMetadata{}, nil
@@ -137,18 +215,9 @@ func (s *Server) GetSkillsIndex(forceRefresh bool) ([]SkillMetadata, error) {
 		return nil, fmt.Errorf("failed to read skills directory %s: %w", s.cfg.SkillsDir, err)
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		skillPath := filepath.Join(s.cfg.SkillsDir, entry.Name(), "SKILL.md")
-		if _, err := os.Stat(skillPath); err == nil {
-			meta, err := ParseSkillMetadata(skillPath)
-			if err == nil {
-				results = append(results, meta)
-			}
-		}
-	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
 
 	skillsIndexCache = results
 	return results, nil
@@ -209,17 +278,27 @@ func (s *Server) handleListSkills(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to load skills: %v", err)), nil
 	}
 
-	var matched []SkillMetadata
+	var nameMatches []SkillMetadata
+	var otherMatches []SkillMetadata
 	for _, sk := range skills {
-		if filter == "" ||
-			strings.Contains(strings.ToLower(sk.Name), filter) ||
-			strings.Contains(strings.ToLower(sk.Description), filter) ||
-			strings.Contains(strings.ToLower(sk.Sources), filter) {
-			matched = append(matched, sk)
-			if len(matched) >= limit {
+		if filter == "" {
+			nameMatches = append(nameMatches, sk)
+			if len(nameMatches) >= limit {
 				break
 			}
+			continue
 		}
+		if strings.Contains(strings.ToLower(sk.Name), filter) {
+			nameMatches = append(nameMatches, sk)
+		} else if strings.Contains(strings.ToLower(sk.Description), filter) ||
+			strings.Contains(strings.ToLower(sk.Sources), filter) {
+			otherMatches = append(otherMatches, sk)
+		}
+	}
+
+	matched := append(nameMatches, otherMatches...)
+	if len(matched) > limit {
+		matched = matched[:limit]
 	}
 
 	if len(matched) == 0 {
@@ -266,26 +345,12 @@ func (s *Server) handleGetSkill(ctx context.Context, request mcp.CallToolRequest
 	}
 
 	skillName = strings.TrimSpace(skillName)
-	if !isValidSkillName(skillName) {
-		return mcp.NewToolResultError(fmt.Sprintf("Invalid skill name '%s': must be a plain skill directory name (letters, digits, '-', '_', '.').", skillName)), nil
-	}
 	sectionFilter := strings.ToLower(strings.TrimSpace(request.GetString("section", "")))
 
-	skillPath := filepath.Join(s.cfg.SkillsDir, skillName, "SKILL.md")
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-		// Try matching skill without strict case or prefix
-		skills, _ := s.GetSkillsIndex(false)
-		found := false
-		for _, sk := range skills {
-			if strings.EqualFold(sk.Name, skillName) {
-				skillPath = sk.Path
-				found = true
-				break
-			}
-		}
-		if !found {
-			return mcp.NewToolResultError(fmt.Sprintf("Skill '%s' not found. Use `cybermes_list_skills` to search available playbooks.", skillName)), nil
-		}
+	skills, _ := s.GetSkillsIndex(false)
+	skillPath, err := resolveSkillFile(s.cfg.SkillsDir, skillName, skills)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("%v. Use `cybermes_list_skills` to search available playbooks.", err)), nil
 	}
 
 	contentBytes, err := os.ReadFile(skillPath)
