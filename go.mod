@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/chromedp/cdproto v0.0.0-20260714215040-dc233986426f
 	github.com/chromedp/chromedp v0.16.0
-	github.com/mark3labs/mcp-go v0.58.0
+	github.com/mark3labs/mcp-go v1.0.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
