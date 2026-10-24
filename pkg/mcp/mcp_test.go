@@ -457,6 +457,210 @@ func TestToolValidateScope(t *testing.T) {
 	}
 }
 
+func TestValidateScopeAutoCreateScaffold(t *testing.T) {
+	srv, rootDir := setupTestServer(t)
+	ctx := context.Background()
+
+	slug := "auto_scaffold_test"
+	defer os.RemoveAll(filepath.Join(rootDir, "reports", slug))
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_validate_scope",
+			Arguments: map[string]any{
+				"target":            "https://sub.autotest.org/api",
+				"target_slug":       slug,
+				"auto_create_scope": true,
+			},
+		},
+	}
+
+	res, err := srv.handleValidateScope(ctx, req)
+	if err != nil {
+		t.Fatalf("handleValidateScope failed: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "IN SCOPE / AUTHORIZED") {
+		t.Errorf("Expected newly scaffolded target to be in scope, got: %s", text.Text)
+	}
+
+	// Verify file was written
+	scaffoldPath := filepath.Join(rootDir, "reports", slug, "scope.yaml")
+	if _, err := os.Stat(scaffoldPath); os.IsNotExist(err) {
+		t.Errorf("Expected scaffold file to exist at %s", scaffoldPath)
+	}
+	if !strings.Contains(text.Text, scaffoldPath) {
+		t.Errorf("Expected output to mention scope file path %s, got: %s", scaffoldPath, text.Text)
+	}
+}
+
+func TestValidateScopeBadges(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Blocked / Out of Scope", func(t *testing.T) {
+		srv, _ := setupTestServer(t)
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target": "https://agency.gov/secret",
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🔴 **OUT OF SCOPE / BLOCKED**") {
+			t.Errorf("Expected blocked badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("No Scope Configured", func(t *testing.T) {
+		// Use empty temp dir so no scope.yaml exists
+		tmpDir := t.TempDir()
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target": "https://api.unknown-target.org",
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **NO SCOPE CONFIGURED (DIRECT OPERATOR AUTHORIZATION)**") {
+			t.Errorf("Expected no scope configured badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Dynamic Target Override", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "override_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "override_target"
+dynamic_target_override: true
+out_of_scope:
+  - "*.mil"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://random-api.corp.local",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **DYNAMIC OVERRIDE / OPERATOR AUTHORIZATION**") {
+			t.Errorf("Expected dynamic override badge, got: %s", text.Text)
+		}
+		if !strings.Contains(text.Text, "- **Scope File**:") {
+			t.Errorf("Expected Scope File line, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Wildcard Unrestricted", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "wildcard_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "wildcard_target"
+targets:
+  - "*"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://wildcard-allow.org",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **WILDCARD ALLOW-ALL (*) / SCOPE UNRESTRICTED**") {
+			t.Errorf("Expected wildcard unrestricted badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Explicitly In Scope", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "explicit_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "explicit_target"
+targets:
+  - "authorized.corp.internal"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://authorized.corp.internal/admin",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟢 **IN SCOPE / AUTHORIZED**") {
+			t.Errorf("Expected in scope authorized badge, got: %s", text.Text)
+		}
+	})
+}
+
 func TestToolHttpProbe(t *testing.T) {
 	srv, _ := setupTestServer(t)
 	ctx := context.Background()
@@ -490,6 +694,54 @@ func TestToolHttpProbe(t *testing.T) {
 	}
 	if !strings.Contains(text.Text, "200 OK") || !strings.Contains(text.Text, "Test App") {
 		t.Errorf("Expected probe details in output, got: %s", text.Text)
+	}
+}
+
+func TestHttpProbeScopeSlugFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	slug := "my_custom_client"
+	targetDir := filepath.Join(tmpDir, "reports", slug)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	scopeContent := `target_slug: "my_custom_client"
+targets:
+  - "127.0.0.0/8"
+`
+	if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer mockServer.Close()
+
+	// Call cybermes_http_probe with target_slug set to my_custom_client
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_http_probe",
+			Arguments: map[string]any{
+				"target_url":   mockServer.URL,
+				"target_slug":  slug,
+				"prefer_httpx": false,
+			},
+		},
+	}
+	res, err := srv.handleHttpProbe(ctx, req)
+	if err != nil {
+		t.Fatalf("handleHttpProbe error: %v", err)
+	}
+	text, _ := mcp.AsTextContent(res.Content[0])
+	if strings.Contains(text.Text, "Scope Guard Violation") {
+		t.Errorf("Expected per-target scope to allow probe, got violation: %s", text.Text)
 	}
 }
 

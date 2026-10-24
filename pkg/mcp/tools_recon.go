@@ -60,6 +60,10 @@ func (s *Server) registerReconTools() {
 			"target_slug",
 			mcp.Description("Target slug identifier to locate specific reports/<target_slug>/scope.yaml (optional)."),
 		),
+		mcp.WithBoolean(
+			"auto_create_scope",
+			mcp.Description("Automatically generate a scaffold reports/<target_slug>/scope.yaml if missing"),
+		),
 		mcp.WithString(
 			"format",
 			mcp.Description("Output format: 'markdown' (default) or 'json'."),
@@ -201,12 +205,19 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 	}
 
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug != "" {
+	if targetSlug == "" {
+		targetSlug = sanitizeSlug(target)
+	} else {
 		targetSlug = sanitizeSlug(targetSlug)
 	}
 	format := request.GetString("format", "markdown")
+	autoCreate := request.GetBool("auto_create_scope", false)
 
-	cfg, _, _ := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
+	if autoCreate && targetSlug != "" {
+		_, _ = scope.ScaffoldTargetScope(s.cfg.RootDir, targetSlug, target)
+	}
+
+	cfg, foundPath, _ := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
 	result := scope.ValidateTarget(target, cfg)
 
 	if strings.ToLower(format) == "json" {
@@ -225,12 +236,17 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 		statusBadge = "🔴 **OUT OF SCOPE / BLOCKED**"
 	} else if !result.ScopeFound {
 		statusBadge = "🟡 **NO SCOPE CONFIGURED (DIRECT OPERATOR AUTHORIZATION)**"
+	} else if result.MatchedBy == "dynamic_target_override: true" {
+		statusBadge = "🟡 **DYNAMIC OVERRIDE / OPERATOR AUTHORIZATION**"
 	} else if result.MatchedBy == "in_scope: *" || result.MatchedBy == "targets: *" {
 		statusBadge = "🟡 **WILDCARD ALLOW-ALL (*) / SCOPE UNRESTRICTED**"
 	}
 
 	sb.WriteString(fmt.Sprintf("- **Target**: `%s`\n", result.Target))
 	sb.WriteString(fmt.Sprintf("- **Status**: %s\n", statusBadge))
+	if foundPath != "" {
+		sb.WriteString(fmt.Sprintf("- **Scope File**: `%s`\n", foundPath))
+	}
 	sb.WriteString(fmt.Sprintf("- **Host**: `%s`\n", result.Host))
 	if result.Port != "" {
 		sb.WriteString(fmt.Sprintf("- **Port**: `%s`\n", result.Port))
@@ -253,7 +269,9 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 	}
 
 	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug != "" {
+	if targetSlug == "" {
+		targetSlug = sanitizeSlug(targetURL)
+	} else {
 		targetSlug = sanitizeSlug(targetSlug)
 	}
 	headersRaw := request.GetString("headers", "")
