@@ -12,19 +12,98 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var slugRegex = regexp.MustCompile(`[^a-z0-9_-]+`)
+
+// SanitizeSlug normalizes and confines a slug to safe alphanumeric, underscore, and dash characters.
+func SanitizeSlug(input string) string {
+	lower := strings.ToLower(input)
+	clean := slugRegex.ReplaceAllString(lower, "_")
+	return strings.Trim(clean, "_")
+}
+
+// ScaffoldTargetScope generates a clean, hardened per-target scope.yaml
+// under reports/<targetSlug>/scope.yaml if one does not already exist.
+func ScaffoldTargetScope(rootDir, targetSlug, initialTarget string) (string, error) {
+	if rootDir == "" || targetSlug == "" {
+		return "", fmt.Errorf("rootDir and targetSlug are required")
+	}
+	targetSlug = SanitizeSlug(targetSlug)
+	if targetSlug == "" {
+		return "", fmt.Errorf("invalid targetSlug")
+	}
+	targetDir := filepath.Join(rootDir, "reports", targetSlug)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create target reports directory: %w", err)
+	}
+
+	scopePath := filepath.Join(targetDir, "scope.yaml")
+	if _, err := os.Stat(scopePath); err == nil {
+		// File already exists; return existing path
+		return scopePath, nil
+	}
+
+	_, host, _, _, _ := NormalizeTarget(initialTarget)
+	targetWildcard := ""
+	if host != "" {
+		targetWildcard = fmt.Sprintf("*.%s", host)
+	}
+
+	var sb strings.Builder
+	sb.WriteString("# Cybermes Target Scope Definition\n")
+	sb.WriteString(fmt.Sprintf("target_slug: %q\n", targetSlug))
+	sb.WriteString(fmt.Sprintf("name: %q\n", fmt.Sprintf("%s Engagement Scope", targetSlug)))
+	sb.WriteString("dynamic_target_override: false\n\n")
+	sb.WriteString("targets:\n")
+	if targetWildcard != "" {
+		sb.WriteString(fmt.Sprintf("  - %q\n", targetWildcard))
+	}
+	if initialTarget != "" {
+		sb.WriteString(fmt.Sprintf("  - %q\n", initialTarget))
+	}
+	sb.WriteString("\nout_of_scope:\n")
+	sb.WriteString("  - \"*.gov\"\n")
+	sb.WriteString("  - \"*.mil\"\n")
+	sb.WriteString("  - \"*/logout\"\n")
+	sb.WriteString("  - \"*/delete-account\"\n")
+
+	if err := os.WriteFile(scopePath, []byte(sb.String()), 0644); err != nil {
+		return "", fmt.Errorf("failed to write scaffold scope file: %w", err)
+	}
+
+	return scopePath, nil
+}
+
 // ScopeConfig represents target scope definitions from scope.yaml.
 //
 // Two schema flavors are supported and merged:
 //   - in_scope / out_of_scope (granular rule lists used by per-target files)
 //   - targets (program-level allowlist used by the root scope.yaml)
 type ScopeConfig struct {
-	Name        string   `yaml:"name" json:"name"`
-	TargetSlug  string   `yaml:"target_slug" json:"target_slug"`
-	InScope     []string `yaml:"in_scope" json:"in_scope"`
-	OutOfScope  []string `yaml:"out_of_scope" json:"out_of_scope"`
-	Targets     []string `yaml:"targets" json:"targets"`
-	AllowIPs    bool     `yaml:"allow_ips" json:"allow_ips"`
-	MaxRequests int      `yaml:"max_requests" json:"max_requests"`
+	Name                  string   `yaml:"name" json:"name"`
+	TargetSlug            string   `yaml:"target_slug" json:"target_slug"`
+	DynamicTargetOverride bool     `yaml:"dynamic_target_override" json:"dynamic_target_override"`
+	InScope               []string `yaml:"in_scope" json:"in_scope"`
+	OutOfScope            []string `yaml:"out_of_scope" json:"out_of_scope"`
+	Targets               []string `yaml:"targets" json:"targets"`
+	AllowIPs              bool     `yaml:"allow_ips" json:"allow_ips"`
+	MaxRequests           int      `yaml:"max_requests" json:"max_requests"`
+}
+
+// IsUnrestricted reports whether the scope allows all targets without whitelist
+// restrictions (either via dynamic_target_override: true or wildcard targets: ["*"]).
+func (c *ScopeConfig) IsUnrestricted() bool {
+	if c == nil {
+		return true
+	}
+	if c.DynamicTargetOverride {
+		return true
+	}
+	for _, t := range c.EffectiveInScope() {
+		if strings.TrimSpace(t) == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 // EffectiveInScope merges InScope and Targets into a single allowlist.
@@ -180,6 +259,20 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		}
 	}
 
+	// 1b. If DynamicTargetOverride is enabled, allow any target that passed out-of-scope check
+	if cfg.DynamicTargetOverride {
+		return ValidationResult{
+			Allowed:    true,
+			Target:     rawTarget,
+			Host:       host,
+			Port:       port,
+			Path:       path,
+			MatchedBy:  "dynamic_target_override: true",
+			Reason:     fmt.Sprintf("Target '%s' is IN SCOPE (Dynamic Target Override enabled; passed out-of-scope check)", rawTarget),
+			ScopeFound: true,
+		}
+	}
+
 	// 2. Check effective in-scope rules (in_scope merged with targets).
 	effective := cfg.EffectiveInScope()
 	if len(effective) == 0 {
@@ -243,7 +336,7 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 		Host:       host,
 		Port:       port,
 		Path:       path,
-		Reason:     fmt.Sprintf("Target '%s' (host: %s) does not match any allowed in-scope pattern.", rawTarget, host),
+		Reason:     fmt.Sprintf("Target '%s' (host: %s) does not match any allowed in-scope pattern. To authorize, add to scope.yaml, scaffold reports/%s/scope.yaml, or enable dynamic_target_override.", rawTarget, host, SanitizeSlug(rawTarget)),
 		ScopeFound: true,
 	}
 }

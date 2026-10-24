@@ -228,3 +228,70 @@ func TestShippedScopeConfigCanRefuse(t *testing.T) {
 		t.Fatalf("the shipped scope file allowed out_of_scope target .gov")
 	}
 }
+
+func TestScopeDynamicTargetOverride(t *testing.T) {
+	yamlContent := `
+program: "Test Bounty"
+dynamic_target_override: true
+targets:
+  - "http://127.0.0.1:8888"
+out_of_scope:
+  - "blocked.example.com"
+`
+	cfg, err := ParseScopeYAML([]byte(yamlContent))
+	if err != nil {
+		t.Fatalf("ParseScopeYAML failed: %v", err)
+	}
+	if !cfg.DynamicTargetOverride {
+		t.Errorf("Expected DynamicTargetOverride to be true, got false")
+	}
+	if !cfg.IsUnrestricted() {
+		t.Errorf("Expected IsUnrestricted() to be true when DynamicTargetOverride is true")
+	}
+
+	// Unlisted target should be allowed because dynamic_target_override is true
+	res := ValidateTarget("https://unlisted-operator-target.com", cfg)
+	if !res.Allowed {
+		t.Errorf("Expected target to be allowed under dynamic target override, got blocked: %s", res.Reason)
+	}
+	if res.MatchedBy != "dynamic_target_override: true" {
+		t.Errorf("Expected MatchedBy to be 'dynamic_target_override: true', got: %s", res.MatchedBy)
+	}
+
+	// Out of scope must STILL be blocked even with dynamic_target_override: true
+	resBlocked := ValidateTarget("https://blocked.example.com", cfg)
+	if resBlocked.Allowed {
+		t.Errorf("Expected out_of_scope target to be blocked even with dynamic_target_override: true")
+	}
+}
+
+func TestScaffoldTargetScope(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetSlug := "test_client"
+	initialTarget := "https://api.testclient.org"
+
+	filePath, err := ScaffoldTargetScope(tmpDir, targetSlug, initialTarget)
+	if err != nil {
+		t.Fatalf("ScaffoldTargetScope failed: %v", err)
+	}
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Fatalf("Scaffold file was not created at %s", filePath)
+	}
+
+	cfg, err := ParseScopeFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to parse generated scaffold: %v", err)
+	}
+
+	val := ValidateTarget(initialTarget, cfg)
+	if !val.Allowed {
+		t.Errorf("Generated scaffold must allow initial target, got: %s", val.Reason)
+	}
+
+	// Idempotency: calling again should return existing path without error
+	path2, err := ScaffoldTargetScope(tmpDir, targetSlug, initialTarget)
+	if err != nil || path2 != filePath {
+		t.Errorf("Expected idempotent return of existing scaffold path, got: %v (err: %v)", path2, err)
+	}
+}
