@@ -179,4 +179,52 @@ func TestScopeDirectOperatorAuthFallback(t *testing.T) {
 	if res.Host != "custom-target.com" || res.Port != "8443" {
 		t.Errorf("Expected parsed host and port, got host=%s port=%s", res.Host, res.Port)
 	}
+	if res.ScopeFound {
+		t.Errorf("Expected ScopeFound to be false when cfg is nil")
+	}
+}
+
+func TestScopeEmptyRulesBlocked(t *testing.T) {
+	cfgEmpty := &ScopeConfig{}
+	res := ValidateTarget("https://example.org", cfgEmpty)
+	if res.Allowed {
+		t.Errorf("Expected empty scope configuration without in_scope or out_of_scope rules to be blocked")
+	}
+}
+
+func TestShippedScopeConfigCanRefuse(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("could not resolve repository root: %v", err)
+	}
+
+	cfg, path, err := FindScopeConfig(root, "")
+	if err != nil {
+		t.Fatalf("FindScopeConfig found no scope file at repository root: %v", err)
+	}
+
+	// Shipped scope file must NOT allow arbitrary external targets like example.org
+	res := ValidateTarget("https://example.org", cfg)
+	if res.Allowed {
+		t.Fatalf("the shipped scope file at %s authorises an arbitrary target: "+
+			"allowed=%v scope_found=%v reason=%q",
+			path, res.Allowed, res.ScopeFound, res.Reason)
+	}
+
+	// Shipped scope file MUST allow the local demo/lab targets
+	resLocal := ValidateTarget("http://127.0.0.1:8888", cfg)
+	if !resLocal.Allowed {
+		t.Fatalf("the shipped scope file at %s blocked local test target: %v", path, resLocal.Reason)
+	}
+
+	resLocalHost := ValidateTarget("http://localhost:8888/api/login", cfg)
+	if !resLocalHost.Allowed {
+		t.Fatalf("the shipped scope file at %s blocked localhost test target: %v", path, resLocalHost.Reason)
+	}
+
+	// Shipped scope file out_of_scope must block .gov, .mil, .edu
+	resGov := ValidateTarget("https://agency.gov", cfg)
+	if resGov.Allowed {
+		t.Fatalf("the shipped scope file allowed out_of_scope target .gov")
+	}
 }

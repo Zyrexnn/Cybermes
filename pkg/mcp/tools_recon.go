@@ -223,6 +223,10 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 	statusBadge := "🟢 **IN SCOPE / AUTHORIZED**"
 	if !result.Allowed {
 		statusBadge = "🔴 **OUT OF SCOPE / BLOCKED**"
+	} else if !result.ScopeFound {
+		statusBadge = "🟡 **NO SCOPE CONFIGURED (DIRECT OPERATOR AUTHORIZATION)**"
+	} else if result.MatchedBy == "in_scope: *" || result.MatchedBy == "targets: *" {
+		statusBadge = "🟡 **WILDCARD ALLOW-ALL (*) / SCOPE UNRESTRICTED**"
 	}
 
 	sb.WriteString(fmt.Sprintf("- **Target**: `%s`\n", result.Target))

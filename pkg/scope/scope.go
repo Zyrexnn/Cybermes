@@ -183,13 +183,24 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 	// 2. Check effective in-scope rules (in_scope merged with targets).
 	effective := cfg.EffectiveInScope()
 	if len(effective) == 0 {
+		if len(cfg.OutOfScope) > 0 {
+			return ValidationResult{
+				Allowed:    true,
+				Target:     rawTarget,
+				Host:       host,
+				Port:       port,
+				Path:       path,
+				Reason:     "In-scope list is empty; target passed out-of-scope check.",
+				ScopeFound: true,
+			}
+		}
 		return ValidationResult{
-			Allowed:    true,
+			Allowed:    false,
 			Target:     rawTarget,
 			Host:       host,
 			Port:       port,
 			Path:       path,
-			Reason:     "In-scope list is empty; target passed out-of-scope check.",
+			Reason:     "Scope configuration contains no defined in-scope, targets, or out-of-scope rules.",
 			ScopeFound: true,
 		}
 	}
