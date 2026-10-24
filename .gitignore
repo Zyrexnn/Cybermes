@@ -108,3 +108,7 @@ desktop.ini
 *.user
 .gemini/
 .claude/
+
+# 9. Superpowers & Agent Workspace Plans / Specs
+docs/superpowers/
+
