@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"cybermes/pkg/report"
+	"cybermes/pkg/scope"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-
-var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
 
 func (s *Server) registerReportsTools() {
 	aggTool := mcp.NewTool(
@@ -395,7 +393,5 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 }
 
 func sanitizeSlug(input string) string {
-	lower := strings.ToLower(input)
-	clean := slugRegex.ReplaceAllString(lower, "_")
-	return strings.Trim(clean, "_")
+	return scope.SanitizeSlug(input)
 }
