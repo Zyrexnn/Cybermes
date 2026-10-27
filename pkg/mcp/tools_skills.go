@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -22,11 +21,6 @@ type SkillMetadata struct {
 	ReportCount int    `json:"report_count,omitempty"`
 	Path        string `json:"path"`
 }
-
-var (
-	skillsIndexCache []SkillMetadata
-	skillsIndexMu    sync.RWMutex
-)
 
 // ParseSkillMetadata extracts frontmatter or fallback info from a SKILL.md file.
 func ParseSkillMetadata(filePath string) (SkillMetadata, error) {
@@ -101,18 +95,18 @@ func ParseSkillMetadata(filePath string) (SkillMetadata, error) {
 
 // GetSkillsIndex scans the skills directory and caches all available playbooks.
 func (s *Server) GetSkillsIndex(forceRefresh bool) ([]SkillMetadata, error) {
-	skillsIndexMu.RLock()
-	if !forceRefresh && len(skillsIndexCache) > 0 {
-		defer skillsIndexMu.RUnlock()
-		return skillsIndexCache, nil
+	s.skillsMu.RLock()
+	if !forceRefresh && len(s.skillsCache) > 0 {
+		defer s.skillsMu.RUnlock()
+		return s.skillsCache, nil
 	}
-	skillsIndexMu.RUnlock()
+	s.skillsMu.RUnlock()
 
-	skillsIndexMu.Lock()
-	defer skillsIndexMu.Unlock()
+	s.skillsMu.Lock()
+	defer s.skillsMu.Unlock()
 
-	if !forceRefresh && len(skillsIndexCache) > 0 {
-		return skillsIndexCache, nil
+	if !forceRefresh && len(s.skillsCache) > 0 {
+		return s.skillsCache, nil
 	}
 
 	var results []SkillMetadata
@@ -138,7 +132,7 @@ func (s *Server) GetSkillsIndex(forceRefresh bool) ([]SkillMetadata, error) {
 		}
 	}
 
-	skillsIndexCache = results
+	s.skillsCache = results
 	return results, nil
 }
 

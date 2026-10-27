@@ -12,7 +12,6 @@ import (
 )
 
 func (s *Server) registerResources() {
-	// Static Browseable Resources
 	skillsIndexRes := mcp.NewResource(
 		"skills://index",
 		"Cybermes Skills Library Index",
@@ -34,7 +33,6 @@ func (s *Server) registerResources() {
 		mcp.WithMIMEType("text/markdown"),
 	)
 
-	// Dynamic Resource Templates
 	skillTemplate := mcp.NewResourceTemplate(
 		"skills://{skill_name}",
 		"Cybermes Offensive Skill Playbook",
@@ -150,16 +148,26 @@ func (s *Server) handleReadSkillResource(ctx context.Context, request mcp.ReadRe
 	}
 
 	skillName := strings.TrimPrefix(uri, prefix)
-	skillPath := filepath.Join(s.cfg.SkillsDir, skillName, "SKILL.md")
+	skillPath := filepath.Join(s.cfg.SkillsDir, filepath.Clean(skillName), "SKILL.md")
+	if !isSafeSubpath(s.cfg.SkillsDir, skillPath) {
+		return nil, fmt.Errorf("invalid skill path: access denied")
+	}
 
 	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
 		// Fallback fuzzy search
 		skills, _ := s.GetSkillsIndex(false)
+		found := false
 		for _, sk := range skills {
 			if strings.EqualFold(sk.Name, skillName) {
-				skillPath = sk.Path
+				if isSafeSubpath(s.cfg.SkillsDir, sk.Path) {
+					skillPath = sk.Path
+					found = true
+				}
 				break
 			}
+		}
+		if !found {
+			return nil, fmt.Errorf("skill not found: %s", skillName)
 		}
 	}
 
@@ -188,7 +196,10 @@ func (s *Server) handleReadReportResource(ctx context.Context, request mcp.ReadR
 
 	trimmed := strings.TrimPrefix(uri, prefix)
 	targetSlug := strings.TrimSuffix(trimmed, suffix)
-	summaryPath := filepath.Join(s.cfg.ReportsDir, targetSlug, "SUMMARY.md")
+	summaryPath := filepath.Join(s.cfg.ReportsDir, filepath.Clean(targetSlug), "SUMMARY.md")
+	if !isSafeSubpath(s.cfg.ReportsDir, summaryPath) {
+		return nil, fmt.Errorf("invalid report path: access denied")
+	}
 
 	data, err := os.ReadFile(summaryPath)
 	if err != nil {

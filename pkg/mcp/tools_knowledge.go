@@ -90,7 +90,6 @@ func (s *Server) handleSearchKnowledge(ctx context.Context, request mcp.CallTool
 		return mcp.NewToolResultText(string(data)), nil
 	}
 
-	// Format as high-signal Markdown
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("### 📚 Cybermes Knowledge Base: `%s` (Found %d snippets)\n\n", query, len(results)))
 

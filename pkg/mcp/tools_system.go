@@ -32,7 +32,6 @@ type EnvironmentReport struct {
 }
 
 func (s *Server) registerSystemTools() {
-	// 1. cybermes_check_environment
 	checkEnvTool := mcp.NewTool(
 		"cybermes_check_environment",
 		mcp.WithDescription("Inspect the local system environment, package managers, core toolchain readiness, and optional on-demand tools (like Nuclei) without modifying any files."),
@@ -44,7 +43,6 @@ func (s *Server) registerSystemTools() {
 		),
 	)
 
-	// 2. cybermes_record_evidence
 	recordEvidenceTool := mcp.NewTool(
 		"cybermes_record_evidence",
 		mcp.WithDescription("Append non-vulnerability observations, missing security headers, reconnaissance notes, and negative test evidence directly to reports/<target_slug>/evidence/recon_notes.md according to Cybermes AGENTS.md directives."),
@@ -84,7 +82,6 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		WorkspaceRoot: s.cfg.RootDir,
 	}
 
-	// Detect Package Managers
 	pms := []string{"winget", "brew", "apt", "pdtm", "go", "python", "pip"}
 	for _, pm := range pms {
 		if _, err := exec.LookPath(pm); err == nil {
@@ -92,7 +89,6 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		}
 	}
 
-	// Tool definitions
 	toolsToCheck := []struct {
 		name     string
 		toolType string
@@ -118,7 +114,6 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 			Installed:   false,
 		}
 
-		// Check local tools/bin
 		localCandidate := filepath.Join(s.cfg.ToolsDir, "bin", t.name+ext)
 		if _, err := os.Stat(localCandidate); err == nil {
 			st.Installed = true

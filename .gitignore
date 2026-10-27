@@ -108,3 +108,5 @@ desktop.ini
 *.user
 .gemini/
 .claude/
+anti-slop/
+

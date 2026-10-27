@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"cybermes/pkg/report"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-
-var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
 
 func (s *Server) registerReportsTools() {
 	aggTool := mcp.NewTool(
@@ -313,7 +310,6 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	targetSlug = sanitizeSlug(targetSlug)
 	severity = strings.ToLower(strings.TrimSpace(severity))
 
-	// Ensure directories exist
 	targetDir := filepath.Join(s.cfg.ReportsDir, targetSlug)
 	findingsDir := filepath.Join(targetDir, "findings")
 	pocsDir := filepath.Join(targetDir, "pocs")
@@ -345,7 +341,9 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	if pocScript != "" {
 		pocFileName := fmt.Sprintf("poc_%s.py", vulnSlug)
 		pocFilePath := filepath.Join(pocsDir, pocFileName)
-		_ = os.WriteFile(pocFilePath, []byte(pocScript), 0644)
+		if err := os.WriteFile(pocFilePath, []byte(pocScript), 0644); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to write PoC script: %v", err)), nil
+		}
 		doc.WriteString("## Proof of Concept\n\n")
 		doc.WriteString(fmt.Sprintf("Standalone script: [`pocs/%s`](../pocs/%s)\n\n", pocFileName, pocFileName))
 	}
@@ -362,10 +360,4 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 
 	return mcp.NewToolResultText(fmt.Sprintf("Finding successfully recorded and aggregated:\n- **File**: `reports/%s/findings/%s`\n- **Target**: `%s`\n- **Severity**: `%s`\n- **Summary**: `reports/%s/SUMMARY.md`\n- **Dashboard**: `reports/%s/report.html`\n- **PDF Deliverable**: Call cybermes_generate_pdf when ready",
 		targetSlug, findingFileName, targetSlug, strings.ToUpper(severity), targetSlug, targetSlug)), nil
-}
-
-func sanitizeSlug(input string) string {
-	lower := strings.ToLower(input)
-	clean := slugRegex.ReplaceAllString(lower, "_")
-	return strings.Trim(clean, "_")
 }

@@ -15,39 +15,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-func parseCustomHeaders(raw string) map[string]string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil
-	}
-
-	headers := make(map[string]string)
-	if strings.HasPrefix(raw, "{") {
-		var jsonMap map[string]any
-		if err := json.Unmarshal([]byte(raw), &jsonMap); err == nil {
-			for k, v := range jsonMap {
-				headers[k] = fmt.Sprintf("%v", v)
-			}
-			return headers
-		}
-	}
-
-	lines := strings.Split(raw, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
-			headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-		}
-	}
-	return headers
-}
-
 func (s *Server) registerReconTools() {
-	// 1. cybermes_validate_scope
 	validateScopeTool := mcp.NewTool(
 		"cybermes_validate_scope",
 		mcp.WithDescription("Verify whether a target URL, domain, or IP address is permitted within the engagement scope definition (scope.yaml)."),
@@ -68,7 +36,6 @@ func (s *Server) registerReconTools() {
 		),
 	)
 
-	// 2. cybermes_http_probe
 	httpProbeTool := mcp.NewTool(
 		"cybermes_http_probe",
 		mcp.WithDescription("Inspect an HTTP/HTTPS service, identify status codes, headers, TLS certificates, and fingerprint backend/frontend technologies. Supports custom authentication headers and cookies."),
@@ -110,7 +77,6 @@ func (s *Server) registerReconTools() {
 		),
 	)
 
-	// 3. cybermes_recon_crawl
 	reconCrawlTool := mcp.NewTool(
 		"cybermes_recon_crawl",
 		mcp.WithDescription("Crawl and mine web endpoints, API routes, and JavaScript bundles with Smart Pipe token budgeting. Supports authenticated crawling with session cookies/headers."),
@@ -158,7 +124,6 @@ func (s *Server) registerReconTools() {
 		),
 	)
 
-	// 4. cybermes_subdomain_discovery
 	subdomainTool := mcp.NewTool(
 		"cybermes_subdomain_discovery",
 		mcp.WithDescription("Discover subdomains passively using subfinder or native Certificate Transparency logs (crt.sh) with deduplication and scope checking."),
@@ -200,10 +165,7 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("target parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug != "" {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), "")
 	format := request.GetString("format", "markdown")
 
 	cfg, _, _ := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
@@ -248,10 +210,7 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 		return mcp.NewToolResultError("target_url parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug != "" {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), targetURL)
 	headersRaw := request.GetString("headers", "")
 	cookies := strings.TrimSpace(request.GetString("cookies", ""))
 	followRedirects := request.GetBool("follow_redirects", false)
@@ -259,13 +218,8 @@ func (s *Server) handleHttpProbe(ctx context.Context, request mcp.CallToolReques
 	preferHttpx := request.GetBool("prefer_httpx", true)
 	format := request.GetString("format", "markdown")
 
-	// Scope check
-	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
-	if err == nil && cfg != nil {
-		val := scope.ValidateTarget(targetURL, cfg)
-		if !val.Allowed {
-			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
-		}
+	if res := s.enforceScope(targetURL, targetSlug); res != nil {
+		return res, nil
 	}
 
 	opts := probe.ProbeOptions{
@@ -333,13 +287,7 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultError("target_url parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug == "" {
-		targetSlug = sanitizeSlug(targetURL)
-	} else {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
-
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), targetURL)
 	headersRaw := request.GetString("headers", "")
 	cookies := strings.TrimSpace(request.GetString("cookies", ""))
 	depth := request.GetInt("depth", 2)
@@ -348,13 +296,8 @@ func (s *Server) handleReconCrawl(ctx context.Context, request mcp.CallToolReque
 	preferKatana := request.GetBool("prefer_katana", true)
 	format := request.GetString("format", "markdown")
 
-	// Scope Guard check
-	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
-	if err == nil && cfg != nil {
-		val := scope.ValidateTarget(targetURL, cfg)
-		if !val.Allowed {
-			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
-		}
+	if res := s.enforceScope(targetURL, targetSlug); res != nil {
+		return res, nil
 	}
 
 	outputDir := filepath.Join(s.cfg.RootDir, "recon", targetSlug)
@@ -413,24 +356,13 @@ func (s *Server) handleSubdomainDiscovery(ctx context.Context, request mcp.CallT
 		return mcp.NewToolResultError("domain parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug == "" {
-		targetSlug = sanitizeSlug(domain)
-	} else {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
-
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), domain)
 	timeoutSec := request.GetInt("timeout_seconds", 30)
 	preferSubfinder := request.GetBool("prefer_subfinder", true)
 	format := request.GetString("format", "markdown")
 
-	// Scope Guard check
-	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
-	if err == nil && cfg != nil {
-		val := scope.ValidateTarget(domain, cfg)
-		if !val.Allowed {
-			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
-		}
+	if res := s.enforceScope(domain, targetSlug); res != nil {
+		return res, nil
 	}
 
 	opts := subdomain.SubdomainOptions{

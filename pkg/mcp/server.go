@@ -5,15 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"cybermes/pkg/search"
 	mcp_server "github.com/mark3labs/mcp-go/server"
 )
 
-const (
-	ServerName    = "cybermes-mcp"
-	ServerVersion = "3.5.0"
-)
+const ServerName = "cybermes-mcp"
+
+var ServerVersion = "3.5.0"
 
 // Config holds paths and configuration options for the Cybermes MCP server.
 type Config struct {
@@ -27,9 +27,11 @@ type Config struct {
 
 // Server wraps the mark3labs MCPServer and manages Cybermes security modules.
 type Server struct {
-	cfg       Config
-	mcpServer *mcp_server.MCPServer
-	searcher  *search.Searcher
+	cfg         Config
+	mcpServer   *mcp_server.MCPServer
+	searcher    *search.Searcher
+	skillsCache []SkillMetadata
+	skillsMu    sync.RWMutex
 }
 
 func findRootUpwards(startDir string) string {
@@ -157,7 +159,6 @@ You are operating with Cybermes MCP Server, an autonomous offensive security res
 		searcher:  searcher,
 	}
 
-	// Register all capabilities
 	s.registerKnowledgeTools()
 	s.registerSkillsTools()
 	s.registerSecretsTools()
