@@ -1,6 +1,6 @@
 # Third-Party Notices & Upstream Attributions
 
-**Cybermes** gratefully acknowledges and honors the foundational work of the open-source and offensive security research community. This project incorporates, references, and builds upon research methodologies, knowledge bases, toolchains, and runtime architectures created by the following authors and teams.
+Cybermes includes and references tools, wordlists, and research from the following open-source projects:
 
 ---
 
@@ -88,10 +88,10 @@
 - **Website**: [https://projectdiscovery.io](https://projectdiscovery.io)
 - **License**: MIT License
 - **Integrated Tool Repositories**:
-  - [nuclei](https://github.com/projectdiscovery/nuclei) — Fast and customizable vulnerability scanner based on simple YAML DSL.
-  - [httpx](https://github.com/projectdiscovery/httpx) — Fast and multi-purpose HTTP probing and technology detection toolkit.
-  - [subfinder](https://github.com/projectdiscovery/subfinder) — Fast passive subdomain discovery tool.
-  - [katana](https://github.com/projectdiscovery/katana) — Next-generation crawling and spidering framework.
+  - [nuclei](https://github.com/projectdiscovery/nuclei): Fast vulnerability scanner based on YAML templates.
+  - [httpx](https://github.com/projectdiscovery/httpx): Fast HTTP probing and technology detection toolkit.
+  - [subfinder](https://github.com/projectdiscovery/subfinder): Fast passive subdomain discovery tool.
+  - [katana](https://github.com/projectdiscovery/katana): Web crawler and endpoint spidering framework.
 
 ---
 

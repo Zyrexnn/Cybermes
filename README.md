@@ -335,7 +335,7 @@ Detailed guides and references are available in the [`docs/`](docs/) directory:
 
 ## Acknowledgments & Upstream Credits
 
-Cybermes integrates and builds upon foundational work from the open-source and offensive security research communities:
+Cybermes includes and references tools, wordlists, and research from the following open-source projects:
 
 | Project / Tool | Maintainer / Author | Contribution / Reference |
 | :--- | :--- | :--- |
@@ -355,8 +355,6 @@ Cybermes integrates and builds upon foundational work from the open-source and o
 ---
 
 ## Contributors
-
-Thank you to everyone who helps build, maintain, and research Cybermes:
 
 <a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes" alt="Cybermes Contributors" />
