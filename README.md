@@ -341,12 +341,14 @@ Cybermes integrates and builds upon foundational work from the open-source and o
 | :--- | :--- | :--- |
 | [HackTricks](https://github.com/carlospolop/hacktricks) | [@carlospolop](https://github.com/carlospolop) | Privilege escalation, service exploitation & offensive knowledge base |
 | [PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings) | [@swisskyrepo](https://github.com/swisskyrepo) | Web application payloads and bypass vectors |
-| [ProjectDiscovery Suite](https://projectdiscovery.io/) | ProjectDiscovery Team | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
+| [ProjectDiscovery Suite](https://projectdiscovery.io/) | [@projectdiscovery](https://github.com/projectdiscovery) | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
 | [SQLMap](https://github.com/sqlmapproject/sqlmap) | Bernardo Damele & Miroslav Stampar | Automated SQL injection auditor |
-| [Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter) | [@sachinsharma-96](https://github.com/sachinsharma-96) | Bug bounty engagement patterns & validation playbooks |
-| [Strix Framework](https://github.com/strix-security/strix) | Strix Security Team | Autonomous multi-agent coordination architecture |
+| [Claude-BugHunter](https://github.com/elementalsouls/Claude-BugHunter) | [@elementalsouls](https://github.com/elementalsouls) | Bug bounty engagement patterns & validation playbooks |
+| [Strix Framework](https://github.com/usestrix/strix) | [@usestrix](https://github.com/usestrix) | Autonomous multi-agent coordination architecture |
 | [FFuF](https://github.com/ffuf/ffuf) | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer |
-| [Hermes-Agent](https://github.com/NousResearch/Hermes-Agent) | NousResearch | Autonomous agent core framework |
+| [Hermes-Agent](https://github.com/NousResearch/Hermes-Agent) | [@NousResearch](https://github.com/NousResearch) | Autonomous agent core framework |
+| [SecLists](https://github.com/danielmiessler/SecLists) | [@danielmiessler](https://github.com/danielmiessler) | Curated security assessment wordlists & fuzzing vectors |
+| [Hack-Skills](https://github.com/yaklang/hack-skills) | [@yaklang](https://github.com/yaklang) | Offensive security skill modules & testing playbooks |
 
 *(See [ATTRIBUTION.md](ATTRIBUTION.md) for full license notices and upstream details)*
 
