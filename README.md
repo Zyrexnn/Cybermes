@@ -356,65 +356,9 @@ Cybermes integrates and builds upon foundational work from the open-source and o
 
 Thank you to everyone who helps build, maintain, and research Cybermes:
 
-<div align="center">
-
-<table>
-  <tr>
-    <td align="center" width="160px">
-      <a href="https://github.com/Zyrexnn">
-        <img src="https://github.com/Zyrexnn.png?size=120" width="80px" height="80px" alt="Zyrexnn" style="border-radius: 50%; border: 3px solid #00d2ff; box-shadow: 0 0 14px rgba(0, 210, 255, 0.7); padding: 2px;" /><br />
-        <sub><b>Zyrexnn</b></sub>
-      </a><br />
-      <a href="https://github.com/Zyrexnn"><img src="https://img.shields.io/badge/★-Project_Lead-00d2ff?style=flat-square" alt="Project Lead" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/msarg44">
-        <img src="https://github.com/msarg44.png?size=100" width="65px" height="65px" alt="msarg44" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>msarg44</b></sub>
-      </a><br />
-      <a href="https://github.com/msarg44"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/Mortify4315">
-        <img src="https://github.com/Mortify4315.png?size=100" width="65px" height="65px" alt="Mortify4315" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>Mortify4315</b></sub>
-      </a><br />
-      <a href="https://github.com/Mortify4315"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/sizoune">
-        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>sizoune</b></sub>
-      </a><br />
-      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/xsoft">
-        <img src="https://github.com/xsoft.png?size=100" width="65px" height="65px" alt="xsoft" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>xsoft</b></sub>
-      </a><br />
-      <a href="https://github.com/xsoft"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/Muzakie-ID">
-        <img src="https://github.com/Muzakie-ID.png?size=100" width="65px" height="65px" alt="Muzakie-ID" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>Muzakie-ID</b></sub>
-      </a><br />
-      <a href="https://github.com/Muzakie-ID"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
-  </tr>
-</table>
-
-</div>
-
-| Contributor | Type | Contribution | Reference |
-| :--- | :--- | :--- | :--- |
-| **[@Zyrexnn](https://github.com/Zyrexnn)** | `Project Lead` | Creator, Core Architecture & Offensive Framework | Main |
-| **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
-| **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
-| **[@sizoune](https://github.com/sizoune)** | `Fork / PR` | Target-specific PDF report filename & Docker gateway crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20) |
-| **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
-| **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
+<a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes" alt="Cybermes Contributors" />
+</a>
 
 Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and [Contributors List](CONTRIBUTORS.md).
 
