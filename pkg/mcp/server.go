@@ -167,6 +167,7 @@ You are operating with Cybermes MCP Server, an autonomous offensive security res
 	s.registerFuzzTools()
 	s.registerStreamTools()
 	s.registerNucleiTools()
+	s.registerNmapTools()
 	s.registerSystemTools()
 	s.registerResources()
 	s.registerPrompts()

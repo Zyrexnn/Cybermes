@@ -34,6 +34,7 @@ This document records the completed milestones, active architectural capabilitie
 | **Tool** | `cybermes_get_skill` | Retrieve complete Markdown SOP playbooks or specific section headings. |
 | **Tool** | `cybermes_scan_secrets` | 48-pattern credential leak detector (AWS, GCP, GitHub, Slack, Private Keys, JWTs) with automated masking. |
 | **Tool** | `cybermes_nuclei_scan` | Targeted vulnerability verification using community and custom templates with on-demand dependency guidance. |
+| **Tool** | `cybermes_nmap_scan` | TCP port discovery & service fingerprinting. Dual engine (`nmap` connect scan + native Go fallback) with validated port specs and Scope Guard enforcement. |
 | **Tool** | `cybermes_check_environment`| Automated diagnostics for local toolchain and security binary availability. |
 | **Tool** | `cybermes_record_evidence` | Structured recording of raw recon evidence, HTTP logs, and negative test results. |
 | **Resource** | `skills://{skill_name}` | Direct read-only URI access to playbook SOPs. |

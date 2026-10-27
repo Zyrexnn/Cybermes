@@ -4,19 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"cybermes/pkg/scope"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
-
 func sanitizeSlug(input string) string {
-	lower := strings.ToLower(input)
-	clean := slugRegex.ReplaceAllString(lower, "_")
-	return strings.Trim(clean, "_")
+	return scope.SanitizeSlug(input)
 }
 
 func (s *Server) resolveSlug(explicitSlug, defaultInput string) string {

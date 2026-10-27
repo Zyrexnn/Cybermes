@@ -12,7 +12,7 @@ import (
 func TestHelpers_SanitizeAndResolveSlug(t *testing.T) {
 	s := &Server{}
 
-	if got := sanitizeSlug("Example.com/API-v1! test"); got != "example_com_api_v1_test" {
+	if got := sanitizeSlug("Example.com/API-v1! test"); got != "example_com_api-v1_test" {
 		t.Errorf("sanitizeSlug failed, got: %s", got)
 	}
 

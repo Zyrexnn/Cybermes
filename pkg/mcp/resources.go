@@ -147,33 +147,19 @@ func (s *Server) handleReadSkillResource(ctx context.Context, request mcp.ReadRe
 		return nil, fmt.Errorf("invalid skill URI: %s", uri)
 	}
 
-	skillName := strings.TrimPrefix(uri, prefix)
-	skillPath := filepath.Join(s.cfg.SkillsDir, filepath.Clean(skillName), "SKILL.md")
+	skillName := strings.TrimSpace(strings.TrimPrefix(uri, prefix))
+	skills, _ := s.GetSkillsIndex(false)
+	skillPath, err := resolveSkillFile(s.cfg.SkillsDir, skillName, skills)
+	if err != nil {
+		return nil, fmt.Errorf("skill resource resolution error: %w", err)
+	}
 	if !isSafeSubpath(s.cfg.SkillsDir, skillPath) {
 		return nil, fmt.Errorf("invalid skill path: access denied")
 	}
 
-	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
-		// Fallback fuzzy search
-		skills, _ := s.GetSkillsIndex(false)
-		found := false
-		for _, sk := range skills {
-			if strings.EqualFold(sk.Name, skillName) {
-				if isSafeSubpath(s.cfg.SkillsDir, sk.Path) {
-					skillPath = sk.Path
-					found = true
-				}
-				break
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("skill not found: %s", skillName)
-		}
-	}
-
 	data, err := os.ReadFile(skillPath)
 	if err != nil {
-		return nil, fmt.Errorf("skill not found: %s", skillName)
+		return nil, fmt.Errorf("failed to read skill file '%s': %w", skillPath, err)
 	}
 
 	return []mcp.ResourceContents{
@@ -195,8 +181,11 @@ func (s *Server) handleReadReportResource(ctx context.Context, request mcp.ReadR
 	}
 
 	trimmed := strings.TrimPrefix(uri, prefix)
-	targetSlug := strings.TrimSuffix(trimmed, suffix)
-	summaryPath := filepath.Join(s.cfg.ReportsDir, filepath.Clean(targetSlug), "SUMMARY.md")
+	targetSlug := sanitizeSlug(strings.TrimSuffix(trimmed, suffix))
+	if targetSlug == "" {
+		return nil, fmt.Errorf("invalid report URI: %s (expected reports://<target_slug>/summary)", uri)
+	}
+	summaryPath := filepath.Join(s.cfg.ReportsDir, targetSlug, "SUMMARY.md")
 	if !isSafeSubpath(s.cfg.ReportsDir, summaryPath) {
 		return nil, fmt.Errorf("invalid report path: access denied")
 	}

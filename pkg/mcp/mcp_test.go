@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -56,6 +58,7 @@ func TestNewServer(t *testing.T) {
 		"cybermes_fuzz_endpoints",
 		"cybermes_filter_stream",
 		"cybermes_nuclei_scan",
+		"cybermes_nmap_scan",
 		"cybermes_check_environment",
 		"cybermes_record_evidence",
 	}
@@ -454,6 +457,210 @@ func TestToolValidateScope(t *testing.T) {
 	}
 }
 
+func TestValidateScopeAutoCreateScaffold(t *testing.T) {
+	srv, rootDir := setupTestServer(t)
+	ctx := context.Background()
+
+	slug := "auto_scaffold_test"
+	defer os.RemoveAll(filepath.Join(rootDir, "reports", slug))
+
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_validate_scope",
+			Arguments: map[string]any{
+				"target":            "https://sub.autotest.org/api",
+				"target_slug":       slug,
+				"auto_create_scope": true,
+			},
+		},
+	}
+
+	res, err := srv.handleValidateScope(ctx, req)
+	if err != nil {
+		t.Fatalf("handleValidateScope failed: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "IN SCOPE / AUTHORIZED") {
+		t.Errorf("Expected newly scaffolded target to be in scope, got: %s", text.Text)
+	}
+
+	// Verify file was written
+	scaffoldPath := filepath.Join(rootDir, "reports", slug, "scope.yaml")
+	if _, err := os.Stat(scaffoldPath); os.IsNotExist(err) {
+		t.Errorf("Expected scaffold file to exist at %s", scaffoldPath)
+	}
+	if !strings.Contains(text.Text, scaffoldPath) {
+		t.Errorf("Expected output to mention scope file path %s, got: %s", scaffoldPath, text.Text)
+	}
+}
+
+func TestValidateScopeBadges(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Blocked / Out of Scope", func(t *testing.T) {
+		srv, _ := setupTestServer(t)
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target": "https://agency.gov/secret",
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🔴 **OUT OF SCOPE / BLOCKED**") {
+			t.Errorf("Expected blocked badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("No Scope Configured", func(t *testing.T) {
+		// Use empty temp dir so no scope.yaml exists
+		tmpDir := t.TempDir()
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target": "https://api.unknown-target.org",
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **NO SCOPE CONFIGURED (DIRECT OPERATOR AUTHORIZATION)**") {
+			t.Errorf("Expected no scope configured badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Dynamic Target Override", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "override_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "override_target"
+dynamic_target_override: true
+out_of_scope:
+  - "*.mil"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://random-api.corp.local",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **DYNAMIC OVERRIDE / OPERATOR AUTHORIZATION**") {
+			t.Errorf("Expected dynamic override badge, got: %s", text.Text)
+		}
+		if !strings.Contains(text.Text, "- **Scope File**:") {
+			t.Errorf("Expected Scope File line, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Wildcard Unrestricted", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "wildcard_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "wildcard_target"
+targets:
+  - "*"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://wildcard-allow.org",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟡 **WILDCARD ALLOW-ALL (*) / SCOPE UNRESTRICTED**") {
+			t.Errorf("Expected wildcard unrestricted badge, got: %s", text.Text)
+		}
+	})
+
+	t.Run("Explicitly In Scope", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		slug := "explicit_target"
+		targetDir := filepath.Join(tmpDir, "reports", slug)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		scopeContent := `target_slug: "explicit_target"
+targets:
+  - "authorized.corp.internal"
+`
+		if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+		srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+		if err != nil {
+			t.Fatalf("NewServer error: %v", err)
+		}
+		req := mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_validate_scope",
+				Arguments: map[string]any{
+					"target":      "https://authorized.corp.internal/admin",
+					"target_slug": slug,
+				},
+			},
+		}
+		res, err := srv.handleValidateScope(ctx, req)
+		if err != nil {
+			t.Fatalf("handleValidateScope error: %v", err)
+		}
+		text, _ := mcp.AsTextContent(res.Content[0])
+		if !strings.Contains(text.Text, "🟢 **IN SCOPE / AUTHORIZED**") {
+			t.Errorf("Expected in scope authorized badge, got: %s", text.Text)
+		}
+	})
+}
+
 func TestToolHttpProbe(t *testing.T) {
 	srv, _ := setupTestServer(t)
 	ctx := context.Background()
@@ -487,6 +694,54 @@ func TestToolHttpProbe(t *testing.T) {
 	}
 	if !strings.Contains(text.Text, "200 OK") || !strings.Contains(text.Text, "Test App") {
 		t.Errorf("Expected probe details in output, got: %s", text.Text)
+	}
+}
+
+func TestHttpProbeScopeSlugFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	slug := "my_custom_client"
+	targetDir := filepath.Join(tmpDir, "reports", slug)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	scopeContent := `target_slug: "my_custom_client"
+targets:
+  - "127.0.0.0/8"
+`
+	if err := os.WriteFile(filepath.Join(targetDir, "scope.yaml"), []byte(scopeContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	srv, err := NewServer(Config{RootDir: tmpDir, Version: "test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer mockServer.Close()
+
+	// Call cybermes_http_probe with target_slug set to my_custom_client
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_http_probe",
+			Arguments: map[string]any{
+				"target_url":   mockServer.URL,
+				"target_slug":  slug,
+				"prefer_httpx": false,
+			},
+		},
+	}
+	res, err := srv.handleHttpProbe(ctx, req)
+	if err != nil {
+		t.Fatalf("handleHttpProbe error: %v", err)
+	}
+	text, _ := mcp.AsTextContent(res.Content[0])
+	if strings.Contains(text.Text, "Scope Guard Violation") {
+		t.Errorf("Expected per-target scope to allow probe, got violation: %s", text.Text)
 	}
 }
 
@@ -809,4 +1064,363 @@ func TestPrompts_MissingArguments(t *testing.T) {
 	}
 }
 
+func setupTraversalTestServer(t *testing.T) *Server {
+	t.Helper()
+	tmp := t.TempDir()
 
+	write := func(path, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	// Legit skill inside the library.
+	write(filepath.Join(tmp, "skills", "hunt-idor", "SKILL.md"), "# Hunt IDOR Playbook")
+	// Canary OUTSIDE the skills library: must never be readable via skill_name.
+	write(filepath.Join(tmp, "secret", "SKILL.md"), "CANARY_SKILL_ESCAPE")
+	// Legit report summary.
+	write(filepath.Join(tmp, "reports", "victim", "SUMMARY.md"), "# Victim Summary")
+	// Canary OUTSIDE the reports workspace.
+	write(filepath.Join(tmp, "secret", "SUMMARY.md"), "CANARY_REPORT_ESCAPE")
+
+	srv, err := NewServer(Config{RootDir: tmp})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	return srv
+}
+
+func toolResultText(t *testing.T, res *mcp.CallToolResult) string {
+	t.Helper()
+	if res == nil {
+		t.Fatal("nil tool result")
+	}
+	var sb strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := mcp.AsTextContent(c); ok {
+			sb.WriteString(tc.Text)
+		}
+	}
+	return sb.String()
+}
+
+func TestSkillPathTraversalBlocked(t *testing.T) {
+	srv := setupTraversalTestServer(t)
+	ctx := context.Background()
+
+	call := func(skillName string) *mcp.CallToolResult {
+		req := mcp.CallToolRequest{Params: mcp.CallToolParams{
+			Name:      "cybermes_get_skill",
+			Arguments: map[string]any{"skill_name": skillName},
+		}}
+		res, err := srv.handleGetSkill(ctx, req)
+		if err != nil {
+			t.Fatalf("handleGetSkill(%q) unexpected error: %v", skillName, err)
+		}
+		return res
+	}
+
+	for _, evil := range []string{"../secret", "..", "a/../../secret", ".", "/etc", "a/b"} {
+		out := toolResultText(t, call(evil))
+		if strings.Contains(out, "CANARY_SKILL_ESCAPE") {
+			t.Errorf("PATH TRAVERSAL: skill_name %q leaked file outside skills dir", evil)
+		}
+	}
+
+	legit := toolResultText(t, call("hunt-idor"))
+	if !strings.Contains(legit, "Hunt IDOR Playbook") {
+		t.Errorf("legit skill unreadable after fix, got: %s", legit)
+	}
+}
+
+func TestResourcePathTraversalBlocked(t *testing.T) {
+	srv := setupTraversalTestServer(t)
+	ctx := context.Background()
+
+	// skills:// traversal must be rejected, never serve the outside canary.
+	if _, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://../secret"},
+	}); err == nil {
+		t.Error("PATH TRAVERSAL: skills://../secret was served without error")
+	}
+
+	// reports:// traversal must not escape the reports workspace.
+	if _, err := srv.handleReadReportResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "reports://../../secret/summary"},
+	}); err == nil {
+		t.Error("PATH TRAVERSAL: reports://../../secret/summary was served without error")
+	}
+
+	// Legit resources keep working.
+	skillContents, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://hunt-idor"},
+	})
+	if err != nil || len(skillContents) == 0 {
+		t.Fatalf("legit skill resource failed: %v", err)
+	}
+	reportContents, err := srv.handleReadReportResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "reports://victim/summary"},
+	})
+	if err != nil || len(reportContents) == 0 {
+		t.Fatalf("legit report resource failed: %v", err)
+	}
+}
+
+func TestNestedSkillsAccessAndSecurity(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ctx := context.Background()
+
+	// 1. Get nested skill via short name
+	resShort, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_get_skill",
+			Arguments: map[string]any{
+				"skill_name": "academic-platform-audit",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleGetSkill short name unexpected error: %v", err)
+	}
+	if resShort.IsError {
+		t.Fatalf("expected success for short name, got error: %s", toolResultText(t, resShort))
+	}
+	textShort := toolResultText(t, resShort)
+	if !strings.Contains(textShort, "Academic") {
+		t.Errorf("expected text to contain 'Academic', got: %s", textShort)
+	}
+
+	// 2. Get nested skill via subpath
+	resSubpath, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_get_skill",
+			Arguments: map[string]any{
+				"skill_name": "security/academic-platform-audit",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleGetSkill subpath unexpected error: %v", err)
+	}
+	if resSubpath.IsError {
+		t.Fatalf("expected success for subpath, got error: %s", toolResultText(t, resSubpath))
+	}
+	textSubpath := toolResultText(t, resSubpath)
+	if !strings.Contains(textSubpath, "Academic") {
+		t.Errorf("expected text to contain 'Academic', got: %s", textSubpath)
+	}
+
+	// 3. Traversal and malformed path injection attempts must fail
+	for _, bad := range []string{
+		"../../etc/passwd",
+		"security/../../etc/passwd",
+		"/etc/passwd",
+		"security/",
+		"security//academic-platform-audit",
+		"security\\academic-platform-audit",
+		"non-existent-skill-xyz",
+	} {
+		resBad, err := srv.handleGetSkill(ctx, mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: "cybermes_get_skill",
+				Arguments: map[string]any{
+					"skill_name": bad,
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected go error for %q: %v", bad, err)
+		}
+		if !resBad.IsError {
+			t.Errorf("expected error for bad skill name %q, got success: %s", bad, toolResultText(t, resBad))
+		}
+	}
+
+	// 4. Resource URI reader supports nested skills
+	resContent, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://security/academic-platform-audit"},
+	})
+	if err != nil || len(resContent) == 0 {
+		t.Fatalf("expected nested skill resource to load, got error: %v", err)
+	}
+
+	// 5. Resource URI reader rejects traversal in subpaths
+	if _, err := srv.handleReadSkillResource(ctx, mcp.ReadResourceRequest{
+		Params: mcp.ReadResourceParams{URI: "skills://security/../../etc/passwd"},
+	}); err == nil {
+		t.Error("expected error for traversal URI, got nil")
+	}
+
+	// 6. List skills includes all skills (including nested ones)
+	allSkills, err := srv.GetSkillsIndex(false)
+	if err != nil {
+		t.Fatalf("GetSkillsIndex error: %v", err)
+	}
+	if len(allSkills) < 220 {
+		t.Errorf("expected >= 220 indexed skills, got %d", len(allSkills))
+	}
+}
+
+func recordFindingReq(targetSlug string, extra map[string]any) mcp.CallToolRequest {
+	args := map[string]any{
+		"target_slug":        targetSlug,
+		"severity":           "high",
+		"title":              "Test IDOR Invoices",
+		"endpoint":           "GET /api/v1/invoices/99",
+		"description":        "Unit test description for IDOR vulnerability.",
+		"reproduction_steps": "1. Send request with user B cookie\n2. Observe 200 OK",
+		"remediation":        "Validate object ownership.",
+	}
+	for k, v := range extra {
+		args[k] = v
+	}
+	return mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_record_finding",
+		Arguments: args,
+	}}
+}
+
+func TestRecordFindingDedupAndEnrichment(t *testing.T) {
+	tmp := t.TempDir()
+	srv, err := NewServer(Config{RootDir: tmp})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	ctx := context.Background()
+	slug := "dedup_target"
+	entries := func() []os.DirEntry {
+		es, _ := os.ReadDir(filepath.Join(tmp, "reports", slug, "findings"))
+		return es
+	}
+
+	// 1. Record with valid CVSS/CWE enrichment.
+	res, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, map[string]any{
+		"cvss": "8.1", "cwe": "79",
+	}))
+	if err != nil {
+		t.Fatalf("handleRecordFinding: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("expected success, got error: %s", toolResultText(t, res))
+	}
+	if n := len(entries()); n != 1 {
+		t.Fatalf("expected 1 finding file, got %d", n)
+	}
+
+	// Enrichment must be parseable back by the aggregator matrix.
+	agg, err := srv.handleListFindings(ctx, mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_list_findings",
+		Arguments: map[string]any{"target_slug": slug, "format": "json"},
+	}})
+	if err != nil {
+		t.Fatalf("handleListFindings: %v", err)
+	}
+	listed := toolResultText(t, agg)
+	if !strings.Contains(listed, "8.1") || !strings.Contains(listed, "CWE-79") {
+		t.Errorf("CVSS/CWE enrichment missing from findings matrix: %s", listed)
+	}
+
+	// 2. Recording the same title+endpoint again must NOT create a second file.
+	res2, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, nil))
+	if err != nil {
+		t.Fatalf("second handleRecordFinding: %v", err)
+	}
+	if !strings.Contains(strings.ToLower(toolResultText(t, res2)), "already recorded") {
+		t.Errorf("expected duplicate-skip message, got: %s", toolResultText(t, res2))
+	}
+	if n := len(entries()); n != 1 {
+		t.Errorf("duplicate created a second file: %d files", n)
+	}
+
+	// 3. Invalid CVSS/CWE values are rejected.
+	for _, bad := range []map[string]any{{"cvss": "11"}, {"cvss": "high"}, {"cwe": "XSS"}} {
+		resBad, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, bad))
+		if err != nil {
+			t.Fatalf("handleRecordFinding: %v", err)
+		}
+		if !resBad.IsError {
+			t.Errorf("expected validation error for %v", bad)
+		}
+	}
+}
+
+func TestToolNmapScan(t *testing.T) {
+	srv, rootDir := setupTestServer(t)
+	ctx := context.Background()
+
+	// Local listener so the native engine has a deterministic open port.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	openPort := ln.Addr().(*net.TCPAddr).Port
+	testSlug := "mcp_test_nmap"
+	defer func() {
+		_ = os.RemoveAll(filepath.Join(rootDir, "recon", testSlug))
+	}()
+
+	// 1. Native engine scan finds the open listener port.
+	openPortStr := strconv.Itoa(openPort)
+	req := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name: "cybermes_nmap_scan",
+		Arguments: map[string]any{
+			"target":          "127.0.0.1",
+			"target_slug":     testSlug,
+			"ports":           openPortStr,
+			"prefer_nmap":     false,
+			"timeout_seconds": float64(20),
+			"format":          "markdown",
+		},
+	}}
+
+	res, err := srv.handleNmapScan(ctx, req)
+	if err != nil {
+		t.Fatalf("handleNmapScan error: %v", err)
+	}
+	text, ok := mcp.AsTextContent(res.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in result")
+	}
+	if !strings.Contains(text.Text, "Nmap Port Scan Results") || !strings.Contains(text.Text, openPortStr) {
+		t.Errorf("Expected port scan summary with open port, got: %s", text.Text)
+	}
+	if !strings.Contains(text.Text, "native-go") {
+		t.Errorf("Expected native-go engine marker, got: %s", text.Text)
+	}
+
+	// 2. Flag-injection style ports input is rejected, not executed.
+	badReq := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name: "cybermes_nmap_scan",
+		Arguments: map[string]any{
+			"target":      "127.0.0.1",
+			"target_slug": testSlug,
+			"ports":       "-oN /tmp/pwned",
+			"prefer_nmap": false,
+		},
+	}}
+	badRes, err := srv.handleNmapScan(ctx, badReq)
+	if err != nil {
+		t.Fatalf("handleNmapScan error: %v", err)
+	}
+	if !badRes.IsError {
+		t.Error("Expected error result for flag-shaped ports input")
+	}
+
+	// 3. Missing target is rejected.
+	emptyReq := mcp.CallToolRequest{Params: mcp.CallToolParams{
+		Name:      "cybermes_nmap_scan",
+		Arguments: map[string]any{},
+	}}
+	emptyRes, err := srv.handleNmapScan(ctx, emptyReq)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !emptyRes.IsError {
+		t.Error("Expected error result on missing target")
+	}
+}

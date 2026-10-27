@@ -1,13 +1,23 @@
 program: "Cybermes Security Assessment & Bug Bounty"
 authorization: "AUTHORIZED"
-dynamic_target_override: true
+dynamic_target_override: false
 
+# Define authorized target domains, URLs, or CIDR blocks below.
+# By default, only local research sandboxes are in-scope.
+# To assess external targets, add them here or define a per-target reports/<target_slug>/scope.yaml.
 targets:
-  - "*"
-  - "http://127.0.0.1:8888"
-  - "http://localhost:8888"
+  - "127.0.0.0/8"
+  - "127.0.0.1"
+  - "localhost"
+  - "example.com"
+  - "*.example.com"
 
-scope_rule: "All domains, URLs, and endpoints explicitly requested by the operator are authorized."
+out_of_scope:
+  - "*.gov"
+  - "*.mil"
+  - "*.edu"
+
+scope_rule: "Only explicitly authorized targets defined in targets or per-target scope.yaml are permitted. Out-of-scope targets are strictly prohibited."
 
 testing_accounts:
   - role: "standard_user"
