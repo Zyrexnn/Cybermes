@@ -57,6 +57,11 @@ jobs:
         run: |
           python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py scripts/mcp.py scripts/setup_mcp.py
 
+      - name: Verify Hermes web research connection
+        run: |
+          python3 -m pip install 'hermes-agent>=0.1.0' 'mcp>=1.29.0,<2' pyyaml
+          python3 tools/test_parallel_search_mcp.py
+
       - name: Validate Skills Integrity
         run: |
           python3 tools/validate_skills.py
