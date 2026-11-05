@@ -295,3 +295,72 @@ func TestScaffoldTargetScope(t *testing.T) {
 		t.Errorf("Expected idempotent return of existing scaffold path, got: %v (err: %v)", path2, err)
 	}
 }
+
+func TestSensitiveDomainBlocking(t *testing.T) {
+	config := &ScopeConfig{
+		Name:       "Test Scope",
+		InScope:    []string{"example.com", "*.example.com"},
+		OutOfScope: []string{"*.gov", "*.mil", "*.edu"},
+	}
+
+	disallowed := []string{
+		"defense.gov",
+		"sub.navy.mil",
+		"cs.stanford.edu",
+		"research.mit.edu",
+		"https://defense.gov:443",
+		"http://cs.stanford.edu:8080/path",
+	}
+
+	for _, target := range disallowed {
+		res := ValidateTarget(target, config)
+		if res.Allowed {
+			t.Errorf("Expected target %q to be blocked as out of scope, but it was allowed", target)
+		}
+
+		// Verify fallback operator auth also refuses sensitive domains
+		resFallback := ValidateTarget(target, nil)
+		if resFallback.Allowed {
+			t.Errorf("Expected fallback auth for %q to be rejected as sensitive domain, but it was allowed", target)
+		}
+	}
+
+	// Verify direct IsSensitiveDomain function handles ports
+	if !IsSensitiveDomain("defense.gov:443") {
+		t.Errorf("Expected IsSensitiveDomain to return true for defense.gov:443")
+	}
+	if !IsSensitiveDomain("mit.edu:8443") {
+		t.Errorf("Expected IsSensitiveDomain to return true for mit.edu:8443")
+	}
+	if IsSensitiveDomain("example.com:443") {
+		t.Errorf("Expected IsSensitiveDomain to return false for example.com:443")
+	}
+}
+
+func TestScaffoldIncludesEduOutOfScope(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetSlug := "test_edu_check"
+	initialTarget := "https://api.testclient.org"
+
+	filePath, err := ScaffoldTargetScope(tmpDir, targetSlug, initialTarget)
+	if err != nil {
+		t.Fatalf("ScaffoldTargetScope failed: %v", err)
+	}
+
+	cfg, err := ParseScopeFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to parse generated scaffold: %v", err)
+	}
+
+	hasEdu := false
+	for _, rule := range cfg.OutOfScope {
+		if rule == "*.edu" {
+			hasEdu = true
+			break
+		}
+	}
+	if !hasEdu {
+		t.Errorf("Expected generated scaffold out_of_scope to include '*.edu', got: %v", cfg.OutOfScope)
+	}
+}
+

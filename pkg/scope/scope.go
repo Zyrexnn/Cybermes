@@ -63,6 +63,7 @@ func ScaffoldTargetScope(rootDir, targetSlug, initialTarget string) (string, err
 	sb.WriteString("\nout_of_scope:\n")
 	sb.WriteString("  - \"*.gov\"\n")
 	sb.WriteString("  - \"*.mil\"\n")
+	sb.WriteString("  - \"*.edu\"\n")
 	sb.WriteString("  - \"*/logout\"\n")
 	sb.WriteString("  - \"*/delete-account\"\n")
 
@@ -117,6 +118,15 @@ func (c *ScopeConfig) EffectiveInScope() []string {
 	merged = append(merged, c.InScope...)
 	merged = append(merged, c.Targets...)
 	return merged
+}
+
+// IsSensitiveDomain returns true if host belongs to protected government, military, or academic TLDs.
+func IsSensitiveDomain(host string) bool {
+	h := strings.ToLower(strings.TrimSpace(host))
+	if hHost, _, err := net.SplitHostPort(h); err == nil {
+		h = hHost
+	}
+	return strings.HasSuffix(h, ".gov") || strings.HasSuffix(h, ".mil") || strings.HasSuffix(h, ".edu")
 }
 
 // ValidationResult contains the outcome of a target scope evaluation.
@@ -215,6 +225,17 @@ func ValidateTarget(rawTarget string, cfg *ScopeConfig) ValidationResult {
 				Allowed:    false,
 				Target:     rawTarget,
 				Reason:     fmt.Sprintf("Invalid target format: %v", err),
+				ScopeFound: false,
+			}
+		}
+		if IsSensitiveDomain(host) {
+			return ValidationResult{
+				Allowed:    false,
+				Target:     rawTarget,
+				Host:       host,
+				Port:       port,
+				Path:       path,
+				Reason:     fmt.Sprintf("Target '%s' is a protected sensitive domain (.gov/.mil/.edu) and cannot be targeted under fallback authorization", rawTarget),
 				ScopeFound: false,
 			}
 		}
