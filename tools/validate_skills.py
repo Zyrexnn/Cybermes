@@ -5,7 +5,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-import yaml
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 if sys.platform == "win32":
     try:
@@ -33,12 +37,23 @@ def extract_frontmatter(content: str) -> tuple[str | None, str | None]:
 
 
 def validate_frontmatter_data(frontmatter_text: str) -> tuple[bool, str | None]:
-    try:
-        data = yaml.safe_load(frontmatter_text)
-    except yaml.YAMLError as exc:
-        return False, f"YAML parse error: {exc}"
-    except Exception as exc:
-        return False, f"Unexpected YAML load error: {exc}"
+    if yaml is not None:
+        try:
+            data = yaml.safe_load(frontmatter_text)
+        except yaml.YAMLError as exc:
+            return False, f"YAML parse error: {exc}"
+        except Exception as exc:
+            return False, f"Unexpected YAML load error: {exc}"
+    else:
+        # Fallback key-value parser when PyYAML is not installed in the environment
+        data = {}
+        for line in frontmatter_text.splitlines():
+            trimmed = line.strip()
+            if not trimmed or trimmed.startswith("#"):
+                continue
+            if ":" in trimmed:
+                key, val = trimmed.split(":", 1)
+                data[key.strip()] = val.strip().strip("'\"")
 
     if not isinstance(data, dict):
         return False, "YAML frontmatter root must be a mapping"

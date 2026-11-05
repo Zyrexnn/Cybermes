@@ -53,9 +53,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyyaml
+
       - name: Verify Python Script Compilation
         run: |
-          python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py scripts/mcp.py scripts/setup_mcp.py
+          python3 -m py_compile tools/doctor.py tools/windows_compat_check.py tools/generate_pdf.py examples/mock_vulnerable_app.py scripts/mcp.py scripts/setup_mcp.py tools/validate_skills.py
 
       - name: Validate Skills Integrity
         run: |
