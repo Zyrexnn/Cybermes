@@ -215,6 +215,7 @@ def check_tools(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]:
         ("secret_scan", "Secret Scanner", False),
         ("search_knowledge", "Offline Knowledge Search", False),
         ("aggregate_reports", "Report Aggregator", False),
+        ("cybermes-mcp", "MCP Protocol Engine", False),
         ("subfinder", "Subdomain Discovery", False),
         ("httpx", "HTTP Prober", False),
         ("katana", "Web Crawler", False),
@@ -237,16 +238,44 @@ def check_tools(root_dir: Path, auto_fix: bool = False) -> tuple[int, int, int]:
             warns += 1
             missing_tools.append(name)
 
+    internal_go_tools = {
+        "smart_pipe": "./cmd/smart_pipe",
+        "secret_scan": "./cmd/secret_scan",
+        "search_knowledge": "./cmd/search_knowledge",
+        "aggregate_reports": "./cmd/aggregate_reports",
+        "cybermes-mcp": "./cmd/cybermes-mcp",
+    }
+
     if missing_tools and auto_fix:
-        print(f"\n  {CYAN}⚡ Attempting automatic toolchain download...{RESET}")
-        if sys.platform == "win32":
-            updater = root_dir / "tools" / "update_tools.ps1"
-            if updater.exists():
-                subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(updater)], check=False)
-        else:
-            updater = root_dir / "tools" / "update_tools.sh"
-            if updater.exists():
-                subprocess.run(["bash", str(updater)], check=False)
+        go_bin = shutil.which("go")
+        tools_bin_dir = root_dir / "tools" / "bin"
+        tools_bin_dir.mkdir(parents=True, exist_ok=True)
+        if go_bin:
+            for missing in list(missing_tools):
+                if missing in internal_go_tools:
+                    cmd_pkg = internal_go_tools[missing]
+                    out_name = f"{missing}.exe" if sys.platform == "win32" else missing
+                    out_path = tools_bin_dir / out_name
+                    try:
+                        res = subprocess.run([go_bin, "build", "-ldflags=-s -w", "-o", str(out_path), cmd_pkg], cwd=root_dir, capture_output=True)
+                        if res.returncode == 0:
+                            print_status("fixed", f"Native Go Tool: {missing}", "Compiled to tools/bin/")
+                            missing_tools.remove(missing)
+                            passed += 1
+                            warns -= 1
+                    except Exception:
+                        pass
+
+        if missing_tools:
+            print(f"\n  {CYAN}⚡ Attempting automatic toolchain download...{RESET}")
+            if sys.platform == "win32":
+                updater = root_dir / "tools" / "update_tools.ps1"
+                if updater.exists():
+                    subprocess.run(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(updater)], check=False)
+            else:
+                updater = root_dir / "tools" / "update_tools.sh"
+                if updater.exists():
+                    subprocess.run(["bash", str(updater)], check=False)
 
     return passed, warns, fails
 
