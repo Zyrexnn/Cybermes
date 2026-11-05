@@ -162,6 +162,12 @@ Cybermes provides two distinct operational workflows tailored to different execu
 
 The standalone CLI mode utilizes the built-in **Hermes Agent** engine (`hermes.exe` / `cybermes`) as an autonomous reasoning brain. The operator provides a target prompt, and Hermes autonomously maps the attack surface, invokes CLI binaries, filters outputs through `smart_pipe` to prevent LLM context saturation, verifies hypotheses with standalone PoC scripts, and produces executive reports.
 
+Fresh CLI setups also include [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)
+for public web research and page fetching, with no account or API key required.
+Search uses Fast mode. Ask Cybermes to use the Parallel tools to find current
+vendor documentation or remediation references. See [web research setup and controls](docs/web_research.md)
+for existing installations and how to disable the connection.
+
 <div align="center">
   <img src="assets/cybermes_hermes_workflow.jpeg" alt="Cybermes Hermes CLI Workflow" width="85%" style="max-width: 800px; border-radius: 8px; margin: 12px 0; border: 1px solid #30363d;">
 </div>

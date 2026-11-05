@@ -56,6 +56,18 @@ skills:
   autoload:
     - autonomous-godmode-hunter
 mcp_servers:
+  parallel:
+    url: https://search.parallel.ai/mcp
+    headers:
+      User-Agent: Cybermes (https://github.com/Zyrexnn/Cybermes)
+    connect_timeout: 15
+    timeout: 30
+    tools:
+      resources: false
+      prompts: false
+      include:
+        - web_search
+        - web_fetch
   fetch:
     command: mcp-server-fetch
   browser:
