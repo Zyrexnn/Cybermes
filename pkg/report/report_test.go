@@ -427,3 +427,35 @@ func TestFindDuplicateFinding(t *testing.T) {
 		t.Errorf("expected empty result for missing dir, got %q, %v", dup, err)
 	}
 }
+
+func TestValidateFindingFilename(t *testing.T) {
+	testCases := []struct {
+		filename string
+		valid    bool
+	}{
+		{"critical_auth_bypass.md", true},
+		{"high_idor_documents.md", true},
+		{"medium_stored_xss.md", true},
+		{"low_missing_ratelimit.md", true},
+		{"path/to/critical_auth_bypass.md", true},
+		{"[CRITICAL]_auth_bypass.md", false},
+		{"high_[idor]_user.md", false},
+		{"path/to/[CRITICAL]_auth_bypass.md", false},
+		{"info_missing_hsts.md", false},
+		{"informational_server_banner.md", false},
+		{"INFO_leak.md", false},
+		{"Informational_notice.md", false},
+		{"", false},
+		{"   ", false},
+	}
+
+	for _, tc := range testCases {
+		err := ValidateFindingFilename(tc.filename)
+		if tc.valid && err != nil {
+			t.Errorf("expected %q to be valid, got error: %v", tc.filename, err)
+		}
+		if !tc.valid && err == nil {
+			t.Errorf("expected %q to be invalid, got nil", tc.filename)
+		}
+	}
+}
