@@ -115,16 +115,27 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 			Installed:   false,
 		}
 
+		candidate := ""
 		localCandidate := filepath.Join(s.cfg.ToolsDir, "bin", t.name+ext)
 		if _, err := os.Stat(localCandidate); err == nil {
-			st.Installed = true
-			st.Path = localCandidate
+			candidate = localCandidate
 		} else if p, err := exec.LookPath(t.name + ext); err == nil {
-			st.Installed = true
-			st.Path = p
+			candidate = p
 		} else if p, err := exec.LookPath(t.name); err == nil {
-			st.Installed = true
-			st.Path = p
+			candidate = p
+		}
+
+		if candidate != "" {
+			if t.name == "sqlmap" {
+				// Verify sqlmap executes successfully since wrapper stubs may exist without runtime dependencies.
+				if exec.Command(candidate, "--version").Run() == nil {
+					st.Installed = true
+					st.Path = candidate
+				}
+			} else {
+				st.Installed = true
+				st.Path = candidate
+			}
 		}
 
 		report.Tools = append(report.Tools, st)

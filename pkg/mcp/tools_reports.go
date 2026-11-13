@@ -116,6 +116,10 @@ func (s *Server) registerReportsTools() {
 			"cwe",
 			mcp.Description("Optional CWE reference (e.g. 'CWE-79' or '79'). Invalid values are rejected."),
 		),
+		mcp.WithString(
+			"filename",
+			mcp.Description("Optional custom finding filename (e.g. 'critical_auth_bypass.md'). Must follow clean snake_case without brackets."),
+		),
 	)
 
 	s.mcpServer.AddTool(aggTool, s.handleAggregateReport)
@@ -327,6 +331,10 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	targetSlug = sanitizeSlug(targetSlug)
 	severity = strings.ToLower(strings.TrimSpace(severity))
 
+	if severity == "informational" || severity == "info" {
+		return mcp.NewToolResultError("Informational notices and non-vulnerability observations must be logged via 'cybermes_record_evidence' into 'evidence/recon_notes.md' per AGENTS.md directives."), nil
+	}
+
 	targetDir := filepath.Join(s.cfg.ReportsDir, targetSlug)
 	findingsDir := filepath.Join(targetDir, "findings")
 	pocsDir := filepath.Join(targetDir, "pocs")
@@ -349,8 +357,18 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	if len(vulnSlug) > 40 {
 		vulnSlug = vulnSlug[:40]
 	}
-	findingFileName := fmt.Sprintf("%s_%s.md", severity, vulnSlug)
-	findingFilePath := filepath.Join(findingsDir, findingFileName)
+
+	customFileName := strings.TrimSpace(request.GetString("filename", ""))
+	findingFileName := customFileName
+	if findingFileName == "" {
+		findingFileName = fmt.Sprintf("%s_%s.md", severity, vulnSlug)
+	}
+
+	if err := report.ValidateFindingFilename(findingFileName); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	findingFilePath := filepath.Join(findingsDir, filepath.Base(findingFileName))
 
 	var doc strings.Builder
 	doc.WriteString(fmt.Sprintf("# %s\n\n", title))
