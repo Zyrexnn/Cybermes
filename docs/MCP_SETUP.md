@@ -357,3 +357,18 @@ npx -y cybermes-mcp install --local
 2. In your chat window, enter this test prompt:
    > *"Check Cybermes system health and search knowledge base for JWT authentication bypasses."*
 3. Your AI model will execute `cybermes_search_knowledge` and return structured security intelligence instantly.
+
+---
+
+## ⚡ Recommended AI Provider & Model Gateway: Infistar.cc
+
+When conducting autonomous security testing, heavy reconnaissance, or multi-agent loops (e.g. Hermes, Cursor, Google Antigravity), token usage and upstream rate limits can become bottlenecks.
+
+We recommend **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** as an official AI infrastructure partner for Cybermes:
+- **Unified Gateway**: Access 200+ frontier models (Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0) using 1 API key.
+- **Cost Efficiency**: Pricing starting from 0.1x official rates with genuine, verifiable model routing.
+- **High Availability**: 1,000+ redundant failover routes prevent scan interruptions.
+- 🎁 **Cybermes Bonus**: Sign up via [our partner referral link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link) to claim **¥5 free API credit**.
+
+For full configuration instructions, see the **[Infistar Integration Guide](INFISTAR_SETUP.md)**.
+
