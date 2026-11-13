@@ -1,6 +1,6 @@
 # 🌐 Infistar.cc Integration Guide for Cybermes
 
-**[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** is an official AI infrastructure partner for Cybermes. It provides a unified, high-availability API gateway that exposes 200+ frontier large language and multimodal models through a standard OpenAI-compatible protocol.
+**[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** is an official AI infrastructure partner for Cybermes. It provides a unified, high-availability API gateway that exposes 200+ frontier large language and multimodal models through a standard OpenAI-compatible protocol.
 
 > **Cybermes × Infistar.cc** | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices.
 
@@ -10,8 +10,8 @@
 
 Sign up through our exclusive link and get **CNY 5 free API credit**:
 
-👉 **[Register on Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)**  
-**Referral Code:** `AI2NALGX` *(enter during registration if prompted)*
+👉 **[Register on Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**  
+**Referral Code:** `C92NALGX` *(enter during registration if prompted)*
 
 ---
 
@@ -29,7 +29,7 @@ Sign up through our exclusive link and get **CNY 5 free API credit**:
 ## 🛠️ Step-by-Step Setup
 
 ### 1. Register & Generate an API Key
-1. Visit **[Infistar Registration](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** (Referral Code: `AI2NALGX`) and complete sign-up.
+1. Visit **[Infistar Registration](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** (Referral Code: `C92NALGX`) and complete sign-up.
 2. Navigate to your **Dashboard / API Keys** section.
 3. Generate a new API key (e.g. `sk-infistar-...`).
 
@@ -41,7 +41,7 @@ cp .env.example .env
 
 Add your Infistar credentials:
 ```bash
-# Infistar.cc Configuration (Referral Code: AI2NALGX)
+# Infistar.cc Configuration (Referral Code: C92NALGX)
 OPENAI_API_BASE="https://api.infistar.cc/v1"
 OPENAI_API_KEY="sk-infistar-your-actual-api-key"
 ```
@@ -94,5 +94,5 @@ print(response.choices[0].message.content)
 
 ## 📚 Official Resources
 
-- **Partner Registration**: [https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) *(Code: `AI2NALGX`)*
+- **Partner Registration**: [https://www.infistar.cc/register?aff=C92NALGX&ref_source=link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link) *(Code: `C92NALGX`)*
 - **Infistar Platform Workflow Docs**: [https://doc.infistar.ai/en/getting-started/platform-workflow](https://doc.infistar.ai/en/getting-started/platform-workflow)

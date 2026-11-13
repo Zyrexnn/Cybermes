@@ -2,8 +2,8 @@
 
 This document contains pre-drafted announcement copy for broadcasting the **Cybermes x Infistar.cc** partnership across all community channels.
 
-- **Partner Referral Link:** `https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link`
-- **Referral Code:** `AI2NALGX`
+- **Partner Referral Link:** `https://www.infistar.cc/register?aff=C92NALGX&ref_source=link`
+- **Referral Code:** `C92NALGX`
 
 ---
 
@@ -14,7 +14,7 @@ This document contains pre-drafted announcement copy for broadcasting the **Cybe
 **Body:**
 
 ```markdown
-We are excited to announce our official partnership and sponsorship with **[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)**!
+We are excited to announce our official partnership and sponsorship with **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**!
 
 ### Cybermes × Infistar.cc | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
 
@@ -30,7 +30,7 @@ As Cybermes expands its autonomous capabilities, multi-agent recon pipelines, an
 - 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free**
 
 ### 🚀 Getting Started:
-1. Register your account and claim your CNY 5 credit: [https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) *(Referral Code: `AI2NALGX`)*
+1. Register your account and claim your CNY 5 credit: [https://www.infistar.cc/register?aff=C92NALGX&ref_source=link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link) *(Referral Code: `C92NALGX`)*
 2. Follow our integration instructions in the [Infistar Setup Guide](docs/INFISTAR_SETUP.md).
 
 Thank you to the Infistar team for supporting open-source offensive security research!
@@ -53,8 +53,8 @@ Cybermes × Infistar.cc | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a
 🎯 Run Cybermes’ multi-model agent workflows with one API key instead of managing separate accounts.
 
 🎁 Cybermes users: sign up through the exclusive link and get CNY 5 free!
-👉 https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link
-Referral Code: AI2NALGX
+👉 https://www.infistar.cc/register?aff=C92NALGX&ref_source=link
+Referral Code: C92NALGX
 
 (Check docs/INFISTAR_SETUP.md in the Cybermes repo for quick setup)
 ```
@@ -75,6 +75,6 @@ Cybermes × @infistar_ai | Claude, GPT, Gemini, Grok, DeepSeek & more with 1 key
 🧩 200+ models from 16 brands
 
 🎁 Cybermes users get CNY 5 free at sign-up:
-👉 https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link
-(Code: AI2NALGX)
+👉 https://www.infistar.cc/register?aff=C92NALGX&ref_source=link
+(Code: C92NALGX)
 ```

@@ -16,7 +16,7 @@
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
-[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)
+[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)
 
 <img src="assets/bannerterbaru.jpeg" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
@@ -35,12 +35,12 @@
 ## 💖 Official AI Infrastructure Partner
 
 <div align="center">
-  <a href="https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
-    <img src="assets/sponsors/infistar_banner.png" alt="Cybermes x Infistar.cc Sponsorship Banner" width="100%" style="border-radius: 8px; margin: 12px 0;">
+  <a href="https://www.infistar.cc/register?aff=C92NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
+    <img src="https://raw.githubusercontent.com/Zyrexnn/Cybermes/main/assets/sponsors/infistar_banner.png" alt="Cybermes x Infistar.cc Sponsorship Banner" width="100%">
   </a>
 </div>
 
-### Cybermes × [Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
+### Cybermes × [Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link) | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
 
 - 💥 **Up to 99% off**: from 0.1x official pricing
 - ✅ **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable
@@ -48,9 +48,9 @@
 - 🧩 **200+ models from 16 brands**: text, image and video with one key
 - 🏆 **Recommended by 100+ top open-source projects**: the largest with 100k+ stars
 - 🎯 **Run Cybermes’ multi-model agent workflows with one API key** instead of managing separate accounts
-- 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `AI2NALGX`)
+- 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `C92NALGX`)
 
-👉 **[Sign up & Claim CNY 5 Free API Credit](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** *(Referral Code: `AI2NALGX`)*
+👉 **[Sign up & Claim CNY 5 Free API Credit](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** *(Referral Code: `C92NALGX`)*
 
 ---
 
