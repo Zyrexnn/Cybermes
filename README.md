@@ -16,7 +16,7 @@
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
-[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)
+[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)
 
 <img src="assets/bannerterbaru.jpeg" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
@@ -35,19 +35,22 @@
 ## 💖 Official AI Infrastructure Partner
 
 <div align="center">
-  <a href="https://www.infistar.cc/register?aff=C92NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
+  <a href="https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
     <img src="assets/sponsors/infistar_banner.png" alt="Cybermes x Infistar.cc Sponsorship Banner" width="100%" style="border-radius: 8px; margin: 12px 0;">
   </a>
 </div>
 
-Cybermes autonomous agents and security workflows are powered by **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** — a high-availability multi-model AI gateway:
+### Cybermes × [Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
 
-- **200+ Frontier Models with 1 API Key**: Route directly to Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0, and Grok via a single OpenAI-compatible endpoint.
-- **Cost Reduction**: Up to 80% cheaper (starting from 0.1x official pricing) with 100% genuine, verifiable model routing.
-- **High Availability**: 1,000+ redundant routes with automated zero-downtime failover to prevent scan disruptions during long-running tasks.
-- 🎁 **Cybermes Community Benefit**: Sign up through our partner link and receive **¥5 free API credit** immediately.
+- 💥 **Up to 99% off**: from 0.1x official pricing
+- ✅ **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable
+- ⚡ **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over
+- 🧩 **200+ models from 16 brands**: text, image and video with one key
+- 🏆 **Recommended by 100+ top open-source projects**: the largest with 100k+ stars
+- 🎯 **Run Cybermes’ multi-model agent workflows with one API key** instead of managing separate accounts
+- 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `AI2NALGX`)
 
-👉 **[Claim ¥5 Free Credit & Get Your Infistar API Key](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**
+👉 **[Sign up & Claim CNY 5 Free API Credit](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** *(Referral Code: `AI2NALGX`)*
 
 ---
 

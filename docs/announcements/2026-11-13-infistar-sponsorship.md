@@ -2,7 +2,8 @@
 
 This document contains pre-drafted announcement copy for broadcasting the **Cybermes x Infistar.cc** partnership across all community channels.
 
-**Partner Referral Link:** `https://www.infistar.cc/register?aff=C92NALGX&ref_source=link`
+- **Partner Referral Link:** `https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link`
+- **Referral Code:** `AI2NALGX`
 
 ---
 
@@ -13,19 +14,23 @@ This document contains pre-drafted announcement copy for broadcasting the **Cybe
 **Body:**
 
 ```markdown
-We are excited to announce our official partnership and sponsorship with **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**!
+We are excited to announce our official partnership and sponsorship with **[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)**!
+
+### Cybermes × Infistar.cc | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
 
 As Cybermes expands its autonomous capabilities, multi-agent recon pipelines, and Model Context Protocol (MCP) integrations, having dependable, cost-effective LLM access is critical for running long-horizon security scans.
 
-### 🌟 What this partnership provides Cybermes users:
-1. **200+ Frontier Models with 1 Key**: Access Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0, Grok, and Qwen via a single OpenAI-compatible base URL.
-2. **Reduced Token Costs**: Rates start from 0.1x official prices, lowering the expense of running iterative vulnerability analysis.
-3. **High Availability**: 1,000+ redundant failover routes prevent token exhaustion and rate-limit drops during active engagements.
-4. **100% Genuine Models**: Every model route is verifiable without prompt-injection downgrades or fake quantization.
-5. 🎁 **Exclusive Community Credit**: Every Cybermes developer who signs up through our partner link receives **¥5 free API credit** at registration.
+### 🌟 Key Platform Highlights:
+- 💥 **Up to 99% off**: from 0.1x official pricing
+- ✅ **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable
+- ⚡ **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over
+- 🧩 **200+ models from 16 brands**: text, image and video with one key
+- 🏆 **Recommended by 100+ top open-source projects**, the largest with 100k+ stars
+- 🎯 **Run Cybermes’ multi-model agent workflows with one API key** instead of managing separate accounts
+- 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free**
 
 ### 🚀 Getting Started:
-1. Register your account and claim your ¥5 credit: [https://www.infistar.cc/register?aff=C92NALGX&ref_source=link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)
+1. Register your account and claim your CNY 5 credit: [https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) *(Referral Code: `AI2NALGX`)*
 2. Follow our integration instructions in the [Infistar Setup Guide](docs/INFISTAR_SETUP.md).
 
 Thank you to the Infistar team for supporting open-source offensive security research!
@@ -38,21 +43,20 @@ Thank you to the Infistar team for supporting open-source offensive security res
 **Body:**
 
 ```text
-🚀 Cybermes x Infistar.cc Official Partnership! 🛡️
+Cybermes × Infistar.cc | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices 🛡️🚀
 
-Running autonomous bug bounty agents and security triage requires reliable, high-volume LLM access. We have partnered with Infistar.cc to provide the Cybermes community with multi-model AI infrastructure at a fraction of official API rates.
+💥 Up to 99% off: from 0.1x official pricing
+✅ Official upstreams, 100% genuine models: no downgrades, no dilution, every model verifiable
+⚡ 1,000+ redundant routes with automatic failover: one route stumbles, the next takes over
+🧩 200+ models from 16 brands: text, image and video with one key
+🏆 Recommended by 100+ top open-source projects, the largest with 100k+ stars
+🎯 Run Cybermes’ multi-model agent workflows with one API key instead of managing separate accounts.
 
-Key highlights:
-• 200+ models (Claude 3.5, GPT-4o, DeepSeek-R1, Gemini) with 1 unified API key
-• Rates starting from 0.1x official pricing
-• 1,000+ redundant routes with auto-failover
-• Drop-in OpenAI-compatible endpoint (works with Hermes, MCP, Cursor, Antigravity)
+🎁 Cybermes users: sign up through the exclusive link and get CNY 5 free!
+👉 https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link
+Referral Code: AI2NALGX
 
-🎁 Cybermes Community Bonus:
-Get ¥5 FREE API credit instantly upon registration:
-👉 https://www.infistar.cc/register?aff=C92NALGX&ref_source=link
-
-(See docs/INFISTAR_SETUP.md in the repo for setup details)
+(Check docs/INFISTAR_SETUP.md in the Cybermes repo for quick setup)
 ```
 *(Attach `assets/sponsors/infistar_banner.png` or `assets/sponsors/infistar_qr.png`)*
 
@@ -63,13 +67,14 @@ Get ¥5 FREE API credit instantly upon registration:
 **Post:**
 
 ```text
-Excited to announce our official partnership with @infistar_ai! 🚀
+Cybermes × @infistar_ai | Claude, GPT, Gemini, Grok, DeepSeek & more with 1 key at a fraction of official prices! 🚀
 
-Cybermes autonomous pentesting & MCP workflows are now backed by Infistar's multi-model AI gateway:
-• 200+ models (Claude, DeepSeek, GPT-4o) via 1 API key
-• From 0.1x official pricing
-• 1,000+ redundant failover routes
+💥 Up to 99% off (from 0.1x official rates)
+✅ 100% genuine, verifiable models
+⚡ 1,000+ redundant routes with auto-failover
+🧩 200+ models from 16 brands
 
-🎁 Get ¥5 free API credit:
-https://www.infistar.cc/register?aff=C92NALGX&ref_source=link
+🎁 Cybermes users get CNY 5 free at sign-up:
+👉 https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link
+(Code: AI2NALGX)
 ```

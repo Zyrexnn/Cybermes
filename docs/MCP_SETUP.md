@@ -364,11 +364,16 @@ npx -y cybermes-mcp install --local
 
 When conducting autonomous security testing, heavy reconnaissance, or multi-agent loops (e.g. Hermes, Cursor, Google Antigravity), token usage and upstream rate limits can become bottlenecks.
 
-We recommend **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** as an official AI infrastructure partner for Cybermes:
-- **Unified Gateway**: Access 200+ frontier models (Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0) using 1 API key.
-- **Cost Efficiency**: Pricing starting from 0.1x official rates with genuine, verifiable model routing.
-- **High Availability**: 1,000+ redundant failover routes prevent scan interruptions.
-- 🎁 **Cybermes Bonus**: Sign up via [our partner referral link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link) to claim **¥5 free API credit**.
+We recommend **[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** as an official AI infrastructure partner for Cybermes:
+- **Up to 99% off**: from 0.1x official pricing.
+- **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable.
+- **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over.
+- **200+ models from 16 brands**: text, image and video with one key.
+- **Recommended by 100+ top open-source projects**, the largest with 100k+ stars.
+- 🎯 **Run Cybermes multi-model agent workflows with one API key** instead of managing separate accounts.
+- 🎁 **Cybermes community perk**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `AI2NALGX`).
+
+👉 **[Sign up & Claim CNY 5 Free Credit](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** *(Referral Code: `AI2NALGX`)*
 
 For full configuration instructions, see the **[Infistar Integration Guide](INFISTAR_SETUP.md)**.
 

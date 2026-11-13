@@ -1,32 +1,35 @@
 # 🌐 Infistar.cc Integration Guide for Cybermes
 
-**[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** is an official AI infrastructure partner for Cybermes. It provides a unified, high-availability API gateway that exposes 200+ large language and multimodal models through a standard OpenAI-compatible protocol.
+**[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** is an official AI infrastructure partner for Cybermes. It provides a unified, high-availability API gateway that exposes 200+ frontier large language and multimodal models through a standard OpenAI-compatible protocol.
 
-This guide outlines how to configure Infistar with Cybermes, autonomous agents (Hermes), and MCP client environments.
-
----
-
-## 🎁 Cybermes Partner Benefit
-
-Every Cybermes user who creates an account via our official referral link receives **¥5 free API credit** at sign-up:
-
-👉 **[Register on Infistar & Claim Your Free ¥5 Credit](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**
+> **Cybermes × Infistar.cc** | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices.
 
 ---
 
-## 🔑 Why Use Infistar with Cybermes?
+## 🎁 Exclusive Partner Perk for Cybermes Users
 
-1. **Unified Routing**: Access models across 16 providers (Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0, Grok, Qwen) using a single API key.
-2. **Cost-Effective**: Pricing starting from 0.1x official rates with genuine, verifiable model routing.
-3. **High Availability**: 1,000+ redundant failover routes prevent scan halts when upstream providers experience rate limits.
-4. **Standard Protocol**: Drop-in compatible with any tool supporting `openai`-compatible base URLs (`/v1`).
+Sign up through our exclusive link and get **CNY 5 free API credit**:
+
+👉 **[Register on Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)**  
+**Referral Code:** `AI2NALGX` *(enter during registration if prompted)*
+
+---
+
+## 🔑 Key Platform Highlights
+
+- 💥 **Up to 99% off**: from 0.1x official pricing.
+- ✅ **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable.
+- ⚡ **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over.
+- 🧩 **200+ models from 16 brands**: text, image, and video with one key.
+- 🏆 **Recommended by 100+ top open-source projects**, the largest with 100k+ stars.
+- 🎯 **Run Cybermes’ multi-model agent workflows with one API key** instead of managing separate accounts.
 
 ---
 
 ## 🛠️ Step-by-Step Setup
 
 ### 1. Register & Generate an API Key
-1. Visit **[Infistar Registration](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** and complete account creation.
+1. Visit **[Infistar Registration](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** (Referral Code: `AI2NALGX`) and complete sign-up.
 2. Navigate to your **Dashboard / API Keys** section.
 3. Generate a new API key (e.g. `sk-infistar-...`).
 
@@ -38,24 +41,24 @@ cp .env.example .env
 
 Add your Infistar credentials:
 ```bash
-# Infistar.cc Configuration
+# Infistar.cc Configuration (Referral Code: AI2NALGX)
 OPENAI_API_BASE="https://api.infistar.cc/v1"
 OPENAI_API_KEY="sk-infistar-your-actual-api-key"
 ```
 
-### 3. Recommended Models for Security Workflows
+### 3. Recommended Models for Offensive Workflows
 
 | Task | Recommended Model | Advantage |
 | :--- | :--- | :--- |
-| **Deep Reasoning & Bug Analysis** | `deepseek-reasoner` (R1) | High-precision logical deduction and root cause analysis at minimal token cost. |
+| **Deep Reasoning & Vulnerability Analysis** | `deepseek-reasoner` (R1) | High-precision logical deduction and root cause analysis at minimal token cost. |
 | **Exploit & PoC Generation** | `claude-3-5-sonnet` | Strict instruction-following and reliable Python exploit scripting. |
-| **High-Volume Recon Triage** | `deepseek-chat` (V3) or `gpt-4o-mini` | Low latency and high throughput for parsing massive endpoint lists. |
+| **High-Volume Recon & Triage** | `deepseek-chat` (V3) or `gpt-4o-mini` | Low latency and high throughput for parsing massive endpoint lists. |
 
 ---
 
 ## 💻 Python Code Example (Standard Client)
 
-If you are running custom automation or evaluation scripts within Cybermes:
+If you are running custom automation, security scripts, or verification tools within Cybermes:
 
 ```python
 from openai import OpenAI
@@ -80,5 +83,5 @@ print(response.choices[0].message.content)
 
 ## 📚 Official Resources
 
-- **Partner Registration**: [https://www.infistar.cc/register?aff=C92NALGX&ref_source=link](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)
+- **Partner Registration**: [https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) *(Code: `AI2NALGX`)*
 - **Infistar Platform Workflow Docs**: [https://doc.infistar.ai/en/getting-started/platform-workflow](https://doc.infistar.ai/en/getting-started/platform-workflow)
