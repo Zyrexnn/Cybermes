@@ -317,9 +317,9 @@ npx -y cybermes-mcp install --local
 
 ---
 
-## 🛡️ Complete Capabilities Catalog (14 Tools, Resources & Prompts)
+## 🛡️ Complete Capabilities Catalog (15 Tools, Resources & Prompts)
 
-### 🛠️ 14 Native MCP Tools
+### 🛠️ 15 Native MCP Tools
 | Tool Name | Engine & Scope | Auto-Approve | Purpose |
 | :--- | :--- | :---: | :--- |
 | `cybermes_generate_pdf` | PDF Engine / `chromedp` | ✔ Yes | Export pixel-perfect executive PDF security reports and interactive HTML dashboards. |
@@ -329,6 +329,7 @@ npx -y cybermes-mcp install --local
 | `cybermes_recon_crawl` | Native Go / `katana` | ○ Ask | Smart Pipe token-budgeted crawler & JS bundle endpoint miner. |
 | `cybermes_subdomain_discovery`| Subfinder / crt.sh | ✔ Yes | Dual-engine subdomain discovery with certificate transparency stream deduplication. |
 | `cybermes_fuzz_endpoints` | ffuf / Worker Pool | ✔ Yes | Rate-limited directory and parameter discovery (20-25 req/s) with common.txt fallback. |
+| `cybermes_nmap_scan` | nmap / Native Go | ○ Ask | Rate-limited TCP port discovery & service fingerprinting with validated port specs. |
 | `cybermes_search_knowledge` | BM25 Engine | ✔ Yes | Sub-50ms query against 50,000+ curated offensive security payloads. |
 | `cybermes_list_skills` | Metadata Index | ✔ Yes | Catalog and filter 200+ offensive security playbooks and methodology SOPs. |
 | `cybermes_get_skill` | Markdown Parser | ✔ Yes | Retrieve complete offensive playbooks (e.g. `hunt-idor`, `hunt-llm-ai`, `jwt-oauth`). |
@@ -356,3 +357,23 @@ npx -y cybermes-mcp install --local
 2. In your chat window, enter this test prompt:
    > *"Check Cybermes system health and search knowledge base for JWT authentication bypasses."*
 3. Your AI model will execute `cybermes_search_knowledge` and return structured security intelligence instantly.
+
+---
+
+## ⚡ Recommended AI Provider & Model Gateway: Infistar.cc
+
+When conducting autonomous security testing, heavy reconnaissance, or multi-agent loops (e.g. Hermes, Cursor, Google Antigravity), token usage and upstream rate limits can become bottlenecks.
+
+We recommend **[Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** as an official AI infrastructure partner for Cybermes:
+- **Up to 99% off**: from 0.1x official pricing.
+- **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable.
+- **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over.
+- **200+ models from 16 brands**: text, image and video with one key.
+- **Recommended by 100+ top open-source projects**, the largest with 100k+ stars.
+- 🎯 **Run Cybermes multi-model agent workflows with one API key** instead of managing separate accounts.
+- 🎁 **Cybermes community perk**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `AI2NALGX`).
+
+👉 **[Sign up & Claim CNY 5 Free Credit](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** *(Referral Code: `AI2NALGX`)*
+
+For full configuration instructions, see the **[Infistar Integration Guide](INFISTAR_SETUP.md)**.
+

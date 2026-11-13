@@ -43,9 +43,9 @@ const RAW_BANNER = [
   '  ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝'
 ];
 
-let PKG_VERSION = '3.5.0';
+let PKG_VERSION = '3.5.1';
 try {
-  PKG_VERSION = require('../../package.json').version || '3.5.0';
+  PKG_VERSION = require('../../package.json').version || '3.5.1';
 } catch (_) {}
 
 function printBanner(subtitle = '') {
@@ -100,6 +100,16 @@ function printDivider(len = 74) {
   console.log('  ' + ANSI.darkGray + '─'.repeat(len - 4) + ANSI.reset);
 }
 
+function stripAnsi(str) {
+  return typeof str === 'string' ? str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') : '';
+}
+
+function padVisible(content, targetWidth) {
+  const visibleLen = stripAnsi(content).length;
+  const padding = Math.max(0, targetWidth - visibleLen);
+  return content + ' '.repeat(padding);
+}
+
 module.exports = {
   ANSI,
   gradient,
@@ -107,4 +117,6 @@ module.exports = {
   printHeader,
   badge,
   printDivider,
+  stripAnsi,
+  padVisible,
 };

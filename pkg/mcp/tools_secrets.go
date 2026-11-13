@@ -83,7 +83,6 @@ func (s *Server) handleScanSecrets(ctx context.Context, request mcp.CallToolRequ
 		}
 	}
 
-	// Filter by minimum severity
 	filtered := filterFindingsBySeverity(findings, minSev)
 
 	if mask {
@@ -159,17 +158,4 @@ func maskSecret(raw string) string {
 		return raw[:2] + strings.Repeat("*", n-4) + raw[n-2:]
 	}
 	return raw[:4] + "..." + raw[n-4:]
-}
-
-func getSeverityBadge(sev string) string {
-	switch strings.ToLower(sev) {
-	case "critical":
-		return "🔴 **CRITICAL**"
-	case "high":
-		return "🟠 **HIGH**"
-	case "medium":
-		return "🟡 **MEDIUM**"
-	default:
-		return "🔵 **LOW**"
-	}
 }

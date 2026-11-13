@@ -10,12 +10,13 @@
   </a>
 </p>
 
-[![Release](https://img.shields.io/badge/Release-v3.3.0-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
+[![Release](https://img.shields.io/badge/Release-v3.5.1-orange.svg)](https://github.com/Zyrexnn/Cybermes/releases)
 [![Go: 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
 [![Python: 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
+[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)
 
 <img src="assets/bannerterbaru.jpeg" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
@@ -25,9 +26,31 @@
   It combines native Go performance utilities, 200+ modular offensive security playbooks, token-optimized streaming pipelines, and full Model Context Protocol (MCP) support for AI coding environments.
 </p>
 
-[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/)
+[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/) • [Sponsors](#-official-ai-infrastructure-partner)
 
 </div>
+
+---
+
+## 💖 Official AI Infrastructure Partner
+
+<div align="center">
+  <a href="https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
+    <img src="assets/sponsors/infistar_banner.png" alt="Cybermes x Infistar.cc Sponsorship Banner" width="100%" style="border-radius: 8px; margin: 12px 0;">
+  </a>
+</div>
+
+### Cybermes × [Infistar.cc](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link) | Claude, GPT, Gemini, Grok, DeepSeek & more, one key, a fraction of official prices
+
+- 💥 **Up to 99% off**: from 0.1x official pricing
+- ✅ **Official upstreams, 100% genuine models**: no downgrades, no dilution, every model verifiable
+- ⚡ **1,000+ redundant routes with automatic failover**: one route stumbles, the next takes over
+- 🧩 **200+ models from 16 brands**: text, image and video with one key
+- 🏆 **Recommended by 100+ top open-source projects**: the largest with 100k+ stars
+- 🎯 **Run Cybermes’ multi-model agent workflows with one API key** instead of managing separate accounts
+- 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `AI2NALGX`)
+
+👉 **[Sign up & Claim CNY 5 Free API Credit](https://www.infistar.cc/register?aff=AI2NALGX&ref_source=link)** *(Referral Code: `AI2NALGX`)*
 
 ---
 
@@ -335,18 +358,20 @@ Detailed guides and references are available in the [`docs/`](docs/) directory:
 
 ## Acknowledgments & Upstream Credits
 
-Cybermes integrates and builds upon foundational work from the open-source and offensive security research communities:
+Cybermes includes and references tools, wordlists, and research from the following open-source projects:
 
 | Project / Tool | Maintainer / Author | Contribution / Reference |
 | :--- | :--- | :--- |
 | [HackTricks](https://github.com/carlospolop/hacktricks) | [@carlospolop](https://github.com/carlospolop) | Privilege escalation, service exploitation & offensive knowledge base |
 | [PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings) | [@swisskyrepo](https://github.com/swisskyrepo) | Web application payloads and bypass vectors |
-| [ProjectDiscovery Suite](https://projectdiscovery.io/) | ProjectDiscovery Team | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
+| [ProjectDiscovery Suite](https://projectdiscovery.io/) | [@projectdiscovery](https://github.com/projectdiscovery) | Core toolchain (`nuclei`, `httpx`, `subfinder`, `katana`) |
 | [SQLMap](https://github.com/sqlmapproject/sqlmap) | Bernardo Damele & Miroslav Stampar | Automated SQL injection auditor |
-| [Claude-BugHunter](https://github.com/sachinsharma-96/Claude-BugHunter) | [@sachinsharma-96](https://github.com/sachinsharma-96) | Bug bounty engagement patterns & validation playbooks |
-| [Strix Framework](https://github.com/strix-security/strix) | Strix Security Team | Autonomous multi-agent coordination architecture |
+| [Claude-BugHunter](https://github.com/elementalsouls/Claude-BugHunter) | [@elementalsouls](https://github.com/elementalsouls) | Bug bounty engagement patterns & validation playbooks |
+| [Strix Framework](https://github.com/usestrix/strix) | [@usestrix](https://github.com/usestrix) | Autonomous multi-agent coordination architecture |
 | [FFuF](https://github.com/ffuf/ffuf) | [@joohoi](https://github.com/joohoi) | High-speed web fuzzer |
-| [Hermes-Agent](https://github.com/NousResearch/Hermes-Agent) | NousResearch | Autonomous agent core framework |
+| [Hermes-Agent](https://github.com/NousResearch/Hermes-Agent) | [@NousResearch](https://github.com/NousResearch) | Autonomous agent core framework |
+| [SecLists](https://github.com/danielmiessler/SecLists) | [@danielmiessler](https://github.com/danielmiessler) | Curated security assessment wordlists & fuzzing vectors |
+| [Hack-Skills](https://github.com/yaklang/hack-skills) | [@yaklang](https://github.com/yaklang) | Offensive security skill modules & testing playbooks |
 
 *(See [ATTRIBUTION.md](ATTRIBUTION.md) for full license notices and upstream details)*
 
@@ -354,67 +379,9 @@ Cybermes integrates and builds upon foundational work from the open-source and o
 
 ## Contributors
 
-Thank you to everyone who helps build, maintain, and research Cybermes:
-
-<div align="center">
-
-<table>
-  <tr>
-    <td align="center" width="160px">
-      <a href="https://github.com/Zyrexnn">
-        <img src="https://github.com/Zyrexnn.png?size=120" width="80px" height="80px" alt="Zyrexnn" style="border-radius: 50%; border: 3px solid #00d2ff; box-shadow: 0 0 14px rgba(0, 210, 255, 0.7); padding: 2px;" /><br />
-        <sub><b>Zyrexnn</b></sub>
-      </a><br />
-      <a href="https://github.com/Zyrexnn"><img src="https://img.shields.io/badge/★-Project_Lead-00d2ff?style=flat-square" alt="Project Lead" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/msarg44">
-        <img src="https://github.com/msarg44.png?size=100" width="65px" height="65px" alt="msarg44" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>msarg44</b></sub>
-      </a><br />
-      <a href="https://github.com/msarg44"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/Mortify4315">
-        <img src="https://github.com/Mortify4315.png?size=100" width="65px" height="65px" alt="Mortify4315" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>Mortify4315</b></sub>
-      </a><br />
-      <a href="https://github.com/Mortify4315"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/sizoune">
-        <img src="https://github.com/sizoune.png?size=100" width="65px" height="65px" alt="sizoune" style="border-radius: 50%; border: 2px solid #2ea44f; padding: 2px;" /><br />
-        <sub><b>sizoune</b></sub>
-      </a><br />
-      <a href="https://github.com/sizoune"><img src="https://img.shields.io/badge/Fork_%2F_PR-2ea44f?style=flat-square" alt="Fork / PR" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/xsoft">
-        <img src="https://github.com/xsoft.png?size=100" width="65px" height="65px" alt="xsoft" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>xsoft</b></sub>
-      </a><br />
-      <a href="https://github.com/xsoft"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
-    <td align="center" width="130px">
-      <a href="https://github.com/Muzakie-ID">
-        <img src="https://github.com/Muzakie-ID.png?size=100" width="65px" height="65px" alt="Muzakie-ID" style="border-radius: 50%; border: 2px solid #8957e5; padding: 2px;" /><br />
-        <sub><b>Muzakie-ID</b></sub>
-      </a><br />
-      <a href="https://github.com/Muzakie-ID"><img src="https://img.shields.io/badge/Accepted_Issue-8957e5?style=flat-square" alt="Accepted Issue" /></a>
-    </td>
-  </tr>
-</table>
-
-</div>
-
-| Contributor | Type | Contribution | Reference |
-| :--- | :--- | :--- | :--- |
-| **[@Zyrexnn](https://github.com/Zyrexnn)** | `Project Lead` | Creator, Core Architecture & Offensive Framework | Main |
-| **[@msarg44](https://github.com/msarg44)** | `Fork / PR` | Playwright PDF rendering engine fix | [#1](https://github.com/Zyrexnn/Cybermes/issues/1) |
-| **[@Mortify4315](https://github.com/Mortify4315)** | `Fork / PR` | Windows Python launcher fallback & Long Path documentation | [#4](https://github.com/Zyrexnn/Cybermes/issues/4), [#5](https://github.com/Zyrexnn/Cybermes/issues/5) |
-| **[@sizoune](https://github.com/sizoune)** | `Fork / PR` | Target-specific PDF report filename & Docker gateway crash-loop fix | [#17](https://github.com/Zyrexnn/Cybermes/issues/17), [#20](https://github.com/Zyrexnn/Cybermes/pull/20) |
-| **[@xsoft](https://github.com/xsoft)** | `Accepted Issue` | Linux setup audit, Docker config mounts & workflow diagnostic report | [#7](https://github.com/Zyrexnn/Cybermes/issues/7) |
-| **[@Muzakie-ID](https://github.com/Muzakie-ID)** | `Accepted Issue` | Windows PowerShell setup & script parser bug report | [#10](https://github.com/Zyrexnn/Cybermes/issues/10) |
+<a href="https://github.com/Zyrexnn/Cybermes/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Zyrexnn/Cybermes" alt="Cybermes Contributors" />
+</a>
 
 Want to contribute? Check out our [Contributing Guide](CONTRIBUTING.md) and [Contributors List](CONTRIBUTORS.md).
 

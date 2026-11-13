@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawnSync } = require('child_process');
+const api = require('./src/index');
 
 console.log('[TEST] Starting cybermes-mcp Modular CLI Test Suite...');
 
@@ -95,7 +96,10 @@ const selNpxRes = spawnSync(process.execPath, [SCRIPT_PATH, 'install', '--cursor
 assert.strictEqual(selNpxRes.status, 0);
 assert(selNpxRes.stdout.includes('Cursor IDE'), 'Output should target Cursor');
 assert(!selNpxRes.stdout.includes('Antigravity / Gemini'), 'Output should NOT target unselected Gemini');
-assert(selNpxRes.stdout.includes('Mode: NPX On-Demand (npx -y cybermes-mcp)'), 'Output must confirm NPX execution mode');
+assert(selNpxRes.stdout.includes('Mode: NPX On-Demand (npx -y cybermes-mcp@latest)'), 'Output must confirm NPX execution mode');
+const npxClientDefs = api.getClientDefinitions(false, null, null, false);
+const cursorDef = npxClientDefs.find(c => c.id === 'cursor');
+assert.deepStrictEqual(cursorDef.definition.args, ['-y', 'cybermes-mcp@latest'], 'NPX mode must specify @latest to avoid stale cache');
 console.log('  -> PASS: Selective provider injection in npx mode verified.');
 
 // Test 9: Mass Provider Flag (--all --global)
@@ -157,7 +161,6 @@ try {
 
 // Test 12: Programmatic Public API Exports (npm/src/index.js)
 console.log('[TEST 12/15] Testing Programmatic Public API Exports (index.js)...');
-const api = require('./src/index');
 assert(typeof api.getClientDefinitions === 'function', 'API should export getClientDefinitions');
 assert(typeof api.resolveClientTarget === 'function', 'API should export resolveClientTarget');
 assert(typeof api.injectClientConfig === 'function', 'API should export injectClientConfig');
@@ -166,6 +169,9 @@ assert(typeof api.checkClientStatus === 'function', 'API should export checkClie
 assert(typeof api.loadConfig === 'function', 'API should export loadConfig');
 assert(typeof api.runDoctor === 'function', 'API should export runDoctor');
 assert(typeof api.runTools === 'function', 'API should export runTools');
+assert(typeof api.runUpdate === 'function', 'API should export runUpdate');
+assert(typeof api.checkUpdate === 'function', 'API should export checkUpdate');
+assert(typeof api.compareSemver === 'function', 'API should export compareSemver');
 console.log('  -> PASS: All programmatic public API methods verified.');
 
 // Test 13: Prompt Engine, Line Counting & Path Truncation Integrity
@@ -276,5 +282,30 @@ assert(truncated.endsWith('cline_mcp_settings.json'), 'Truncated path must prese
     try { fs.rmSync(e2eDir, { recursive: true, force: true }); } catch (_) {}
   }
 
-  console.log('\n[SUCCESS] All 15 cybermes-mcp test suites passed cleanly with 0 errors!\n');
+  // Test 16: Zero-Dependency Updater Utility & Semver Comparison
+  console.log('[TEST 16/17] Testing Semver Comparison & Update Checker...');
+  const { compareSemver } = require('./src/utils/updater');
+
+  assert.strictEqual(compareSemver('3.5.0', '3.5.1'), true, 'Patch update should return true');
+  assert.strictEqual(compareSemver('3.5.0', '3.6.0'), true, 'Minor update should return true');
+  assert.strictEqual(compareSemver('3.5.0', '4.0.0'), true, 'Major update should return true');
+  assert.strictEqual(compareSemver('3.5.0', '3.5.0'), false, 'Same version should return false');
+  assert.strictEqual(compareSemver('3.6.0', '3.5.0'), false, 'Older version should return false');
+  assert.strictEqual(compareSemver('v3.5.0', '3.6.0'), true, 'Prefixed v should be handled cleanly');
+  assert.strictEqual(compareSemver('3.5.0', 'v3.6.0'), true, 'Prefixed v on latest should be handled cleanly');
+  assert.strictEqual(compareSemver('', '3.5.0'), false, 'Empty string should return false safely');
+  console.log('  -> PASS: Semver comparator logic verified.');
+
+  // Test 17: Update Command Execution (dry-run & help)
+  console.log('[TEST 17/17] Testing Update Command (dry-run & help)...');
+  const updateHelpRes = spawnSync(process.execPath, [SCRIPT_PATH, 'help', 'update'], { encoding: 'utf8' });
+  assert.strictEqual(updateHelpRes.status, 0);
+  assert(updateHelpRes.stdout.includes('UPDATE COMMAND HELP'), 'Help output must include update command details');
+
+  const updateDryRes = spawnSync(process.execPath, [SCRIPT_PATH, 'update', '--dry-run'], { encoding: 'utf8' });
+  assert.strictEqual(updateDryRes.status, 0);
+  assert(updateDryRes.stdout.includes('Universal MCP Updater'), 'Update command must execute and show header');
+  console.log('  -> PASS: Update command interface and dry-run verified.');
+
+  console.log('\n[SUCCESS] All 17 cybermes-mcp test suites passed cleanly with 0 errors!\n');
 })();

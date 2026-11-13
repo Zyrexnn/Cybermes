@@ -49,6 +49,7 @@ cybermes-mcp config set workspace "C:\MyRecon"
 | **`tools`** | `cybermes-mcp tools` | Full capability table of all 14+ active tools (including `cybermes_generate_pdf`). |
 | **`skills [query]`** | `cybermes-mcp skills jwt` | Search and preview offensive methodology SOPs directly in terminal. |
 | **`config`** | `cybermes-mcp config list`<br>`cybermes-mcp config set rateLimit 15` | View and modify global settings in `~/.cybermes/config.json`. |
+| **`update` / `upgrade`** | `cybermes-mcp update`<br>`cybermes-mcp update --force` | Synchronizes latest NPM package, pre-caches native Go binary, and cleans old cache. |
 | **`uninstall`** | `cybermes-mcp uninstall` | Cleanly removes Cybermes configurations from target clients. |
 
 ---

@@ -32,7 +32,6 @@ type EnvironmentReport struct {
 }
 
 func (s *Server) registerSystemTools() {
-	// 1. cybermes_check_environment
 	checkEnvTool := mcp.NewTool(
 		"cybermes_check_environment",
 		mcp.WithDescription("Inspect the local system environment, package managers, core toolchain readiness, and optional on-demand tools (like Nuclei) without modifying any files."),
@@ -44,7 +43,6 @@ func (s *Server) registerSystemTools() {
 		),
 	)
 
-	// 2. cybermes_record_evidence
 	recordEvidenceTool := mcp.NewTool(
 		"cybermes_record_evidence",
 		mcp.WithDescription("Append non-vulnerability observations, missing security headers, reconnaissance notes, and negative test evidence directly to reports/<target_slug>/evidence/recon_notes.md according to Cybermes AGENTS.md directives."),
@@ -84,7 +82,6 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		WorkspaceRoot: s.cfg.RootDir,
 	}
 
-	// Detect Package Managers
 	pms := []string{"winget", "brew", "apt", "pdtm", "go", "python", "pip"}
 	for _, pm := range pms {
 		if _, err := exec.LookPath(pm); err == nil {
@@ -92,7 +89,6 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		}
 	}
 
-	// Tool definitions
 	toolsToCheck := []struct {
 		name     string
 		toolType string
@@ -106,6 +102,7 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 		{"katana", "Core (Go fallback available)", "SPA & Endpoint Crawler"},
 		{"subfinder", "Core (Go fallback available)", "Passive Subdomain Discovery"},
 		{"ffuf", "Core (Go fallback available)", "Directory & Endpoint Fuzzer"},
+		{"nmap", "Core (Go fallback available)", "TCP Port & Service Scanner"},
 		{"nuclei", "Optional (On-Demand)", "Vulnerability Template & CVE Scanner (~150MB)"},
 		{"sqlmap", "Optional (On-Demand)", "Automated SQL Injection Auditor"},
 	}
@@ -118,17 +115,27 @@ func (s *Server) handleCheckEnvironment(ctx context.Context, request mcp.CallToo
 			Installed:   false,
 		}
 
-		// Check local tools/bin
+		candidate := ""
 		localCandidate := filepath.Join(s.cfg.ToolsDir, "bin", t.name+ext)
 		if _, err := os.Stat(localCandidate); err == nil {
-			st.Installed = true
-			st.Path = localCandidate
+			candidate = localCandidate
 		} else if p, err := exec.LookPath(t.name + ext); err == nil {
-			st.Installed = true
-			st.Path = p
+			candidate = p
 		} else if p, err := exec.LookPath(t.name); err == nil {
-			st.Installed = true
-			st.Path = p
+			candidate = p
+		}
+
+		if candidate != "" {
+			if t.name == "sqlmap" {
+				// Verify sqlmap executes successfully since wrapper stubs may exist without runtime dependencies.
+				if exec.Command(candidate, "--version").Run() == nil {
+					st.Installed = true
+					st.Path = candidate
+				}
+			} else {
+				st.Installed = true
+				st.Path = candidate
+			}
 		}
 
 		report.Tools = append(report.Tools, st)
@@ -180,6 +187,8 @@ func getToolInstallCommand(name string) string {
 		return "`pdtm -i nuclei` or `go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest`"
 	case "sqlmap":
 		return "`pip install sqlmap`"
+	case "nmap":
+		return "`sudo apt install nmap` (Debian/Ubuntu), `brew install nmap` (macOS), or `winget install Insecure.Nmap` (Windows)"
 	case "dalfox":
 		return "`go install github.com/hahwul/dalfox/v2@latest`"
 	default:

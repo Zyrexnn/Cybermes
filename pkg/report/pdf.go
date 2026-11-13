@@ -172,7 +172,7 @@ func RenderPDF(htmlPath string, pdfPath string) (string, error) {
 		return browserPath, fmt.Errorf("chromedp PDF generation failed: %w", err)
 	}
 
-	if err := os.WriteFile(pdfPath, pdfBuffer, 0666); err != nil {
+	if err := os.WriteFile(pdfPath, pdfBuffer, 0644); err != nil {
 		return browserPath, fmt.Errorf("failed to save PDF file to %s: %w", pdfPath, err)
 	}
 

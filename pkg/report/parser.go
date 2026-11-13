@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -51,6 +52,31 @@ type FindingMeta struct {
 
 func CleanExtractedValue(val string) string {
 	return strings.Trim(strings.TrimSpace(val), "`*_")
+}
+
+// ValidateFindingFilename enforces clean snake_case severity filenames without brackets
+// and rejects informational findings from being stored as standalone finding markdown files.
+func ValidateFindingFilename(filename string) error {
+	trimmed := strings.TrimSpace(filename)
+	if trimmed == "" {
+		return fmt.Errorf("finding filename cannot be empty")
+	}
+
+	base := filepath.Base(trimmed)
+	if base == "." || base == "/" || base == "\\" {
+		return fmt.Errorf("invalid finding filename %q", trimmed)
+	}
+
+	if strings.ContainsAny(base, "[]") {
+		return fmt.Errorf("finding filename %q contains brackets; use snake_case like high_vuln_name.md", base)
+	}
+
+	lower := strings.ToLower(base)
+	if strings.HasPrefix(lower, "info_") || strings.HasPrefix(lower, "informational_") {
+		return fmt.Errorf("informational finding %q must be grouped into evidence/recon_notes.md", base)
+	}
+
+	return nil
 }
 
 func ParseFindingFile(filePath string) (*FindingMeta, error) {

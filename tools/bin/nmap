@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
-if [ -x "/usr/bin/nmap" ]; then
-  exec /usr/bin/nmap "$@"
-elif [ -x "/usr/local/bin/nmap" ]; then
-  exec /usr/local/bin/nmap "$@"
-else
-  exec nmap "$@"
+for candidate in "/usr/bin/nmap" "/usr/local/bin/nmap" "/opt/homebrew/bin/nmap"; do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+# Search PATH excluding tools/bin to prevent recursive invocation.
+target=$(which -a nmap 2>/dev/null | grep -v "tools/bin/nmap" | head -n 1)
+if [ -n "$target" ] && [ -x "$target" ]; then
+  exec "$target" "$@"
 fi
+
+echo "[-] Error: nmap binary not found on host system." >&2
+echo "[-] Install via package manager or rely on Cybermes native Go connect scanner." >&2
+exit 127

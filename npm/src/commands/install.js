@@ -25,7 +25,7 @@ async function runInstaller(options = {}) {
   if (useGlobal === undefined && !options.useNpx && process.stdin.isTTY && !options.dryRun && !options.clients && !options.all) {
     const selectedMode = await promptRadio('Choose how AI Clients should launch Cybermes MCP', [
       { id: 'global', name: 'Global Executable (cybermes-mcp)', desc: '— [Faster, Zero-Latency, Offline Ready]' },
-      { id: 'npx', name: 'NPX On-Demand (npx -y cybermes-mcp)', desc: '— [Always Latest Release, No npm -g needed]' }
+      { id: 'npx', name: 'NPX On-Demand (npx -y cybermes-mcp@latest)', desc: '— [Always Latest Release, No npm -g needed]' }
     ], 0);
 
     useGlobal = (selectedMode === 'global');
@@ -51,7 +51,7 @@ async function runInstaller(options = {}) {
 
     const modeSubtitle = useGlobal 
       ? 'Mode: Global Command (cybermes-mcp)' 
-      : 'Mode: NPX Command (npx -y cybermes-mcp)';
+      : 'Mode: NPX Command (npx -y cybermes-mcp@latest)';
 
     const selectedIds = await promptCheckbox('Select AI Clients to configure for Cybermes MCP', promptItems, modeSubtitle);
     if (!selectedIds || selectedIds.length === 0) {
@@ -65,7 +65,7 @@ async function runInstaller(options = {}) {
   let readyCount = 0;
   let evaluatedCount = 0;
 
-  const modeLabel = useGlobal ? 'Global Executable (cybermes-mcp)' : 'NPX On-Demand (npx -y cybermes-mcp)';
+  const modeLabel = useGlobal ? 'Global Executable (cybermes-mcp)' : 'NPX On-Demand (npx -y cybermes-mcp@latest)';
   console.log(`  ${ANSI.bold}INJECTION RESULTS:${ANSI.reset} ${ANSI.dim}(Mode: ${modeLabel})${ANSI.reset}`);
   printDivider(74);
 

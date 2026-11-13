@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"cybermes/pkg/fuzz"
-	"cybermes/pkg/scope"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -78,13 +77,7 @@ func (s *Server) handleFuzzEndpoints(ctx context.Context, request mcp.CallToolRe
 		return mcp.NewToolResultError("target_url parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug == "" {
-		targetSlug = sanitizeSlug(targetURL)
-	} else {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
-
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), targetURL)
 	wordlist := strings.TrimSpace(request.GetString("wordlist", ""))
 	extensionsRaw := strings.TrimSpace(request.GetString("extensions", ""))
 	statusCodesRaw := strings.TrimSpace(request.GetString("status_codes", "200,204,301,302,307,401,403,405"))
@@ -95,13 +88,8 @@ func (s *Server) handleFuzzEndpoints(ctx context.Context, request mcp.CallToolRe
 	preferFfuf := request.GetBool("prefer_ffuf", true)
 	format := request.GetString("format", "markdown")
 
-	// Scope Guard check
-	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
-	if err == nil && cfg != nil {
-		val := scope.ValidateTarget(targetURL, cfg)
-		if !val.Allowed {
-			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
-		}
+	if res := s.enforceScope(targetURL, targetSlug); res != nil {
+		return res, nil
 	}
 
 	var extensions []string

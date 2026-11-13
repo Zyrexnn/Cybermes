@@ -39,7 +39,7 @@ function getTargetDefinition(useLocal, localBinPath, workspaceRoot, useGlobal) {
   }
   return {
     command: 'npx',
-    args: ['-y', 'cybermes-mcp'],
+    args: ['-y', 'cybermes-mcp@latest'],
   };
 }
 

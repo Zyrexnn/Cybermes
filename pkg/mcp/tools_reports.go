@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"cybermes/pkg/report"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-
-var slugRegex = regexp.MustCompile(`[^a-z0-9]+`)
 
 func (s *Server) registerReportsTools() {
 	aggTool := mcp.NewTool(
@@ -110,6 +107,18 @@ func (s *Server) registerReportsTools() {
 		mcp.WithString(
 			"remediation",
 			mcp.Description("Specific code or architecture remediation advice."),
+		),
+		mcp.WithString(
+			"cvss",
+			mcp.Description("Optional CVSS v3.x base score 0.0-10.0 (e.g. '8.1'). Invalid values are rejected."),
+		),
+		mcp.WithString(
+			"cwe",
+			mcp.Description("Optional CWE reference (e.g. 'CWE-79' or '79'). Invalid values are rejected."),
+		),
+		mcp.WithString(
+			"filename",
+			mcp.Description("Optional custom finding filename (e.g. 'critical_auth_bypass.md'). Must follow clean snake_case without brackets."),
 		),
 	)
 
@@ -310,10 +319,22 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	pocScript := request.GetString("poc_script", "")
 	remediation := request.GetString("remediation", "Implement strict authorization checks and validate user access permissions.")
 
+	cvss, err := report.ValidateCVSSScore(request.GetString("cvss", ""))
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid 'cvss': %v", err)), nil
+	}
+	cwe, err := report.NormalizeCWE(request.GetString("cwe", ""))
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid 'cwe': %v", err)), nil
+	}
+
 	targetSlug = sanitizeSlug(targetSlug)
 	severity = strings.ToLower(strings.TrimSpace(severity))
 
-	// Ensure directories exist
+	if severity == "informational" || severity == "info" {
+		return mcp.NewToolResultError("Informational notices and non-vulnerability observations must be logged via 'cybermes_record_evidence' into 'evidence/recon_notes.md' per AGENTS.md directives."), nil
+	}
+
 	targetDir := filepath.Join(s.cfg.ReportsDir, targetSlug)
 	findingsDir := filepath.Join(targetDir, "findings")
 	pocsDir := filepath.Join(targetDir, "pocs")
@@ -325,17 +346,40 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 		}
 	}
 
+	// Deduplication gate: same title+endpoint already recorded → skip with pointer.
+	if dupPath, err := report.FindDuplicateFinding(findingsDir, title, endpoint); err == nil && dupPath != "" {
+		rel, _ := filepath.Rel(s.cfg.RootDir, dupPath)
+		return mcp.NewToolResultText(fmt.Sprintf("Finding already recorded, skipping duplicate:\n- **Existing File**: `%s`\n- **Target**: `%s`\n- **Summary**: `reports/%s/SUMMARY.md`",
+			rel, targetSlug, targetSlug)), nil
+	}
+
 	vulnSlug := sanitizeSlug(title)
 	if len(vulnSlug) > 40 {
 		vulnSlug = vulnSlug[:40]
 	}
-	findingFileName := fmt.Sprintf("%s_%s.md", severity, vulnSlug)
-	findingFilePath := filepath.Join(findingsDir, findingFileName)
+
+	customFileName := strings.TrimSpace(request.GetString("filename", ""))
+	findingFileName := customFileName
+	if findingFileName == "" {
+		findingFileName = fmt.Sprintf("%s_%s.md", severity, vulnSlug)
+	}
+
+	if err := report.ValidateFindingFilename(findingFileName); err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+
+	findingFilePath := filepath.Join(findingsDir, filepath.Base(findingFileName))
 
 	var doc strings.Builder
 	doc.WriteString(fmt.Sprintf("# %s\n\n", title))
 	doc.WriteString(fmt.Sprintf("- **Severity**: %s\n", strings.ToUpper(severity)))
 	doc.WriteString(fmt.Sprintf("- **Endpoint**: `%s`\n", endpoint))
+	if cvss != "" {
+		doc.WriteString(fmt.Sprintf("- **CVSS**: %s\n", cvss))
+	}
+	if cwe != "" {
+		doc.WriteString(fmt.Sprintf("- **CWE**: %s\n", cwe))
+	}
 	doc.WriteString(fmt.Sprintf("- **Date**: %s\n\n", time.Now().Format("2006-01-02")))
 	doc.WriteString("## Description\n\n")
 	doc.WriteString(description + "\n\n")
@@ -345,7 +389,9 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 	if pocScript != "" {
 		pocFileName := fmt.Sprintf("poc_%s.py", vulnSlug)
 		pocFilePath := filepath.Join(pocsDir, pocFileName)
-		_ = os.WriteFile(pocFilePath, []byte(pocScript), 0644)
+		if err := os.WriteFile(pocFilePath, []byte(pocScript), 0644); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to write PoC script: %v", err)), nil
+		}
 		doc.WriteString("## Proof of Concept\n\n")
 		doc.WriteString(fmt.Sprintf("Standalone script: [`pocs/%s`](../pocs/%s)\n\n", pocFileName, pocFileName))
 	}
@@ -362,10 +408,4 @@ func (s *Server) handleRecordFinding(ctx context.Context, request mcp.CallToolRe
 
 	return mcp.NewToolResultText(fmt.Sprintf("Finding successfully recorded and aggregated:\n- **File**: `reports/%s/findings/%s`\n- **Target**: `%s`\n- **Severity**: `%s`\n- **Summary**: `reports/%s/SUMMARY.md`\n- **Dashboard**: `reports/%s/report.html`\n- **PDF Deliverable**: Call cybermes_generate_pdf when ready",
 		targetSlug, findingFileName, targetSlug, strings.ToUpper(severity), targetSlug, targetSlug)), nil
-}
-
-func sanitizeSlug(input string) string {
-	lower := strings.ToLower(input)
-	clean := slugRegex.ReplaceAllString(lower, "_")
-	return strings.Trim(clean, "_")
 }

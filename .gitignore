@@ -53,6 +53,7 @@ htmlcov/
 tools/bin/*
 !tools/bin/.gitkeep
 !tools/bin/nmap
+!tools/bin/sqlmap
 bin/*.exe
 *.exe
 *.dll
@@ -108,3 +109,9 @@ desktop.ini
 *.user
 .gemini/
 .claude/
+anti-slop/
+
+# 9. Superpowers & Agent Workspace Plans / Specs
+docs/superpowers/
+
+

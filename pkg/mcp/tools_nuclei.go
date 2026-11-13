@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"cybermes/pkg/scope"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -87,13 +86,11 @@ func findNucleiBinary(toolsDir string) string {
 		ext = ".exe"
 	}
 
-	// 1. Check tools/bin/nuclei
 	candidate := filepath.Join(toolsDir, "bin", "nuclei"+ext)
 	if _, err := os.Stat(candidate); err == nil {
 		return candidate
 	}
 
-	// 2. Check system PATH
 	if p, err := exec.LookPath("nuclei" + ext); err == nil {
 		return p
 	}
@@ -107,11 +104,11 @@ func findNucleiBinary(toolsDir string) string {
 func getOnDemandInstallInstructions() string {
 	switch runtime.GOOS {
 	case "windows":
-		return "`winget install projectdiscovery.nuclei` atau `pdtm -i nuclei` atau jalankan `.\\tools\\update_tools.ps1 -IncludeNuclei`"
+		return "`winget install projectdiscovery.nuclei` or `pdtm -i nuclei` or run `.\\tools\\update_tools.ps1 -IncludeNuclei`"
 	case "darwin":
-		return "`brew install nuclei` atau `pdtm -i nuclei`"
+		return "`brew install nuclei` or `pdtm -i nuclei`"
 	default:
-		return "`pdtm -i nuclei` atau `go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest`"
+		return "`pdtm -i nuclei` or `go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest`"
 	}
 }
 
@@ -121,13 +118,7 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultError("target_url parameter is required"), nil
 	}
 
-	targetSlug := strings.TrimSpace(request.GetString("target_slug", ""))
-	if targetSlug == "" {
-		targetSlug = sanitizeSlug(targetURL)
-	} else {
-		targetSlug = sanitizeSlug(targetSlug)
-	}
-
+	targetSlug := s.resolveSlug(request.GetString("target_slug", ""), targetURL)
 	tags := strings.TrimSpace(request.GetString("tags", "cve,auth-bypass,misconfig"))
 	severity := strings.TrimSpace(request.GetString("severity", "critical,high,medium"))
 	templateID := strings.TrimSpace(request.GetString("template_id", ""))
@@ -141,16 +132,10 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 	}
 	format := request.GetString("format", "markdown")
 
-	// Scope Guard check
-	cfg, _, err := scope.FindScopeConfig(s.cfg.RootDir, targetSlug)
-	if err == nil && cfg != nil {
-		val := scope.ValidateTarget(targetURL, cfg)
-		if !val.Allowed {
-			return mcp.NewToolResultError(fmt.Sprintf("Scope Guard Violation: %s", val.Reason)), nil
-		}
+	if res := s.enforceScope(targetURL, targetSlug); res != nil {
+		return res, nil
 	}
 
-	// Locate binary
 	nucleiBin := findNucleiBinary(s.cfg.ToolsDir)
 	if nucleiBin == "" {
 		// Return friendly On-Demand missing dependency guide instead of crashing
@@ -163,7 +148,6 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultText(msg), nil
 	}
 
-	// Prepare safe execution arguments
 	args := []string{
 		"-u", targetURL,
 		"-rate-limit", fmt.Sprintf("%d", rateLimit),
@@ -197,7 +181,6 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 		return mcp.NewToolResultError(fmt.Sprintf("Nuclei scan timed out after %d seconds.", timeoutSec)), nil
 	}
 
-	// Parse JSONL results
 	var findings []NucleiFinding
 	scanner := bufio.NewScanner(&stdout)
 	for scanner.Scan() {
@@ -211,11 +194,11 @@ func (s *Server) handleNucleiScan(ctx context.Context, request mcp.CallToolReque
 		}
 	}
 
-	// Save raw output to recon directory
 	reconDir := filepath.Join(s.cfg.RootDir, "recon", targetSlug)
-	_ = os.MkdirAll(reconDir, 0755)
 	dumpFile := filepath.Join(reconDir, "nuclei_output.txt")
-	_ = os.WriteFile(dumpFile, stdout.Bytes(), 0644)
+	if err := os.MkdirAll(reconDir, 0755); err == nil {
+		_ = os.WriteFile(dumpFile, stdout.Bytes(), 0644)
+	}
 
 	if strings.ToLower(format) == "json" {
 		out := map[string]any{
