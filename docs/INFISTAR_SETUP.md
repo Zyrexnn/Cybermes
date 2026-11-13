@@ -46,13 +46,24 @@ OPENAI_API_BASE="https://api.infistar.cc/v1"
 OPENAI_API_KEY="sk-infistar-your-actual-api-key"
 ```
 
-### 3. Recommended Models for Offensive Workflows
+### 3. Recommended Latest Models for Security Workflows
 
-| Task | Recommended Model | Advantage |
+Berikut adalah model-model terbaru yang memiliki kapabilitas penalaran kode tinggi dan tingkat *false refusal* rendah untuk riset keamanan:
+
+| Task / Use Case | Latest Model ID | Karakteristik & Alasan Rekomendasi |
 | :--- | :--- | :--- |
-| **Deep Reasoning & Vulnerability Analysis** | `deepseek-reasoner` (R1) | High-precision logical deduction and root cause analysis at minimal token cost. |
-| **Exploit & PoC Generation** | `claude-3-5-sonnet` | Strict instruction-following and reliable Python exploit scripting. |
-| **High-Volume Recon & Triage** | `deepseek-chat` (V3) or `gpt-4o-mini` | Low latency and high throughput for parsing massive endpoint lists. |
+| **Deep Reasoning & Bug Root Cause** | `deepseek-reasoner` (DeepSeek-R1) | **Paling minim penolakan** untuk analisis logika keamanan dan audit kode. Menampilkan *chain-of-thought* transparan dengan biaya token sangat murah. |
+| **Logic & Algorithmic Security** | `o3-mini` / `o1` | Model penalaran terbaru OpenAI. Sangat teliti dalam melacak alur eksekusi rumit dan logika kriptografi/otentikasi. |
+| **Advanced Code Audit & Exploit Scripting** | `claude-3-7-sonnet` / `claude-3-5-sonnet` | Model coding terbaik di kelasnya untuk menganalisis arsitektur aplikasi dan menulis PoC script yang terstruktur rapi. |
+| **Fast Recon & Large-Scale Triage** | `gemini-2.0-flash` / `deepseek-chat` | Latensi ultra-rendah dan throughput tinggi untuk memfilter ribuan endpoint dan menganalisis dump log secara cepat. |
+| **Pure Code Analysis (No Keyword Ban)** | `qwen-2.5-coder-32b-instruct` | Spesialisasi kode biner/sumber tanpa filter kata kunci agresif dari provider komersial. |
+
+> 💡 **Tips Cek Model Aktif di Router Infistar:**  
+> Untuk melihat daftar ID model terbaru yang aktif di akun Anda secara langsung:
+> ```bash
+> curl -s https://api.infistar.cc/v1/models \
+>   -H "Authorization: Bearer $OPENAI_API_KEY" | grep -o '"id": *"[^"]*"' | cut -d'"' -f4 | sort -u
+> ```
 
 ---
 
