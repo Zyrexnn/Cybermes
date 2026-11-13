@@ -48,18 +48,18 @@ OPENAI_API_KEY="sk-infistar-your-actual-api-key"
 
 ### 3. Recommended Latest Models for Security Workflows
 
-Berikut adalah model-model terbaru yang memiliki kapabilitas penalaran kode tinggi dan tingkat *false refusal* rendah untuk riset keamanan:
+The following frontier and open-weights models provide advanced code reasoning with minimal false refusals during security research and code audits:
 
-| Task / Use Case | Latest Model ID | Karakteristik & Alasan Rekomendasi |
+| Task / Use Case | Latest Model ID | Characteristics & Strengths |
 | :--- | :--- | :--- |
-| **Deep Reasoning & Bug Root Cause** | `deepseek-reasoner` (DeepSeek-R1) | **Paling minim penolakan** untuk analisis logika keamanan dan audit kode. Menampilkan *chain-of-thought* transparan dengan biaya token sangat murah. |
-| **Logic & Algorithmic Security** | `o3-mini` / `o1` | Model penalaran terbaru OpenAI. Sangat teliti dalam melacak alur eksekusi rumit dan logika kriptografi/otentikasi. |
-| **Advanced Code Audit & Exploit Scripting** | `claude-3-7-sonnet` / `claude-3-5-sonnet` | Model coding terbaik di kelasnya untuk menganalisis arsitektur aplikasi dan menulis PoC script yang terstruktur rapi. |
-| **Fast Recon & Large-Scale Triage** | `gemini-2.0-flash` / `deepseek-chat` | Latensi ultra-rendah dan throughput tinggi untuk memfilter ribuan endpoint dan menganalisis dump log secara cepat. |
-| **Pure Code Analysis (No Keyword Ban)** | `qwen-2.5-coder-32b-instruct` | Spesialisasi kode biner/sumber tanpa filter kata kunci agresif dari provider komersial. |
+| **Deep Reasoning & Root Cause Analysis** | `deepseek-reasoner` (DeepSeek-R1) | **Lowest false-refusal rate** for security logic and code auditing. Displays transparent step-by-step chain-of-thought with minimal token cost. |
+| **Complex Logic, Auth & Cryptography** | `o3-mini` / `o1` | OpenAI's frontier reasoning architecture. Excels at tracking complex execution flows and identifying subtle authorization bypasses. |
+| **Advanced Code Audit & Exploit Scripting** | `claude-3-7-sonnet` / `claude-3-5-sonnet` | Benchmark standard for source code understanding, taint tracking, and structured PoC reproduction. |
+| **Fast Recon & Large-Scale Triage** | `gemini-2.0-flash` / `deepseek-chat` (V3) | Ultra-low latency and massive throughput for parsing thousands of crawled endpoints and log dumps. |
+| **Pure Code Analysis (No Cloud Keywords Filter)** | `qwen-2.5-coder-32b-instruct` | Specialized code reasoning without aggressive keyword-based content censorship. |
 
-> 💡 **Tips Cek Model Aktif di Router Infistar:**  
-> Untuk melihat daftar ID model terbaru yang aktif di akun Anda secara langsung:
+> 💡 **Query Active Models on Your Infistar Router:**  
+> Retrieve the live list of enabled model IDs directly from your terminal:
 > ```bash
 > curl -s https://api.infistar.cc/v1/models \
 >   -H "Authorization: Bearer $OPENAI_API_KEY" | grep -o '"id": *"[^"]*"' | cut -d'"' -f4 | sort -u
