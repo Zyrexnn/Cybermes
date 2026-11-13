@@ -161,11 +161,32 @@ function testBinaryExecution(binaryPath) {
   }
 }
 
+function pruneOldBinaries(keepVersion) {
+  const cacheDir = path.join(os.homedir(), '.cybermes', 'bin');
+  if (!fs.existsSync(cacheDir)) return 0;
+
+  let pruned = 0;
+  try {
+    const files = fs.readdirSync(cacheDir);
+    const keepPattern = `-v${keepVersion}-`;
+    for (const f of files) {
+      if (f.startsWith('cybermes-mcp-') && !f.includes(keepPattern)) {
+        try {
+          fs.unlinkSync(path.join(cacheDir, f));
+          pruned++;
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return pruned;
+}
+
 module.exports = {
   VERSION,
   REPO,
   getPlatformInfo,
   findLocalDevBinary,
   getOrDownloadBinary,
-  testBinaryExecution
+  testBinaryExecution,
+  pruneOldBinaries
 };

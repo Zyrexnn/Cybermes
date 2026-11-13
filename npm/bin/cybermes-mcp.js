@@ -15,13 +15,16 @@ const { runTools } = require('../src/commands/tools');
 const { runSkills } = require('../src/commands/skills');
 const { runConfig } = require('../src/commands/config');
 const { runHelp } = require('../src/commands/help');
+const { runUpdate } = require('../src/commands/update');
 const { runServe } = require('../src/commands/serve');
+const { checkUpdate } = require('../src/utils/updater');
+const { padVisible } = require('../src/utils/ui');
 
 function parseTargetClients(args) {
   const targeted = new Set();
   const knownGeneralFlags = new Set([
     'install', 'uninstall', 'remove', 'status', 'doctor', 'help', '-help', '--help', '-h',
-    'tools', 'skills', 'config', '--dry-run', '--force', '--local', '--global', '-g', '--all'
+    'tools', 'skills', 'config', 'update', 'upgrade', '--dry-run', '--force', '--local', '--global', '-g', '--all'
   ]);
 
   for (const arg of args) {
@@ -108,7 +111,14 @@ async function main() {
     return;
   }
 
-  // 8. Uninstall Command: uninstall, remove
+  // 8. Update Command: update, upgrade
+  if (firstArg === 'update' || firstArg === 'upgrade') {
+    const force = args.includes('--force');
+    await runUpdate({ dryRun, force });
+    return;
+  }
+
+  // 9. Uninstall Command: uninstall, remove
   if (firstArg === 'uninstall' || firstArg === '--uninstall' || firstArg === 'remove') {
     const all = args.includes('--all');
     await runUninstaller({
@@ -119,7 +129,7 @@ async function main() {
     return;
   }
 
-  // 9. Quick target flag directly (e.g. npx cybermes-mcp --kilo)
+  // 10. Quick target flag directly (e.g. npx cybermes-mcp --kilo)
   if (targetClients && (firstArg.startsWith('--') || firstArg.startsWith('-'))) {
     const force = args.includes('--force');
     await runInstaller({
@@ -133,7 +143,23 @@ async function main() {
     return;
   }
 
-  // 10. Default: Execute native MCP Server over stdio
+  // Background update check on interactive CLI commands only (never in stdio serve mode)
+  const interactiveCmds = new Set(['doctor', 'status', 'tools', 'skills', 'config', 'help', '-help', '--help', '-h']);
+  if (interactiveCmds.has(firstArg) && process.stderr.isTTY) {
+    checkUpdate().then((info) => {
+      if (info && info.updateAvailable) {
+        const boxWidth = 56;
+        const line1 = `  \x1b[1mUpdate available:\x1b[0m v${info.currentVersion} → \x1b[32mv${info.latestVersion}\x1b[0m`;
+        const line2 = `  Run: \x1b[36mcybermes-mcp update\x1b[0m or \x1b[36mnpm i -g cybermes-mcp\x1b[0m`;
+        process.stderr.write(`\n  \x1b[33m╭${'─'.repeat(boxWidth)}╮\x1b[0m\n`);
+        process.stderr.write(`  \x1b[33m│\x1b[0m${padVisible(line1, boxWidth)}\x1b[33m│\x1b[0m\n`);
+        process.stderr.write(`  \x1b[33m│\x1b[0m${padVisible(line2, boxWidth)}\x1b[33m│\x1b[0m\n`);
+        process.stderr.write(`  \x1b[33m╰${'─'.repeat(boxWidth)}╯\x1b[0m\n\n`);
+      }
+    }).catch(() => {});
+  }
+
+  // 11. Default: Execute native MCP Server over stdio
   await runServe(args);
 }
 

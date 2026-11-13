@@ -23,6 +23,7 @@ function printGeneralHelp() {
     ${ANSI.green}tools${ANSI.reset}                Display complete catalog of active MCP tools, permissions & SOPs
     ${ANSI.green}skills [query]${ANSI.reset}       Search & inspect 200+ offline security playbooks & SOPs
     ${ANSI.green}config [action]${ANSI.reset}      Manage global settings in ~/.cybermes/config.json (get/set/list)
+    ${ANSI.green}update, upgrade${ANSI.reset}      Upgrade global npm package, binary engine & prune cache
     ${ANSI.green}uninstall${ANSI.reset}            Cleanly remove Cybermes MCP configuration from AI IDEs
     ${ANSI.green}help, -help, --help${ANSI.reset}  Display this documentation or contextual help for a command
 
@@ -119,6 +120,24 @@ function printConfigHelp() {
 `);
 }
 
+function printUpdateHelp() {
+  printHeader('CYBERMES MCP — UPDATE COMMAND HELP', 'Upgrade package, native binary engine & prune cache');
+  console.log(`  ${ANSI.bold}USAGE:${ANSI.reset}
+    ${ANSI.cyan}cybermes-mcp update${ANSI.reset} [options]
+    ${ANSI.cyan}cybermes-mcp upgrade${ANSI.reset} [options]
+
+  ${ANSI.bold}OPTIONS:${ANSI.reset}
+    ${ANSI.yellow}--force${ANSI.reset}      Force re-download of binaries even if already up to date
+    ${ANSI.yellow}--dry-run${ANSI.reset}    Check for updates without modifying files or installing packages
+
+  ${ANSI.bold}WHAT IT DOES:${ANSI.reset}
+    1. Checks official NPM registry for the newest release of cybermes-mcp.
+    2. Runs 'npm install -g cybermes-mcp@latest' if installed globally.
+    3. Pre-caches and validates native Go binary engine for target platform.
+    4. Automatically purges older binary versions from ~/.cybermes/bin/.
+`);
+}
+
 function runHelp(args = []) {
   const sub = (args[0] || '').toLowerCase().replace(/^--?/, '');
   if (sub === 'install') {
@@ -127,6 +146,8 @@ function runHelp(args = []) {
     printDoctorHelp();
   } else if (sub === 'config') {
     printConfigHelp();
+  } else if (sub === 'update' || sub === 'upgrade') {
+    printUpdateHelp();
   } else {
     printGeneralHelp();
   }
