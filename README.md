@@ -16,6 +16,7 @@
 [![MCP Server](https://img.shields.io/badge/MCP-Supported-purple.svg)](docs/MCP_SETUP.md)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Docker-brightgreen.svg)](#installation--setup)
+[![Sponsored by Infistar](https://img.shields.io/badge/Sponsor-Infistar.cc-00D26A.svg?logo=sparkles&logoColor=white)](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)
 
 <img src="assets/bannerterbaru.jpeg" alt="Cybermes Architecture & Operational Pipeline" width="100%" style="border-radius: 8px; margin: 18px 0;">
 
@@ -25,9 +26,28 @@
   It combines native Go performance utilities, 200+ modular offensive security playbooks, token-optimized streaming pipelines, and full Model Context Protocol (MCP) support for AI coding environments.
 </p>
 
-[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/)
+[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/) • [Sponsors](#-official-ai-infrastructure-partner)
 
 </div>
+
+---
+
+## 💖 Official AI Infrastructure Partner
+
+<div align="center">
+  <a href="https://www.infistar.cc/register?aff=C92NALGX&ref_source=link" target="_blank" rel="noopener noreferrer">
+    <img src="assets/sponsors/infistar_banner.png" alt="Cybermes x Infistar.cc Sponsorship Banner" width="100%" style="border-radius: 8px; margin: 12px 0;">
+  </a>
+</div>
+
+Cybermes autonomous agents and security workflows are powered by **[Infistar.cc](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** — a high-availability multi-model AI gateway:
+
+- **200+ Frontier Models with 1 API Key**: Route directly to Claude 3.5 Sonnet, GPT-4o, DeepSeek-R1/V3, Gemini 2.0, and Grok via a single OpenAI-compatible endpoint.
+- **Cost Reduction**: Up to 80% cheaper (starting from 0.1x official pricing) with 100% genuine, verifiable model routing.
+- **High Availability**: 1,000+ redundant routes with automated zero-downtime failover to prevent scan disruptions during long-running tasks.
+- 🎁 **Cybermes Community Benefit**: Sign up through our partner link and receive **¥5 free API credit** immediately.
+
+👉 **[Claim ¥5 Free Credit & Get Your Infistar API Key](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)**
 
 ---
 
