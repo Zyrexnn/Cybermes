@@ -208,23 +208,45 @@ function injectClientConfig(client, filePath, isDryRun) {
 
     const cmdStr = JSON.stringify(client.definition.command);
     const argsStr = JSON.stringify(client.definition.args);
-    let block = '';
+    const cybermesBlock = `  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}`;
+
+    let newContent = '';
     if (existingContent.includes('mcp_servers:')) {
-      block = `\n  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}\n`;
+      const lines = existingContent.split(/\r?\n/);
+      let inserted = false;
+      const updatedLines = [];
+      for (const line of lines) {
+        updatedLines.push(line);
+        if (!inserted && /^mcp_servers:\s*$/.test(line)) {
+          updatedLines.push(cybermesBlock);
+          inserted = true;
+        }
+      }
+      if (!inserted) {
+        for (let i = 0; i < updatedLines.length; i++) {
+          if (updatedLines[i].includes('mcp_servers:')) {
+            updatedLines.splice(i + 1, 0, cybermesBlock);
+            inserted = true;
+            break;
+          }
+        }
+      }
+      newContent = updatedLines.join('\n');
     } else {
-      block = `\nmcp_servers:\n  cybermes:\n    command: ${cmdStr}\n    args: ${argsStr}\n`;
+      const prefix = existingContent ? (existingContent.endsWith('\n') ? '\n' : '\n\n') : '';
+      newContent = existingContent + prefix + `mcp_servers:\n${cybermesBlock}\n`;
     }
 
     if (!isDryRun) {
       const bak = createBackup(filePath);
       const dir = path.dirname(filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.appendFileSync(filePath, block, 'utf8');
+      fs.writeFileSync(filePath, newContent, 'utf8');
       result.status = 'injected';
-      result.details = bak ? `Appended (backup: ${path.basename(bak)})` : 'Created config with mcp_servers.cybermes';
+      result.details = bak ? `Updated (backup: ${path.basename(bak)})` : 'Created config with mcp_servers.cybermes';
     } else {
       result.status = 'dry-run';
-      result.details = 'Would append YAML block';
+      result.details = 'Would inject cybermes into YAML';
     }
     return result;
   }

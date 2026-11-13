@@ -25,7 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-VERSION = "3.3.0"
+VERSION = "3.5.0"
 CYBERMES_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -240,6 +240,16 @@ def get_client_definitions(use_local=False, local_bin=None):
             "definition": default_def,
         },
         {
+            "id": "hermes",
+            "name": "Hermes Agent",
+            "paths": [
+                home / ".hermes" / "config.yaml",
+                CYBERMES_ROOT / ".hermes" / "config.yaml",
+            ],
+            "type": "yaml-hermes",
+            "definition": default_def,
+        },
+        {
             "id": "codex",
             "name": "Codex CLI",
             "paths": [
@@ -346,6 +356,43 @@ def inject_config(client: dict, file_path: Path, dry_run: bool):
             return {"status": "injected", "details": f"Updated (backup: {Path(bak).name})" if bak else "Created config"}
         return {"status": "dry-run", "details": "Would inject context_servers.cybermes"}
 
+    if ctype == "yaml-hermes":
+        content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
+        if "cybermes:" in content and "cybermes-mcp" in content:
+            return {"status": "unchanged", "details": "Already up-to-date in YAML"}
+
+        cmd_str = json.dumps(cdef["command"])
+        args_str = json.dumps(cdef["args"])
+        entry_lines = ["  cybermes:\n", f"    command: {cmd_str}\n", f"    args: {args_str}\n"]
+
+        if "mcp_servers:" in content:
+            lines = content.splitlines(keepends=True)
+            new_lines = []
+            inserted = False
+            for line in lines:
+                new_lines.append(line)
+                if not inserted and re.match(r"^mcp_servers:\s*$", line):
+                    new_lines.extend(entry_lines)
+                    inserted = True
+            if not inserted:
+                new_lines = []
+                for line in lines:
+                    new_lines.append(line)
+                    if not inserted and "mcp_servers:" in line:
+                        new_lines.extend(entry_lines)
+                        inserted = True
+            new_content = "".join(new_lines)
+        else:
+            block = f"\nmcp_servers:\n  cybermes:\n    command: {cmd_str}\n    args: {args_str}\n"
+            new_content = (content + block) if content else block.lstrip()
+
+        if not dry_run:
+            bak = create_backup(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(new_content, encoding="utf-8")
+            return {"status": "injected", "details": f"Updated (backup: {Path(bak).name})" if bak else "Created config"}
+        return {"status": "dry-run", "details": "Would inject cybermes into YAML"}
+
     if ctype == "toml-codex":
         content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
         if "[mcp_servers.cybermes]" in content:
@@ -401,6 +448,28 @@ def remove_config(client: dict, file_path: Path, dry_run: bool):
             return {"status": "removed", "details": f"Cleaned (backup: {Path(bak).name})" if bak else "Removed"}
         return {"status": "dry-run", "details": "Would remove mcp.cybermes"}
 
+    if ctype == "yaml-hermes":
+        content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
+        if "cybermes:" not in content:
+            return {"status": "unchanged", "details": "Cybermes not present"}
+        cleaned = re.sub(r"\n\s*cybermes:\s*\n\s*command:.*?\n\s*args:.*?(?=\n\S|\n\s*[a-zA-Z0-9_-]+:|$)", "", content, flags=re.DOTALL)
+        if not dry_run:
+            bak = create_backup(file_path)
+            file_path.write_text(cleaned.strip() + "\n", encoding="utf-8")
+            return {"status": "removed", "details": f"Cleaned (backup: {Path(bak).name})" if bak else "Removed"}
+        return {"status": "dry-run", "details": "Would remove cybermes block from YAML"}
+
+    if ctype == "toml-codex":
+        content = file_path.read_text(encoding="utf-8") if file_path.is_file() else ""
+        if "[mcp_servers.cybermes]" not in content:
+            return {"status": "unchanged", "details": "Cybermes not present"}
+        cleaned = re.sub(r"\n*\[mcp_servers\.cybermes\][\s\S]*?(?=\n\[|$)", "", content)
+        if not dry_run:
+            bak = create_backup(file_path)
+            file_path.write_text(cleaned.strip() + "\n", encoding="utf-8")
+            return {"status": "removed", "details": f"Cleaned (backup: {Path(bak).name})" if bak else "Removed"}
+        return {"status": "dry-run", "details": "Would remove [mcp_servers.cybermes] from TOML"}
+
     return {"status": "skipped", "details": "Manual cleanup recommended for YAML/TOML"}
 
 
@@ -419,7 +488,7 @@ def check_status(client: dict, file_path: Path):
         has_cb = bool(data and ((data.get("mcp") and "cybermes" in data["mcp"]) or (data.get("mcp_servers") and "cybermes" in data["mcp_servers"])))
         return {"installed": True, "configured": has_cb, "details": "Configured" if has_cb else "Detected (Missing Cybermes)"}
 
-    if ctype == "toml-codex":
+    if ctype in ("yaml-hermes", "toml-codex"):
         content = file_path.read_text(encoding="utf-8")
         has_cb = "cybermes" in content
         return {"installed": True, "configured": has_cb, "details": "Configured" if has_cb else "Detected (Missing Cybermes)"}
@@ -467,7 +536,7 @@ def main():
     if args.cline:
         direct_targets.append("cline")
     if args.roo:
-        direct_targets.append("roo-cline")
+        direct_targets.append("roo-code")
     if args.continue_dev:
         direct_targets.append("continue")
     if args.zed:
