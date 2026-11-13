@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+if [ -x "$SCRIPT_DIR/venv/bin/sqlmap" ]; then
+  exec "$SCRIPT_DIR/venv/bin/sqlmap" "$@"
+fi
+
+for candidate in "/usr/bin/sqlmap" "/usr/local/bin/sqlmap" "/opt/homebrew/bin/sqlmap"; do
+  if [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+target=$(which -a sqlmap 2>/dev/null | grep -v "tools/bin/sqlmap" | head -n 1)
+if [ -n "$target" ] && [ -x "$target" ]; then
+  exec "$target" "$@"
+fi
+
+echo "[-] Error: functional sqlmap installation not found." >&2
+echo "[-] Run 'pip install sqlmap' or install via system package manager." >&2
+exit 127

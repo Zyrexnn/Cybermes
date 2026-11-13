@@ -12,11 +12,11 @@ import (
 func TestHelpers_SanitizeAndResolveSlug(t *testing.T) {
 	s := &Server{}
 
-	if got := sanitizeSlug("Example.com/API-v1! test"); got != "example_com_api-v1_test" {
+	if got := sanitizeSlug("Example.com/API-v1! test"); got != "example_com" {
 		t.Errorf("sanitizeSlug failed, got: %s", got)
 	}
 
-	if got := s.resolveSlug("", "https://api.target.com"); got != "https_api_target_com" {
+	if got := s.resolveSlug("", "https://api.target.com"); got != "api_target_com" {
 		t.Errorf("resolveSlug with default failed, got: %s", got)
 	}
 

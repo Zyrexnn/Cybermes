@@ -364,3 +364,25 @@ func TestScaffoldIncludesEduOutOfScope(t *testing.T) {
 	}
 }
 
+func TestSanitizeSlug(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"https://example.com", "example_com"},
+		{"http://127.0.0.1:8888/v1/api", "127_0_0_1_8888"},
+		{"api.example.com", "api_example_com"},
+		{"https://example.com/", "example_com"},
+		{"https://example.com?query=1#hash", "example_com"},
+		{"  HTTP://EXAMPLE.COM/path  ", "example_com"},
+		{"my-target-slug_01", "my-target-slug_01"},
+	}
+
+	for _, tt := range tests {
+		got := SanitizeSlug(tt.input)
+		if got != tt.expected {
+			t.Errorf("SanitizeSlug(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+

@@ -11,7 +11,7 @@ const https = require('https');
 const { spawnSync } = require('child_process');
 const { ANSI } = require('./ui');
 
-const VERSION = require('../../package.json').version || '3.3.0';
+const VERSION = require('../../package.json').version || '3.5.0';
 const REPO = 'Zyrexnn/Cybermes';
 
 function getPlatformInfo() {

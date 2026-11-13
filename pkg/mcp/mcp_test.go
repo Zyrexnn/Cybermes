@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -455,6 +456,9 @@ func TestToolValidateScope(t *testing.T) {
 	if !strings.Contains(text.Text, "Scope Guard") {
 		t.Errorf("Expected Scope Guard output, got: %s", text.Text)
 	}
+	if !strings.Contains(text.Text, "- **Recommended Target Slug**: `api_example_com`") {
+		t.Errorf("Expected Recommended Target Slug in output, got: %s", text.Text)
+	}
 }
 
 func TestValidateScopeAutoCreateScaffold(t *testing.T) {
@@ -812,6 +816,47 @@ func TestToolCheckEnvironment(t *testing.T) {
 	}
 	if !strings.Contains(text.Text, "nuclei") {
 		t.Errorf("Expected nuclei tool in status matrix, got: %s", text.Text)
+	}
+
+	// Verify broken sqlmap candidate is marked uninstalled.
+	tempToolsDir := t.TempDir()
+	binDir := filepath.Join(tempToolsDir, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatalf("failed to create temp bin dir: %v", err)
+	}
+	fakeSqlmap := filepath.Join(binDir, "sqlmap")
+	if err := os.WriteFile(fakeSqlmap, []byte("#!/bin/sh\nexit 127\n"), 0755); err != nil {
+		t.Fatalf("failed to write fake sqlmap: %v", err)
+	}
+
+	srvMock := *srv
+	srvMock.cfg.ToolsDir = tempToolsDir
+	t.Setenv("PATH", tempToolsDir)
+
+	jsonReq := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "cybermes_check_environment",
+			Arguments: map[string]any{
+				"format": "json",
+			},
+		},
+	}
+	jsonRes, err := srvMock.handleCheckEnvironment(ctx, jsonReq)
+	if err != nil {
+		t.Fatalf("handleCheckEnvironment json error: %v", err)
+	}
+	jsonText, ok := mcp.AsTextContent(jsonRes.Content[0])
+	if !ok {
+		t.Fatal("Expected TextContent in json result")
+	}
+	var report EnvironmentReport
+	if err := json.Unmarshal([]byte(jsonText.Text), &report); err != nil {
+		t.Fatalf("failed to unmarshal diagnostic report: %v", err)
+	}
+	for _, tool := range report.Tools {
+		if tool.Name == "sqlmap" && tool.Installed {
+			t.Errorf("expected sqlmap to be marked uninstalled when --version fails, got installed with path: %s", tool.Path)
+		}
 	}
 }
 
@@ -1345,6 +1390,62 @@ func TestRecordFindingDedupAndEnrichment(t *testing.T) {
 		if !resBad.IsError {
 			t.Errorf("expected validation error for %v", bad)
 		}
+	}
+}
+
+func TestRecordFindingValidation(t *testing.T) {
+	tmp := t.TempDir()
+	srv, err := NewServer(Config{RootDir: tmp})
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	ctx := context.Background()
+	slug := "validation_target"
+
+	// Informational severity is rejected and directs to cybermes_record_evidence.
+	for _, infoSev := range []string{"informational", "info", "INFORMATIONAL", "Info"} {
+		res, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, map[string]any{
+			"severity": infoSev,
+		}))
+		if err != nil {
+			t.Fatalf("handleRecordFinding error: %v", err)
+		}
+		if !res.IsError {
+			t.Errorf("expected error for severity %q, got success", infoSev)
+		}
+		errMsg := toolResultText(t, res)
+		if !strings.Contains(errMsg, "cybermes_record_evidence") || !strings.Contains(errMsg, "evidence/recon_notes.md") {
+			t.Errorf("expected informational error directing to cybermes_record_evidence, got: %s", errMsg)
+		}
+	}
+
+	// Invalid filenames containing brackets are rejected.
+	for _, badFilename := range []string{"[CRITICAL]_auth_bypass.md", "high_[idor]_user.md", "vuln[1].md"} {
+		res, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, map[string]any{
+			"filename": badFilename,
+		}))
+		if err != nil {
+			t.Fatalf("handleRecordFinding error: %v", err)
+		}
+		if !res.IsError {
+			t.Errorf("expected error for invalid filename %q, got success", badFilename)
+		}
+		errMsg := toolResultText(t, res)
+		if !strings.Contains(errMsg, "brackets") {
+			t.Errorf("expected bracket error for %q, got: %s", badFilename, errMsg)
+		}
+	}
+
+	// Valid finding records successfully.
+	resValid, err := srv.handleRecordFinding(ctx, recordFindingReq(slug, map[string]any{
+		"filename": "critical_auth_bypass.md",
+		"severity": "critical",
+	}))
+	if err != nil {
+		t.Fatalf("handleRecordFinding error: %v", err)
+	}
+	if resValid.IsError {
+		t.Errorf("expected valid finding to succeed, got error: %s", toolResultText(t, resValid))
 	}
 }
 

@@ -53,6 +53,7 @@ htmlcov/
 tools/bin/*
 !tools/bin/.gitkeep
 !tools/bin/nmap
+!tools/bin/sqlmap
 bin/*.exe
 *.exe
 *.dll

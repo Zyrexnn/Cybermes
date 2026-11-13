@@ -14,9 +14,15 @@ import (
 
 var slugRegex = regexp.MustCompile(`[^a-z0-9_-]+`)
 
-// SanitizeSlug normalizes and confines a slug to safe alphanumeric, underscore, and dash characters.
+// SanitizeSlug normalizes and confines a slug to safe alphanumeric, underscore, and dash characters,
+// stripping URL schemes and path or query segments.
 func SanitizeSlug(input string) string {
-	lower := strings.ToLower(input)
+	lower := strings.ToLower(strings.TrimSpace(input))
+	lower = strings.TrimPrefix(lower, "https://")
+	lower = strings.TrimPrefix(lower, "http://")
+	if idx := strings.IndexAny(lower, "/?#"); idx != -1 {
+		lower = lower[:idx]
+	}
 	clean := slugRegex.ReplaceAllString(lower, "_")
 	return strings.Trim(clean, "_")
 }

@@ -93,6 +93,30 @@ const TOOLS_CATALOG = [
     description: 'Lists confirmed findings and severity breakdown per target slug',
     safety: 'read-only',
   },
+  {
+    name: 'cybermes_nmap_scan',
+    category: 'Active Auditing',
+    description: 'Port scanning and service banner fingerprinting with native Go fallback',
+    safety: 'active-probe',
+  },
+  {
+    name: 'cybermes_nuclei_scan',
+    category: 'Active Auditing',
+    description: 'Targeted vulnerability template and CVE scanner with on-demand detection',
+    safety: 'active-probe',
+  },
+  {
+    name: 'cybermes_check_environment',
+    category: 'System & Diagnostics',
+    description: 'Inspects local toolchain readiness and optional dependencies',
+    safety: 'read-only',
+  },
+  {
+    name: 'cybermes_record_evidence',
+    category: 'Reporting & Deliverables',
+    description: 'Logs informational observations and negative tests to recon_notes.md',
+    safety: 'write',
+  },
 ];
 
 async function runTools() {
