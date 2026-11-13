@@ -43,9 +43,9 @@ const RAW_BANNER = [
   '  ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝'
 ];
 
-let PKG_VERSION = '3.5.0';
+let PKG_VERSION = '3.5.1';
 try {
-  PKG_VERSION = require('../../package.json').version || '3.5.0';
+  PKG_VERSION = require('../../package.json').version || '3.5.1';
 } catch (_) {}
 
 function printBanner(subtitle = '') {
