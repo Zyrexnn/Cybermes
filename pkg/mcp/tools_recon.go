@@ -203,6 +203,7 @@ func (s *Server) handleValidateScope(ctx context.Context, request mcp.CallToolRe
 	}
 
 	sb.WriteString(fmt.Sprintf("- **Target**: `%s`\n", result.Target))
+	sb.WriteString(fmt.Sprintf("- **Recommended Target Slug**: `%s`\n", targetSlug))
 	sb.WriteString(fmt.Sprintf("- **Status**: %s\n", statusBadge))
 	if foundPath != "" {
 		sb.WriteString(fmt.Sprintf("- **Scope File**: `%s`\n", foundPath))
