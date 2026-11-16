@@ -26,7 +26,7 @@
   It combines native Go performance utilities, 200+ modular offensive security playbooks, token-optimized streaming pipelines, and full Model Context Protocol (MCP) support for AI coding environments.
 </p>
 
-[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/) • [Sponsors](#-official-ai-infrastructure-partner)
+[Installation](#installation--setup) • [Architecture](#architecture--operational-pipeline) • [Why Cybermes?](#why-cybermes) • [Features](#core-features) • [Workspace Structure](#target-workspace--deliverables) • [Toolchain](#toolchain) • [Documentation](docs/) • [Sponsors & Donate](#-support-sponsorship--donations)
 
 </div>
 
@@ -51,6 +51,21 @@
 - 🎁 **Cybermes users**: sign up through the exclusive link and get **CNY 5 free** (Referral Code: `C92NALGX`)
 
 👉 **[Sign up & Claim CNY 5 Free API Credit](https://www.infistar.cc/register?aff=C92NALGX&ref_source=link)** *(Referral Code: `C92NALGX`)*
+
+---
+
+## 💖 Support, Sponsorship & Donations
+
+If you find Cybermes useful for your research, bug bounty hunting, or security assessments, consider supporting the continuous development of this project:
+
+- 🤝 **Sponsorship & Inquiries**: For sponsor packages, partnerships, or business inquiries, contact **[ikhsannovriansyah34@gmail.com](mailto:ikhsannovriansyah34@gmail.com)**.
+- 🪙 **Donate via USDT (TRC20)**:
+  - **Network**: `TRC20 (TRON)`
+  - **Address**: `TBZ6G2xierYzt4YqZQSMpF1ynXczjeSipH`
+
+```text
+TBZ6G2xierYzt4YqZQSMpF1ynXczjeSipH
+```
 
 ---
 
